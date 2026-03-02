@@ -4,3 +4,6 @@
 [submodule "Open-EDA-Flow"]
 	path = Open-EDA-Flow
 	url = https://github.com/cbrynds/Open-EDA-Flow.git
+[submodule "OpenABC"]
+	path = OpenABC
+	url = https://github.com/NYU-MLDA/OpenABC.git
