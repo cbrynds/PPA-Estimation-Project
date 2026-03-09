@@ -1,0 +1,205 @@
+project_root: .
+synthesis_root: synthesis
+
+apptainer_image: Open-EDA-Flow/eda-flow.sif
+
+# full: includes routing + extraction (slower, closer to routed metrics)
+# fast: stops post-placement, faster but less accurate
+flow_mode: fast
+die_area: "0 0 800 800"
+core_area: "10 10 790 790"
+
+default_clock_port: clk
+default_clock_period_ns: 5.0
+
+ast:
+  proc: true
+  flatten: true
+  dump_ast: true
+
+output:
+  csv_path: synthesis/results/ground_truth_qor_dataset.csv
+  runs_dir: synthesis/runs
+  ast_dir: synthesis/results/ast
+  ast_log_dir: synthesis/results/ast_logs
+
+recipes:
+  - id: abc_fast
+    abc_fast: true
+    abc_extra: ""
+
+designs:
+  - name: ac97_ctrl
+    id: iwls05_0001
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/ac97_ctrl
+    top: ac97_top
+    clock_port: clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: aes_core
+    id: iwls05_0002
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/aes_core
+    top: aes_cipher_top
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  # - name: des
+  #   id: iwls05_0003
+  #   rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/des
+  #   top: des
+  #   recursive: true
+  #   extensions: [".v"]
+
+  # - name: ethernet
+  #   id: iwls05_0004
+  #   rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/ethernet
+  #   top: eth_top
+  #   recursive: true
+  #   extensions: [".v"]
+
+  - name: fpu
+    id: iwls05_0005
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/fpu
+    top: fpu
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: i2c
+    id: iwls05_0006
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/i2c
+    top: i2c_master_top
+    clock_port: wb_clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: mem_ctrl
+    id: iwls05_0007
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/mem_ctrl
+    top: mc_top
+    clock_port: clk_i
+    recursive: true
+    extensions: [".v"]
+
+  # - name: pci
+  #   id: iwls05_0008
+  #   rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/pci
+  #   top: pci
+  #   recursive: true
+  #   extensions: [".v"]
+
+  - name: sasc
+    id: iwls05_0009
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/sasc
+    top: sasc_top
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: simple_spi
+    id: iwls05_0010
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/simple_spi
+    top: simple_spi_top
+    clock_port: clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: spi
+    id: iwls05_0011
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/spi
+    top: spi_top
+    clock_port: wb_clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: ss_pcm
+    id: iwls05_0012
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/ss_pcm
+    top: pcm_slv_top
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  # - name: steppermotordrive
+  #   id: iwls05_0013
+  #   rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/steppermotordrive
+  #   top: steppermotordrive
+  #   recursive: true
+  #   extensions: [".v"]
+
+  - name: systemcaes
+    id: iwls05_0014
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/systemcaes
+    top: aes
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: systemcdes
+    id: iwls05_0015
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/systemcdes
+    top: des
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: tv80
+    id: iwls05_0016
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/tv80
+    top: tv80s
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: usb_funct
+    id: iwls05_0017
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/usb_funct
+    top: usbf_top
+    clock_port: clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: usb_phy
+    id: iwls05_0018
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/usb_phy
+    top: usb_phy
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  # - name: vga_lcd
+  #   id: iwls05_0019
+  #   rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/vga_lcd
+  #   top: vga_lcd
+  #   recursive: true
+  #   extensions: [".v"]
+
+  - name: wb_conmax
+    id: iwls05_0020
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/wb_conmax
+    top: wb_conmax_top
+    clock_port: clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: wb_dma
+    id: iwls05_0021
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/wb_dma
+    top: wb_dma_top
+    clock_port: clk_i
+    recursive: false
+    extensions: [".v"]
+
+  # Example with explicit file list:
+  # - name: aes_core
+  #   id: aes_0001
+  #   rtl_dir: hdl/aes
+  #   top: aes_top
+  #   files:
+  #     - hdl/aes/aes_top.v
+  #     - hdl/aes/subbytes.v
+  #     - hdl/aes/mixcolumns.v
+  #   include_dirs:
+  #     - hdl/aes/include

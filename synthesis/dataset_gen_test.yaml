@@ -1,0 +1,36 @@
+project_root: .
+synthesis_root: synthesis
+
+apptainer_image: Open-EDA-Flow/eda-flow.sif
+
+flow_mode: fast
+die_area: "0 0 800 800"
+core_area: "10 10 790 790"
+
+default_clock_port: clk
+default_clock_period_ns: 3.0
+
+ast:
+  proc: true
+  flatten: true
+  dump_ast: true
+
+output:
+  csv_path: synthesis/results/ground_truth_qor_dataset.csv
+  runs_dir: synthesis/runs
+  ast_dir: synthesis/results/ast
+  ast_log_dir: synthesis/results/ast_logs
+
+recipes:
+  - id: abc_fast
+    abc_fast: true
+    abc_extra: ""
+
+designs:
+  - name: ac97_ctrl
+    id: iwls05_0001
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/ac97_ctrl
+    top: ac97_top
+    clock_port: clk_i
+    recursive: true
+    extensions: [".v"]
