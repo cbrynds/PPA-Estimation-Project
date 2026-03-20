@@ -6,7 +6,7 @@
 #include <map>
 #include <chrono>
 
-class simpler_ast_parser {
+class vector_ast_parser {
 
 public:
 	using cell_name = std::string;
@@ -33,8 +33,6 @@ public:
 			auto pos = line.find("type");
 			if (pos == string::npos || pos + 1 >= line.length()) continue;
 			auto cell_type = line.substr(pos + 7);
-			if (cell_type[cell_type.length() - 1] == ',')
-				cell_type.pop_back();
 			auto count = a[cell_type];
 			a[cell_type] = count + 7;
 		}
@@ -42,7 +40,7 @@ public:
 		// this removes the $ and the "
 		for (const auto& [name, count] : a) {
 			string n;
-			for (auto c : name) if (c != '"' && c != '$') n += c;
+			for (auto c : name) if (c != '"' && c != '$' && c != ',') n += c;
 			cell_map[n] = count;
 		}
 
