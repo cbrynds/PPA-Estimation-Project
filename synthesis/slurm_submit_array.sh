@@ -36,6 +36,12 @@ sbatch_args=(
 if [[ -n "${SLURM_PARTITION:-}" ]]; then
   sbatch_args+=(--partition "${SLURM_PARTITION}")
 fi
+if [[ -n "${SLURM_EXCLUDE:-}" ]]; then
+  sbatch_args+=(--exclude "${SLURM_EXCLUDE}")
+fi
+if [[ -n "${SLURM_NODELIST:-}" ]]; then
+  sbatch_args+=(--nodelist "${SLURM_NODELIST}")
+fi
 if [[ -n "${SLURM_TIME:-}" ]]; then
   sbatch_args+=(--time "${SLURM_TIME}")
 fi

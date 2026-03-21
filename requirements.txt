@@ -1,3 +1,9 @@
 numpy
-torch
 pyyaml
+pandas
+pickleshare
+torch-geometric
+tqdm
+seaborn
+networkx
+joblib
