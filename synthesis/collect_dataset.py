@@ -1,28 +1,56 @@
 """
 YAML-driven RTL AST + synthesis + OpenROAD pipeline.
 
-For each design:
-  1) Collect Verilog/SystemVerilog sources from the YAML config.
-  2) Run Yosys to emit a flattened JSON design representation.
-  3) For each synthesis recipe, run Yosys to generate a gate-level netlist.
-  4) Run OpenROAD and collect physical metrics into an aggregate CSV.
+Modes:
+  - Legacy serial run: emit one aggregate CSV for all design/recipe pairs.
+  - build-manifest: expand the config into one JSONL row per design/recipe pair.
+  - run-manifest-entry: execute exactly one manifest row and write one result shard.
+  - merge-results: merge per-run result shards into a final aggregate CSV.
 """
 
 import argparse
 import csv
+import json
 import os
 import shlex
 import subprocess
+import sys
 import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
-
 DEFAULT_EXTENSIONS = [".v", ".sv"]
 DEFAULT_RECIPES = [{"id": "abc_fast", "abc_fast": True, "abc_extra": ""}]
+DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
+SUBCOMMANDS = {"build-manifest", "run-manifest-entry", "merge-results", "run-serial"}
+
+CSV_FIELDNAMES = [
+    "run_utc",
+    "run_id",
+    "design_name",
+    "design_id",
+    "recipe_id",
+    "flow_mode",
+    "top_module",
+    "clock_port",
+    "clock_period_ns_cfg",
+    "num_rtl_files",
+    "ast_json_path",
+    "ast_log_path",
+    "netlist_path",
+    "sdc_path",
+    "run_dir",
+    "area_um2",
+    "worst_slack_ns",
+    "total_negative_slack_ns",
+    "clock_period_ns_sta",
+    "utilization_pct",
+    "tool_runtime_s",
+    "status",
+    "error_stage",
+    "error_message",
+]
 
 
 def resolve(base, path_value):
@@ -33,6 +61,8 @@ def resolve(base, path_value):
 
 
 def load_yaml(path):
+    import yaml
+
     with open(path, "r") as f:
         return yaml.safe_load(f)
 
@@ -159,13 +189,11 @@ def read_last_ppa_row(ppa_csv):
     return rows[-1]
 
 
-def write_csv_rows(csv_path, fieldnames, rows):
-    write_header = not csv_path.exists()
+def write_csv_file(csv_path, fieldnames, rows):
     csv_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(csv_path, "a", newline="") as f:
+    with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        if write_header:
-            writer.writeheader()
+        writer.writeheader()
         writer.writerows(rows)
 
 
@@ -186,14 +214,8 @@ def load_designs(cfg, project_root):
     return designs
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Run unified AST generation + synthesis/OpenROAD dataset flow from YAML"
-    )
-    parser.add_argument("config", help="YAML config file")
-    args = parser.parse_args()
-
-    cfg_path = Path(args.config).resolve()
+def build_context(config_arg):
+    cfg_path = Path(config_arg).resolve()
     cfg = load_yaml(cfg_path)
 
     project_root = resolve(Path.cwd(), cfg.get("project_root", "."))
@@ -217,14 +239,15 @@ def main():
         output_cfg.get("csv_path", "synthesis/results/ground_truth_qor_dataset.csv"),
     )
     runs_dir = resolve(project_root, output_cfg.get("runs_dir", "synthesis/runs"))
-    ast_dir = resolve(project_root, output_cfg.get("ast_dir", "synthesis/data/ast"))
-    ast_log_dir = resolve(project_root, output_cfg.get("ast_log_dir", "synthesis/data/ast_logs"))
-
-    ensure_dir(runs_dir)
-    ensure_dir(ast_dir)
-    ensure_dir(ast_log_dir)
-    ensure_dir(synthesis_root / "data" / "rtl")
-    ensure_dir(synthesis_root / "data" / "constraints")
+    ast_dir = resolve(project_root, output_cfg.get("ast_dir", "synthesis/results/ast"))
+    ast_log_dir = resolve(
+        project_root,
+        output_cfg.get("ast_log_dir", "synthesis/results/ast_logs"),
+    )
+    result_shards_dir = resolve(
+        project_root,
+        output_cfg.get("result_shards_dir", DEFAULT_RESULTS_SHARDS_DIR),
+    )
 
     recipes = cfg.get("recipes", DEFAULT_RECIPES)
     designs = load_designs(cfg, project_root)
@@ -233,55 +256,199 @@ def main():
     if not designs:
         raise ValueError("No designs specified.")
 
-    now_utc = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    fieldnames = [
-        "run_utc",
-        "design_name",
-        "design_id",
-        "recipe_id",
-        "flow_mode",
-        "top_module",
-        "clock_port",
-        "clock_period_ns_cfg",
-        "num_rtl_files",
-        "ast_json_path",
-        "ast_log_path",
-        "netlist_path",
-        "sdc_path",
-        "run_dir",
-        "area_um2",
-        "worst_slack_ns",
-        "total_negative_slack_ns",
-        "clock_period_ns_sta",
-        "utilization_pct",
-        "tool_runtime_s",
-    ]
-    rows_written = 0
+    return {
+        "cfg_path": cfg_path,
+        "cfg": cfg,
+        "project_root": project_root,
+        "synthesis_root": synthesis_root,
+        "apptainer_image": apptainer_image,
+        "flow_mode": flow_mode,
+        "ast_use_proc": ast_use_proc,
+        "ast_use_flatten": ast_use_flatten,
+        "ast_dump": ast_dump,
+        "die_area": die_area,
+        "core_area": core_area,
+        "ground_truth_qor_dataset": ground_truth_qor_dataset,
+        "runs_dir": runs_dir,
+        "ast_dir": ast_dir,
+        "ast_log_dir": ast_log_dir,
+        "result_shards_dir": result_shards_dir,
+        "recipes": recipes,
+        "designs": designs,
+    }
 
-    for d_idx, design in enumerate(designs):
+
+def ensure_common_output_dirs(ctx):
+    ensure_dir(ctx["runs_dir"])
+    ensure_dir(ctx["ast_dir"])
+    ensure_dir(ctx["ast_log_dir"])
+    ensure_dir(ctx["result_shards_dir"])
+    ensure_dir(ctx["synthesis_root"] / "data" / "rtl")
+    ensure_dir(ctx["synthesis_root"] / "data" / "constraints")
+
+
+def build_run_specs(ctx):
+    specs = []
+    for design in ctx["designs"]:
         design_name = design["name"]
         top = design["top"]
-        include_dirs = [resolve(project_root, p) for p in design.get("include_dirs", [])]
-        clock_port = design.get("clock_port", cfg.get("default_clock_port", "clk"))
-        period_ns = design.get("clock_period_ns", cfg.get("default_clock_period_ns", 3.0))
-        files = collect_rtl_files(design, project_root)
+        include_dirs = [resolve(ctx["project_root"], p) for p in design.get("include_dirs", [])]
+        clock_port = design.get("clock_port", ctx["cfg"].get("default_clock_port", "clk"))
+        period_ns = design.get(
+            "clock_period_ns",
+            ctx["cfg"].get("default_clock_period_ns", 3.0),
+        )
+        files = collect_rtl_files(design, ctx["project_root"])
+        ast_json_out = ctx["ast_dir"] / "{}.json".format(design_name)
+        ast_log_path = ctx["ast_log_dir"] / "{}.log".format(design_name)
 
-        print("[{}/{}] Generating AST for {} with Yosys".format(d_idx + 1, len(designs), design_name))
-        ast_json_out = ast_dir / "{}.json".format(design_name)
-        ast_log_path = ast_log_dir / "{}.log".format(design_name)
+        for recipe in ctx["recipes"]:
+            recipe_id = recipe["id"]
+            run_id = "{}__{}".format(design_name, recipe_id)
+            run_dir = ctx["runs_dir"] / run_id
+            spec = {
+                "config_path": str(ctx["cfg_path"]),
+                "project_root": str(ctx["project_root"]),
+                "synthesis_root": str(ctx["synthesis_root"]),
+                "apptainer_image": str(ctx["apptainer_image"]),
+                "flow_mode": ctx["flow_mode"],
+                "die_area": str(ctx["die_area"]),
+                "core_area": str(ctx["core_area"]),
+                "ast_proc": ctx["ast_use_proc"],
+                "ast_flatten": ctx["ast_use_flatten"],
+                "ast_dump": ctx["ast_dump"],
+                "design_name": design_name,
+                "design_id": design.get("id", ""),
+                "recipe_id": recipe_id,
+                "run_id": run_id,
+                "top_module": top,
+                "clock_port": clock_port,
+                "clock_period_ns_cfg": float(period_ns),
+                "rtl_files": [str(p) for p in files],
+                "include_dirs": [str(p) for p in include_dirs],
+                "num_rtl_files": len(files),
+                "recipe": {
+                    "id": recipe_id,
+                    "abc_fast": bool(recipe.get("abc_fast", True)),
+                    "abc_extra": recipe.get("abc_extra", ""),
+                },
+                "ast_json_path": str(ast_json_out),
+                "ast_log_path": str(ast_log_path),
+                "run_dir": str(run_dir),
+                "netlist_path": str(ctx["synthesis_root"] / "data" / "rtl" / "{}_netlist.v".format(run_id)),
+                "sdc_path": str(ctx["synthesis_root"] / "data" / "constraints" / "{}.sdc".format(run_id)),
+                "ppa_csv_path": str(run_dir / "results" / "ppa.csv"),
+                "result_shard_path": str(ctx["result_shards_dir"] / "{}.json".format(run_id)),
+            }
+            specs.append(spec)
+    return specs
+
+
+def load_manifest_entries(manifest_path):
+    manifest = Path(manifest_path).resolve()
+    entries = []
+    with open(manifest, "r") as f:
+        for line_num, line in enumerate(f, start=1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                entries.append(json.loads(stripped))
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "Invalid JSON on line {} of {}: {}".format(line_num, manifest, exc)
+                )
+    return entries
+
+
+def write_manifest(manifest_path, run_specs):
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(manifest_path, "w") as f:
+        for spec in run_specs:
+            f.write(json.dumps(spec, sort_keys=True) + "\n")
+
+
+def spec_path(spec, key):
+    return Path(spec[key])
+
+
+def make_base_row(spec):
+    return {
+        "run_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "run_id": spec["run_id"],
+        "design_name": spec["design_name"],
+        "design_id": spec.get("design_id", ""),
+        "recipe_id": spec["recipe_id"],
+        "flow_mode": spec["flow_mode"],
+        "top_module": spec["top_module"],
+        "clock_port": spec["clock_port"],
+        "clock_period_ns_cfg": spec["clock_period_ns_cfg"],
+        "num_rtl_files": spec["num_rtl_files"],
+        "ast_json_path": spec["ast_json_path"],
+        "ast_log_path": spec["ast_log_path"],
+        "netlist_path": spec["netlist_path"],
+        "sdc_path": spec["sdc_path"],
+        "run_dir": spec["run_dir"],
+        "area_um2": "",
+        "worst_slack_ns": "",
+        "total_negative_slack_ns": "",
+        "clock_period_ns_sta": "",
+        "utilization_pct": "",
+        "tool_runtime_s": "",
+        "status": "failed",
+        "error_stage": "",
+        "error_message": "",
+    }
+
+
+def write_result_shard(row, shard_path):
+    shard_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {field: row.get(field, "") for field in CSV_FIELDNAMES}
+    with open(shard_path, "w") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def run_single_spec(spec, write_shard=True):
+    project_root = Path(spec["project_root"])
+    synthesis_root = Path(spec["synthesis_root"])
+    apptainer_image = Path(spec["apptainer_image"])
+    ast_json_out = spec_path(spec, "ast_json_path")
+    ast_log_path = spec_path(spec, "ast_log_path")
+    run_dir = spec_path(spec, "run_dir")
+    netlist_out = spec_path(spec, "netlist_path")
+    sdc_out = spec_path(spec, "sdc_path")
+    ppa_csv = spec_path(spec, "ppa_csv_path")
+    shard_path = spec_path(spec, "result_shard_path")
+    files = [Path(p) for p in spec["rtl_files"]]
+    include_dirs = [Path(p) for p in spec.get("include_dirs", [])]
+
+    ensure_dir(run_dir)
+    ensure_dir(ast_json_out.parent)
+    ensure_dir(ast_log_path.parent)
+    ensure_dir(netlist_out.parent)
+    ensure_dir(sdc_out.parent)
+    ensure_dir(shard_path.parent)
+
+    row = make_base_row(spec)
+    stage = "ast"
+    tool_start_s = time.perf_counter()
+
+    try:
+        print("Generating AST for {}".format(spec["design_name"]))
         ast_script = make_ast_yosys_script(
             files=files,
-            top=top,
+            top=spec["top_module"],
             json_out=ast_json_out,
             include_dirs=include_dirs,
-            use_proc=ast_use_proc,
-            use_flatten=ast_use_flatten,
-            dump_ast=ast_dump,
+            use_proc=bool(spec.get("ast_proc", True)),
+            use_flatten=bool(spec.get("ast_flatten", True)),
+            dump_ast=bool(spec.get("ast_dump", False)),
         )
         with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".ys",
-            dir=str(ast_log_dir),
+            dir=str(ast_log_path.parent),
             delete=False,
         ) as tf:
             tf.write(ast_script)
@@ -299,116 +466,252 @@ def main():
             except OSError:
                 pass
 
-        for r_idx, recipe in enumerate(recipes):
-            recipe_id = recipe["id"]
-            run_id = "{}__{}".format(design_name, recipe_id)
-            print(
-                "[{}/{}] Synthesizing {} / {} with Yosys".format(
-                    d_idx * len(recipes) + r_idx + 1,
-                    len(designs) * len(recipes),
-                    design_name,
-                    recipe_id,
-                )
+        print("Synthesizing {}".format(spec["run_id"]))
+        stage = "yosys_synth"
+        synth_script = make_synth_yosys_script(
+            files=files,
+            top=spec["top_module"],
+            netlist_out=netlist_out,
+            include_dirs=include_dirs,
+            liberty_file=(synthesis_root / "data" / "NangateOpenCellLibrary_typical.lib"),
+            abc_fast=bool(spec["recipe"].get("abc_fast", True)),
+            abc_extra=spec["recipe"].get("abc_extra", ""),
+        )
+        ys_log = run_dir / "yosys.log"
+        or_log = run_dir / "openroad.log"
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".ys",
+            dir=str(run_dir),
+            delete=False,
+        ) as tf:
+            tf.write(synth_script)
+            synth_script_path = Path(tf.name)
+
+        write_sdc(sdc_out, spec["clock_port"], spec["clock_period_ns_cfg"])
+
+        try:
+            yosys_cmd = [
+                "apptainer", "exec", str(apptainer_image),
+                "yosys", "-Q", "-s", str(synth_script_path),
+            ]
+            run_cmd(yosys_cmd, cwd=project_root, log_path=ys_log)
+
+            print("Implementing {}".format(spec["run_id"]))
+            stage = "openroad"
+            openroad_script = synthesis_root / "scripts" / (
+                "openroad_flow.tcl" if spec["flow_mode"] == "full" else "openroad_fast_flow.tcl"
             )
-
-            run_dir = runs_dir / run_id
-            ensure_dir(run_dir)
-
-            netlist_out = synthesis_root / "data" / "rtl" / "{}_netlist.v".format(run_id)
-            sdc_out = synthesis_root / "data" / "constraints" / "{}.sdc".format(run_id)
-            ys_log = run_dir / "yosys.log"
-            or_log = run_dir / "openroad.log"
-
-            synth_script = make_synth_yosys_script(
-                files=files,
-                top=top,
-                netlist_out=netlist_out,
-                include_dirs=include_dirs,
-                liberty_file=(synthesis_root / "data" / "NangateOpenCellLibrary_typical.lib"),
-                abc_fast=bool(recipe.get("abc_fast", True)),
-                abc_extra=recipe.get("abc_extra", ""),
-            )
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                suffix=".ys",
-                dir=str(run_dir),
-                delete=False,
-            ) as tf:
-                tf.write(synth_script)
-                synth_script_path = Path(tf.name)
-
-            write_sdc(sdc_out, clock_port, period_ns)
-
-            tool_start_s = time.perf_counter()
+            env = os.environ.copy()
+            env["DESIGN_NAME"] = spec["run_id"]
+            env["TOP_MODULE"] = spec["top_module"]
+            env["SYNTH_VERILOG"] = "data/rtl/{}_netlist.v".format(spec["run_id"])
+            env["SDC_FILE"] = "data/constraints/{}.sdc".format(spec["run_id"])
+            env["DIE_AREA"] = str(spec["die_area"])
+            env["CORE_AREA"] = str(spec["core_area"])
+            env["TEST_TMPDIR"] = str(run_dir)
+            openroad_cmd = [
+                "apptainer", "exec", str(apptainer_image),
+                "openroad", str(openroad_script.relative_to(synthesis_root)),
+            ]
+            run_cmd(openroad_cmd, cwd=synthesis_root, env=env, log_path=or_log)
+        finally:
             try:
-                yosys_cmd = [
-                    "apptainer", "exec", str(apptainer_image),
-                    "yosys", "-Q", "-s", str(synth_script_path),
-                ]
-                run_cmd(yosys_cmd, cwd=project_root, log_path=ys_log)
+                synth_script_path.unlink()
+            except OSError:
+                pass
 
-                print(
-                    "[{}/{}] Implementing {} / {} with OpenROAD".format(
-                        d_idx * len(recipes) + r_idx + 1,
-                        len(designs) * len(recipes),
-                        design_name,
-                        recipe_id,
-                    )
+        stage = "ppa_read"
+        ppa = read_last_ppa_row(ppa_csv)
+        tool_runtime_s = time.perf_counter() - tool_start_s
+        row.update({
+            "area_um2": ppa.get("area_um2", ""),
+            "worst_slack_ns": ppa.get("worst_slack_ns", ""),
+            "total_negative_slack_ns": ppa.get("total_negative_slack_ns", ""),
+            "clock_period_ns_sta": ppa.get("clock_period_ns", ""),
+            "utilization_pct": ppa.get("utilization_pct", ""),
+            "tool_runtime_s": "{:.3f}".format(tool_runtime_s),
+            "status": "success",
+            "error_stage": "",
+            "error_message": "",
+        })
+    except Exception as exc:
+        tool_runtime_s = time.perf_counter() - tool_start_s
+        row.update({
+            "tool_runtime_s": "{:.3f}".format(tool_runtime_s),
+            "status": "failed",
+            "error_stage": stage,
+            "error_message": str(exc),
+        })
+    finally:
+        if write_shard:
+            write_result_shard(row, shard_path)
+
+    return row
+
+
+def merge_result_shards(shards_dir, output_csv):
+    shards_dir = Path(shards_dir).resolve()
+    if not shards_dir.exists():
+        raise ValueError("Result shards directory does not exist: {}".format(shards_dir))
+
+    rows = []
+    seen_run_ids = {}
+    for shard_path in sorted(shards_dir.glob("*.json")):
+        with open(shard_path, "r") as f:
+            row = json.load(f)
+        missing = [field for field in CSV_FIELDNAMES if field not in row]
+        if missing:
+            raise ValueError(
+                "Shard {} is missing required fields: {}".format(
+                    shard_path, ", ".join(missing)
                 )
-                            
-                openroad_script = synthesis_root / "scripts" / (
-                    "openroad_flow.tcl" if flow_mode == "full" else "openroad_fast_flow.tcl"
+            )
+        run_id = row["run_id"]
+        if run_id in seen_run_ids:
+            raise ValueError(
+                "Duplicate run_id '{}' found in {} and {}".format(
+                    run_id, seen_run_ids[run_id], shard_path
                 )
-                env = os.environ.copy()
-                env["DESIGN_NAME"] = run_id
-                env["TOP_MODULE"] = top
-                env["SYNTH_VERILOG"] = "data/rtl/{}_netlist.v".format(run_id)
-                env["SDC_FILE"] = "data/constraints/{}.sdc".format(run_id)
-                env["DIE_AREA"] = str(die_area)
-                env["CORE_AREA"] = str(core_area)
-                env["TEST_TMPDIR"] = str(run_dir)
-                openroad_cmd = [
-                    "apptainer", "exec", str(apptainer_image),
-                    "openroad", str(openroad_script.relative_to(synthesis_root)),
-                ]
-                run_cmd(openroad_cmd, cwd=synthesis_root, env=env, log_path=or_log)
-            finally:
-                tool_runtime_s = time.perf_counter() - tool_start_s
-                try:
-                    synth_script_path.unlink()
-                except OSError:
-                    pass
+            )
+        seen_run_ids[run_id] = shard_path
+        rows.append({field: row.get(field, "") for field in CSV_FIELDNAMES})
 
-            ppa_csv = run_dir / "results" / "ppa.csv"
-            ppa = read_last_ppa_row(ppa_csv)
+    rows.sort(key=lambda row: (row["design_name"], row["recipe_id"], row["run_id"]))
+    write_csv_file(Path(output_csv).resolve(), CSV_FIELDNAMES, rows)
+    return rows
 
-            row = {
-                "run_utc": now_utc,
-                "design_name": design_name,
-                "design_id": design.get("id", ""),
-                "recipe_id": recipe_id,
-                "flow_mode": flow_mode,
-                "top_module": top,
-                "clock_port": clock_port,
-                "clock_period_ns_cfg": period_ns,
-                "num_rtl_files": len(files),
-                "ast_json_path": str(ast_json_out),
-                "ast_log_path": str(ast_log_path),
-                "netlist_path": str(netlist_out),
-                "sdc_path": str(sdc_out),
-                "run_dir": str(run_dir),
-                "area_um2": ppa.get("area_um2", ""),
-                "worst_slack_ns": ppa.get("worst_slack_ns", ""),
-                "total_negative_slack_ns": ppa.get("total_negative_slack_ns", ""),
-                "clock_period_ns_sta": ppa.get("clock_period_ns", ""),
-                "utilization_pct": ppa.get("utilization_pct", ""),
-                "tool_runtime_s": "{:.3f}".format(tool_runtime_s),
-            }
-            write_csv_rows(ground_truth_qor_dataset, fieldnames, [row])
-            rows_written += 1
 
-    print("Wrote {} rows to {}".format(rows_written, ground_truth_qor_dataset))
+def cmd_build_manifest(args):
+    ctx = build_context(args.config)
+    ensure_common_output_dirs(ctx)
+    run_specs = build_run_specs(ctx)
+    manifest_path = Path(args.output).resolve() if args.output else (
+        ctx["result_shards_dir"].parent / "run_manifest.jsonl"
+    )
+    write_manifest(manifest_path, run_specs)
+    print("Wrote {} manifest entries to {}".format(len(run_specs), manifest_path))
+
+
+def cmd_run_manifest_entry(args):
+    ctx = build_context(args.config)
+    ensure_common_output_dirs(ctx)
+
+    if args.entry_json:
+        with open(args.entry_json, "r") as f:
+            spec = json.load(f)
+    else:
+        if args.manifest is None or args.index is None:
+            raise ValueError("Either --entry-json or both --manifest and --index are required")
+        entries = load_manifest_entries(args.manifest)
+        if args.index < 0 or args.index >= len(entries):
+            raise IndexError(
+                "Manifest index {} is out of range for {}".format(args.index, args.manifest)
+            )
+        spec = entries[args.index]
+
+    row = run_single_spec(spec, write_shard=True)
+    print("Completed {} with status {}".format(row["run_id"], row["status"]))
+    if row["status"] != "success":
+        raise SystemExit(1)
+
+
+def cmd_merge_results(args):
+    ctx = build_context(args.config)
+    shards_dir = Path(args.shards_dir).resolve() if args.shards_dir else ctx["result_shards_dir"]
+    output_csv = Path(args.output).resolve() if args.output else ctx["ground_truth_qor_dataset"]
+    rows = merge_result_shards(shards_dir, output_csv)
+    print("Merged {} result shards into {}".format(len(rows), output_csv))
+
+
+def cmd_run_serial(args):
+    ctx = build_context(args.config)
+    ensure_common_output_dirs(ctx)
+    run_specs = build_run_specs(ctx)
+    rows = []
+
+    for idx, spec in enumerate(run_specs, start=1):
+        print("[{}/{}] Running {}".format(idx, len(run_specs), spec["run_id"]))
+        row = run_single_spec(spec, write_shard=True)
+        rows.append(row)
+
+    write_csv_file(ctx["ground_truth_qor_dataset"], CSV_FIELDNAMES, rows)
+    print("Wrote {} rows to {}".format(len(rows), ctx["ground_truth_qor_dataset"]))
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Run unified AST generation + synthesis/OpenROAD dataset flow from YAML"
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    manifest_parser = subparsers.add_parser(
+        "build-manifest",
+        help="Expand the config into a JSONL manifest with one design/recipe run per line",
+    )
+    manifest_parser.add_argument("config", help="YAML config file")
+    manifest_parser.add_argument(
+        "--output",
+        help="Output JSONL manifest path. Defaults to synthesis/results/run_manifest.jsonl",
+    )
+    manifest_parser.set_defaults(func=cmd_build_manifest)
+
+    run_entry_parser = subparsers.add_parser(
+        "run-manifest-entry",
+        help="Execute exactly one manifest entry and write one result shard",
+    )
+    run_entry_parser.add_argument("config", help="YAML config file")
+    run_entry_parser.add_argument("--manifest", help="JSONL manifest path")
+    run_entry_parser.add_argument(
+        "--index",
+        type=int,
+        help="Zero-based manifest entry index, suitable for SLURM_ARRAY_TASK_ID",
+    )
+    run_entry_parser.add_argument(
+        "--entry-json",
+        help="Path to a single JSON manifest-entry file",
+    )
+    run_entry_parser.set_defaults(func=cmd_run_manifest_entry)
+
+    merge_parser = subparsers.add_parser(
+        "merge-results",
+        help="Merge per-run JSON result shards into the aggregate CSV",
+    )
+    merge_parser.add_argument("config", help="YAML config file")
+    merge_parser.add_argument(
+        "--shards-dir",
+        help="Directory containing per-run JSON result shards",
+    )
+    merge_parser.add_argument(
+        "--output",
+        help="Output aggregate CSV path. Defaults to the config csv_path",
+    )
+    merge_parser.set_defaults(func=cmd_merge_results)
+
+    serial_parser = subparsers.add_parser(
+        "run-serial",
+        help="Run the full serial pipeline and write the aggregate CSV",
+    )
+    serial_parser.add_argument("config", help="YAML config file")
+    serial_parser.set_defaults(func=cmd_run_serial)
+
+    return parser
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+
+    if len(argv) == 1 and argv[0] not in SUBCOMMANDS and not argv[0].startswith("-"):
+        return cmd_run_serial(argparse.Namespace(config=argv[0]))
+
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if not hasattr(args, "func"):
+        parser.print_help()
+        return 2
+    return args.func(args)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
