@@ -9,16 +9,59 @@
 #include <string_view>
 #include <unordered_map>
 #include <chrono>
+#include <functional>
+#include <set>
+#include <unordered_set>
+#include <utility>
 
-class simpler_ast_parser {
+struct cell_wire_info {
+	size_t cell_name_hash;
+	std::vector<uint32_t> input_wires;
+	std::vector<uint32_t> output_wires;
+
+	cell_wire_info() {
+		cell_name_hash = 0;
+	}
+
+	cell_wire_info(std::string_view name) : cell_wire_info() {
+		update_hash(name);
+	}
+
+	void update_hash(std::string_view name) {
+		const int p = 31;
+		const int m = int(1e9) + 9;
+		cell_name_hash = 0;
+		unsigned long long power = 1;
+
+		for (char c : name) {
+			cell_name_hash = (cell_name_hash + (c - 'a' + 1) * power) % m;
+			power = (power * p) % m;
+		}
+
+	}
+
+	void operator=(std::string_view name) {
+		update_hash(name);
+	}
+
+};
+
+struct tree_node {
+	cell_wire_info* cell;
+	std::vector<tree_node*> children;
+
+	tree_node(cell_wire_info* c) : cell(c) {}
+};
+
+class dump_ast_parser {
 
 public:
 	using cell_name = std::string;
 	using cell_count = double;
 	using ast_vector = std::unordered_map<cell_name, cell_count>;
-	
-	simpler_ast_parser() = default;
-	simpler_ast_parser(const std::string_view file_path) {
+
+	dump_ast_parser() = default;
+	dump_ast_parser(const std::string_view file_path) {
 		load(file_path);
 	}
 
@@ -31,14 +74,16 @@ public:
 
 		auto s = chrono::high_resolution_clock::now();
 		string last_cell_type;
-		
+
 		vector<string> json_tree;
 		bool reading_ports = false;
 		bool reading_cells = false;
 		bool is_input = false; // set with line, "direction": "input"
+		int num_of_input_ports = 0;
+		cell_wire_info current_cell_info = {};
 		is_reading_parameters = false;
 		temp_map = {};
-		sum_of_io_path 	  = 0;
+		sum_of_io_path = 0;
 		sum_of_wire_width = 0;
 
 		for (string line; getline(in, line); 2004) {
@@ -67,7 +112,7 @@ public:
 			}
 
 			if (reading_cells)
-				read_cell_data(json_tree, last_cell_type, line);
+				read_cell_data(json_tree, last_cell_type, num_of_input_ports, current_cell_info, line);
 			if (reading_ports) {
 				if (line.find("direction") != string::npos) {
 					is_input = line.find("input") != string::npos;
@@ -86,8 +131,6 @@ public:
 			}
 
 		}
-		print_progress_bar(100.0);
-		printf("\n");
 
 		temp_map["avg_wire_width"] = sum_of_wire_width / double(sum_of_io_path);
 
@@ -95,7 +138,7 @@ public:
 		for (const auto& [name, count] : temp_map) {
 			string n;
 			for (auto c : name) if (c != '"' && c != '$') n += c;
-			cell_map[n] = count;
+			ast_feature_output[n] = count;
 		}
 
 		auto e = chrono::high_resolution_clock::now();
@@ -105,52 +148,77 @@ public:
 
 	std::string to_string() const {
 		std::stringstream ss;
-		for (const auto& [name, count] : cell_map)
+		for (const auto& [name, count] : ast_feature_output)
 			ss << '[' << name << ", " << count << "]\n";
 		return ss.str();
 	}
 
-	void pretty_print() const {
+	void print_ast_feature_map() const {
 		std::cout << to_string();
 	}
 
 	void reduce_feature_map() {
 		ast_vector simplified_map;
-		for (const auto& [name, value] : cell_map) {
-			if (name == "logic_or") { simplified_map["total_logic_operator_bits"] += cell_map["logic_or"]; }
-			if (name == "logic_not") { simplified_map["total_logic_operator_bits"] += cell_map["logic_not"]; }
-			if (name == "logic_and") { simplified_map["total_logic_operator_bits"] += cell_map["logic_and"]; }
-			if (name == "not") { simplified_map["total_logic_operator_bits"] += cell_map["not"]; }
-			if (name == "reduce_or") { simplified_map["total_logic_operator_bits"] += cell_map["reduce_or"]; }
-			if (name == "reduce_xor") { simplified_map["total_logic_operator_bits"] += cell_map["reduce_xor"]; }
-			if (name == "and") { simplified_map["total_logic_operator_bits"] += cell_map["and"]; }
-			if (name == "or") { simplified_map["total_logic_operator_bits"] += cell_map["or"]; }
-			if (name == "xor") { simplified_map["total_logic_operator_bits"] += cell_map["xor"]; }
-			if (name == "reduce_bool") { simplified_map["total_logic_operator_bits"] += cell_map["reduce_bool"]; }
+		for (const auto& [name, value] : ast_feature_output) {
+			if (name == "logic_or") { simplified_map["total_logic_operator_bits"] += ast_feature_output["logic_or"]; }
+			if (name == "logic_not") { simplified_map["total_logic_operator_bits"] += ast_feature_output["logic_not"]; }
+			if (name == "logic_and") { simplified_map["total_logic_operator_bits"] += ast_feature_output["logic_and"]; }
+			if (name == "not") { simplified_map["total_logic_operator_bits"] += ast_feature_output["not"]; }
+			if (name == "reduce_or") { simplified_map["total_logic_operator_bits"] += ast_feature_output["reduce_or"]; }
+			if (name == "reduce_xor") { simplified_map["total_logic_operator_bits"] += ast_feature_output["reduce_xor"]; }
+			if (name == "and") { simplified_map["total_logic_operator_bits"] += ast_feature_output["and"]; }
+			if (name == "or") { simplified_map["total_logic_operator_bits"] += ast_feature_output["or"]; }
+			if (name == "xor") { simplified_map["total_logic_operator_bits"] += ast_feature_output["xor"]; }
+			if (name == "reduce_bool") { simplified_map["total_logic_operator_bits"] += ast_feature_output["reduce_bool"]; }
 
-			if (name == "dff") { simplified_map["total_register_bits"] += cell_map["dff"]; }
+			if (name == "dff") { simplified_map["total_register_bits"] += ast_feature_output["dff"]; }
 
-			if (name == "add") { simplified_map["total_adder_sub_bits"] += cell_map["add"]; }
-			if (name == "sub") { simplified_map["total_adder_sub_bits"] += cell_map["sub"]; }
+			if (name == "add") { simplified_map["total_adder_sub_bits"] += ast_feature_output["add"]; }
+			if (name == "sub") { simplified_map["total_adder_sub_bits"] += ast_feature_output["sub"]; }
 
-			if (name == "output_pins") { simplified_map["total_input_and_output_bits"] += cell_map["output_pins"]; }
-			if (name == "input_pins") { simplified_map["total_input_and_output_bits"] += cell_map["input_pins"]; }
+			if (name == "output_pins") { simplified_map["total_input_and_output_bits"] += ast_feature_output["output_pins"]; }
+			if (name == "input_pins") { simplified_map["total_input_and_output_bits"] += ast_feature_output["input_pins"]; }
 
-			if (name == "eq") { simplified_map["total_comparator_bits"] += cell_map["eq"]; }
-			if (name == "ne") { simplified_map["total_comparator_bits"] += cell_map["ne"]; }
-			if (name == "gt") { simplified_map["total_comparator_bits"] += cell_map["gt"]; }
+			if (name == "eq") { simplified_map["total_comparator_bits"] += ast_feature_output["eq"]; }
+			if (name == "ne") { simplified_map["total_comparator_bits"] += ast_feature_output["ne"]; }
+			if (name == "gt") { simplified_map["total_comparator_bits"] += ast_feature_output["gt"]; }
 
-			if (name == "pmux") { simplified_map["total_multiplexer_bits"] += cell_map["pmux"]; }
-			if (name == "mux") { simplified_map["total_multiplexer_bits"] += cell_map["mux"]; }
+			if (name == "pmux") { simplified_map["total_multiplexer_bits"] += ast_feature_output["pmux"]; }
+			if (name == "mux") { simplified_map["total_multiplexer_bits"] += ast_feature_output["mux"]; }
 
-			if (name == "avg_wire_width") { simplified_map["avg_wire_width"] += cell_map["avg_wire_width"]; }
+			if (name == "avg_wire_width") { simplified_map["avg_wire_width"] += ast_feature_output["avg_wire_width"]; }
 
 			//if (name == "scopeinfo") { simplified_map[""] += cell_map["scopeinfo"]; }
 			//if (name == "memwr_v2") { simplified_map[""] += cell_map["memwr_v2"]; }
 			//if (name == "memrd") { simplified_map[""] += cell_map["memrd"]; }
 		}
 
-		cell_map = simplified_map;
+		ast_feature_output = simplified_map;
+		compute_avg_depth();
+	}
+
+	void export_dot(tree_node* root, const std::string& filename) {
+		std::ofstream out(filename);
+		out << "digraph G {\n";
+		out << "node [shape=box];\n";
+
+		std::unordered_set<tree_node*> visited;
+
+		std::function<void(tree_node*)> dfs = [&](tree_node* node) {
+			if (!node || visited.count(node)) return;
+			visited.insert(node);
+
+			// Use pointer as unique ID (or replace with cell name/id)
+			out << "  \"" << node << "\" [label=\"Cell\"];\n";
+
+			for (auto* child : node->children) {
+				out << "  \"" << node << "\" -> \"" << child << "\";\n";
+				dfs(child);
+			}
+			};
+
+		dfs(root);
+		out << "}\n";
 	}
 
 private:
@@ -173,20 +241,39 @@ private:
 		if (line.length() <= 2) return line;
 		string result;
 		result.reserve(line.size());
+		uint64_t first_colon = line.find(':');
+		uint32_t idx = 0;
 		for (const auto c : line) {
-			if (c == ' ' || c == '\r' || c == '\n' || c == '"' || c == '{' || c == ':')
+			if (c == ' ' || c == '\r' || c == '\n' || c == '"' || c == '{' || (c == ':' && idx <= first_colon))
 				continue;
 			result.push_back(c);
+			idx++;
 		}
 		return result;
 	}
 
-	void read_cell_data(const std::vector<std::string>& json_tree, std::string& last_cell_type, const std::string& line) {
+	void read_cell_data(const std::vector<std::string>& json_tree,
+		std::string& last_cell_type,
+		int& num_of_input_ports,
+		cell_wire_info& current_cell_info,
+		const std::string& line)
+	{
 		using namespace std;
 
 		const auto& current_node = json_tree[json_tree.size() - 1];
 
 		if (current_node.find("parameters") != string::npos) {
+			num_of_input_ports = 0;
+
+			if (current_cell_info.cell_name_hash != 0) {
+				// this reduces memory usage but at cost of 
+				// processing time. I have enough ram.
+				//current_cell_info.input_wires.shrink_to_fit();
+				//current_cell_info.output_wires.shrink_to_fit();
+				cell_wires.push_back(std::move(current_cell_info));
+				current_cell_info = cell_wire_info();
+			}
+
 			bool is_cell_found = false;
 			auto extract_param = [&](const char* param_name) {
 				if (line.find(param_name) != string::npos) {
@@ -225,21 +312,56 @@ private:
 				temp_map[last_cell_type] = -1;
 				is_cell_found = true;
 			}
+			else if (!is_cell_found && last_cell_type.find("$memrd") != string::npos) {
+				// ignore this one
+				temp_map[last_cell_type] = -1;
+				is_cell_found = true;
+			}
+			else if (!is_cell_found && last_cell_type.find("$memwr_v2") != string::npos) {
+				// ignore this one
+				temp_map[last_cell_type] = -1;
+				is_cell_found = true;
+			}
 			else if (!is_cell_found) {
 				temp_map[last_cell_type] = -1;
 				cout << "WARNING! Unknown cell type: " << last_cell_type << endl;
 			}
 		}
+		else if (current_node.find("port_directions") != string::npos) {
+			current_cell_info = json_tree[json_tree.size() - 2];
+			num_of_input_ports += line.find("input") != string::npos;
+		}
 		else if (current_node.find("connections") != string::npos) {
 			size_t wire_width = 0;
-			for (const auto c : line) {
-				if (c == ',')
+			// extract wire #
+			auto start = line.find('[');
+			if (start == string::npos) return;
+			auto end = line.find(']', start + 1);
+			auto wire_str = line.substr(start + 1, end - start - 1);
+			char num[15] = { 0 };
+			int idx = 0;
+			for (auto c : wire_str) {
+				if (c == ' ') continue;
+				if (c == ',') {
+					if (num_of_input_ports > 0 && num[0] != '"')
+						current_cell_info.input_wires.push_back(stoi(num));
+					else if (num[0] != '"')
+						current_cell_info.output_wires.push_back(stoi(num));
+					num[0] = 0;
+					idx = 0;
 					wire_width++;
-				if (c == ']') {
-					wire_width++;
-					break;
 				}
+				else
+					num[idx++] = c;
 			}
+			if (idx > 0) {
+				if (num_of_input_ports > 0 && num[0] != '"')
+					current_cell_info.input_wires.push_back(stoi(num));
+				else if (num[0] != '"')
+					current_cell_info.output_wires.push_back(stoi(num));
+				wire_width++;
+			}
+			num_of_input_ports -= num_of_input_ports > 0;
 			sum_of_io_path += wire_width > 0;
 			sum_of_wire_width += wire_width;
 		}
@@ -257,58 +379,131 @@ private:
 
 	}
 
-	void print_progress_bar(float done_percentage) {
-		const int barWidth = 50;
+	void compute_avg_depth() {
+		using namespace std;
 
-		char bar[512] = "";   // large enough for UTF-8 multibyte chars
-		char buffer[600];
+		unordered_map<uint32_t, cell_wire_info*> producers;
 
-		int pos = (int)(barWidth * done_percentage / 100.0f);
-
-		// Build bar using only Unicode blocks
-		for (int i = 0; i < barWidth; ++i) {
-			strcat_s(bar, sizeof(bar), (i < pos) ? "=" : "-"); // filled + light shade
+		for (auto& cell : cell_wires) {
+			for (const auto output_signal : cell.output_wires) {
+				producers[output_signal] = &cell;
+			}
 		}
 
-		// Build full output (note: brackets and % are still ASCII by necessity of printf formatting)
-		snprintf(buffer, sizeof(buffer), "\r |%s| %6.2f%%", bar, done_percentage);
+		unordered_map<cell_wire_info*, std::vector<cell_wire_info*>> graph;
 
-		printf("%s", buffer);
+		for (auto& cell : cell_wires) {
+			for (auto input_signal : cell.input_wires) {
+				if (producers.count(input_signal)) {
+					auto producer = producers[input_signal];
+					graph[producer].push_back(&cell);
+				}
+			}
+		}
+
+		// find root nodes
+		set<cell_wire_info*> root_nodes_set;
+		vector<cell_wire_info*> root_nodes;
+		for (auto& cell : cell_wires) {
+			for (const auto input_signal : cell.input_wires) {
+				if (producers.count(input_signal) == 0) {
+					root_nodes_set.insert(&cell);
+				}
+			}
+		}
+		root_nodes.reserve(root_nodes_set.size());
+		for (auto node : root_nodes_set)
+			root_nodes.push_back(node);
+
+		// build tree
+		function<tree_node* (cell_wire_info*)> build_tree;
+
+		unordered_set<cell_wire_info*> visited;
+
+		build_tree = [&](cell_wire_info* node) -> tree_node* {
+			visited.insert(node);
+
+			tree_node* treeNode = new tree_node(node);
+
+			for (cell_wire_info* child : graph[node]) {
+				if (visited.find(child) == visited.end()) {
+					treeNode->children.push_back(build_tree(child));
+				}
+			}
+
+			return treeNode;
+			};
+
+		vector<tree_node*> the_tree;
+		for (auto root_node : root_nodes)
+			the_tree.push_back(build_tree(root_node));
+
+		function<pair<uint32_t, uint32_t>(tree_node*, int)> dfs_depth;
+
+		dfs_depth = [&dfs_depth](tree_node* node, int depth) -> pair<uint32_t, uint32_t> {
+			if (!node) return { 0, 0 };
+
+			uint32_t sum_depth = depth;
+			uint32_t count = 1;
+
+			for (tree_node* child : node->children) {
+				auto [child_sum, child_count] = dfs_depth(child, depth + 1);
+				sum_depth += child_sum;
+				count += child_count;
+			}
+
+			return { sum_depth, count };
+			};
+
+		uint32_t sum_depth, count;
+		sum_depth = count = 0;
+
+		for (tree_node* root : the_tree) {
+			auto [sum, cnt] = dfs_depth(root, 0);
+			if (sum == 0) continue;
+			sum_depth += sum;
+			count += cnt;
+			//export_dot(root, std::to_string(root->cell->cell_name_hash) + ".dot");
+		}
+
+		ast_feature_output["avg_tree_depth"] = sum_depth / double(count);
+
 	}
 
 public:
-	ast_vector cell_map;
+	ast_vector ast_feature_output;
+	std::vector<cell_wire_info> cell_wires;
 
 private:
-		const std::vector<std::string> basic_cells = {
-			"$add",
-			"$and", // this also include logic_and
-			"$sub",
-			"$eq", // "equal"
-			"$gt",// "greater than"
-			"$not",
-			"$or",
-			"$xor",
-			"$ne", // "not equal"
-			"$logic_and",
-			"$logic_not",
-			"$logic_or",
-			"$reduce_bool",
-			"$reduce_or",
-			"$reduce_xor",
-		};
-		bool is_reading_parameters = false;
-		ast_vector temp_map; // should remove this
+	const std::vector<std::string> basic_cells = {
+		"$add",
+		"$and", // this also include logic_and
+		"$sub",
+		"$eq", // "equal"
+		"$gt",// "greater than"
+		"$not",
+		"$or",
+		"$xor",
+		"$ne", // "not equal"
+		"$logic_and",
+		"$logic_not",
+		"$logic_or",
+		"$reduce_bool",
+		"$reduce_or",
+		"$reduce_xor",
+	};
+	bool is_reading_parameters = false;
+	ast_vector temp_map; // should remove this
 
-		// This is computed using data from "cells->connections" node.
-		// Each cell has a "connections" and "port_directions" entries.
-		// The "connections" lists all input and output signals in the
-		// current cell, we count all input/output signals in 
-		// sum_of_io_path and we count the width of each signal
-		// in sum_of_wire_width. In the end we use these to determine
-		// the average wire width.
-		size_t sum_of_io_path = 0;
-		size_t sum_of_wire_width = 0;
+	// This is computed using data from "cells->connections" node.
+	// Each cell has a "connections" and "port_directions" entries.
+	// The "connections" lists all input and output signals in the
+	// current cell, we count all input/output signals in 
+	// sum_of_io_path and we count the width of each signal
+	// in sum_of_wire_width. In the end we use these to determine
+	// the average wire width.
+	size_t sum_of_io_path = 0;
+	size_t sum_of_wire_width = 0;
 
 };
 
@@ -317,9 +512,9 @@ int main() {
 	using namespace std;
 	const string fname = "yosys_ast/yosys_ast/tv80.json";
 
-	simpler_ast_parser p(fname);
+	dump_ast_parser p(fname);
 	p.reduce_feature_map();
-	p.pretty_print();
+	p.print_ast_feature_map();
 
 	return 0;
 }
