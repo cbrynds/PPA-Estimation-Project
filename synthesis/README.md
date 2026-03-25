@@ -79,6 +79,7 @@ Example:
 
 ```bash
 export ARRAY_MAX_CONCURRENT=50
+export ARRAY_MAX_SIZE=1001
 export SLURM_PARTITION=compute
 export SLURM_TIME=04:00:00
 export SLURM_MEM=8G
@@ -97,6 +98,7 @@ synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
 Supported variables:
 
 - `ARRAY_MAX_CONCURRENT`: max number of array tasks running at once
+- `ARRAY_MAX_SIZE`: max number of tasks in any one submitted Slurm array job
 - `SLURM_LOG_DIR`: directory for `slurm-%A_%a.out` and `slurm-%A_%a.err`
 - `SLURM_PARTITION`: passed to `sbatch --partition`
 - `SLURM_EXCLUDE`: passed to `sbatch --exclude`
@@ -132,6 +134,11 @@ Or pin the run to a known-good node:
 export SLURM_NODELIST=ec25
 synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
 ```
+
+If your cluster limits array size, the submit wrapper will automatically split
+the manifest into multiple chunk manifests when the total number of runs exceeds
+`ARRAY_MAX_SIZE` (default `1001`). Each chunk is submitted as its own Slurm
+array job, while still sharing the same result-shard directory for merging later.
 
 #### 4. What each task runs
 
