@@ -26,6 +26,11 @@ if [[ "${entry_count}" -le 0 ]]; then
   exit 1
 fi
 
+echo "Manifest contains ${entry_count} design x recipe runs"
+if [[ "${entry_count}" -gt 100 ]]; then
+  echo "Large manifest detected; Slurm array execution is recommended"
+fi
+
 array_range="0-$((entry_count - 1))%${ARRAY_MAX_CONCURRENT}"
 sbatch_args=(
   --array "${array_range}"

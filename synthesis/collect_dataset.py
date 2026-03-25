@@ -10,6 +10,7 @@ Modes:
 
 import argparse
 import csv
+import itertools
 import json
 import os
 import shlex
@@ -22,6 +23,13 @@ from pathlib import Path
 
 DEFAULT_EXTENSIONS = [".v", ".sv"]
 DEFAULT_RECIPES = [{"id": "abc_fast", "abc_fast": True, "abc_extra": ""}]
+DEFAULT_SWEEP_MODE = "bounded_cartesian"
+DEFAULT_SWEEP = {
+    "clock_period_ns": [2.5, 3.0, 3.5, 4.0, 5.0],
+    "max_fanout": [8, 16, 32],
+    "max_transition_ns": [0.10, 0.20, 0.40],
+    "max_capacitance_ff": [20.0, 60.0, 120.0],
+}
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
 SUBCOMMANDS = {"build-manifest", "run-manifest-entry", "merge-results", "run-serial"}
 
@@ -35,6 +43,9 @@ CSV_FIELDNAMES = [
     "top_module",
     "clock_port",
     "clock_period_ns_cfg",
+    "max_fanout_cfg",
+    "max_transition_ns_cfg",
+    "max_capacitance_ff_cfg",
     "num_rtl_files",
     "ast_json_path",
     "ast_log_path",
@@ -69,6 +80,99 @@ def load_yaml(path):
 
 def ensure_dir(path):
     path.mkdir(parents=True, exist_ok=True)
+
+
+def format_recipe_value(value):
+    if isinstance(value, float):
+        text = "{:.12g}".format(value)
+    else:
+        text = str(value)
+    text = text.rstrip("0").rstrip(".") if "." in text else text
+    return text.replace("-", "m").replace(".", "p")
+
+
+def build_recipe_id(clock_period_ns, max_fanout, max_transition_ns, max_capacitance_ff):
+    return "clk{}_fo{}_tr{}_cap{}".format(
+        format_recipe_value(clock_period_ns),
+        format_recipe_value(max_fanout),
+        format_recipe_value(max_transition_ns),
+        format_recipe_value(max_capacitance_ff),
+    )
+
+
+def validate_positive_list(name, values):
+    if not values:
+        raise ValueError("Sweep axis '{}' must be non-empty.".format(name))
+    normalized = []
+    for raw_value in values:
+        value = float(raw_value)
+        if value <= 0:
+            raise ValueError("Sweep axis '{}' values must be > 0.".format(name))
+        normalized.append(value)
+    return normalized
+
+
+def normalize_explicit_recipe(recipe):
+    normalized = {
+        "id": recipe["id"],
+        "abc_fast": bool(recipe.get("abc_fast", True)),
+        "abc_extra": recipe.get("abc_extra", ""),
+    }
+    if "clock_period_ns" in recipe:
+        normalized["clock_period_ns"] = float(recipe["clock_period_ns"])
+    if "max_fanout" in recipe:
+        normalized["max_fanout"] = float(recipe["max_fanout"])
+    if "max_transition_ns" in recipe:
+        normalized["max_transition_ns"] = float(recipe["max_transition_ns"])
+    if "max_capacitance_ff" in recipe:
+        normalized["max_capacitance_ff"] = float(recipe["max_capacitance_ff"])
+    return normalized
+
+
+def expand_recipes(cfg):
+    explicit_recipes = cfg.get("recipes")
+    sweep_cfg = cfg.get("sweep")
+
+    if explicit_recipes is not None and sweep_cfg is not None:
+        raise ValueError("Config must not define both 'recipes' and 'sweep'.")
+
+    if sweep_cfg is None:
+        recipes = explicit_recipes if explicit_recipes is not None else DEFAULT_RECIPES
+        return [normalize_explicit_recipe(recipe) for recipe in recipes], "explicit"
+
+    sweep_mode = cfg.get("sweep_mode", DEFAULT_SWEEP_MODE).strip().lower()
+    if sweep_mode != DEFAULT_SWEEP_MODE:
+        raise ValueError("Unsupported sweep_mode '{}'. Expected '{}'.".format(
+            sweep_mode, DEFAULT_SWEEP_MODE
+        ))
+
+    axes = dict(DEFAULT_SWEEP)
+    axes.update(sweep_cfg)
+
+    clock_periods = validate_positive_list("clock_period_ns", axes["clock_period_ns"])
+    max_fanouts = validate_positive_list("max_fanout", axes["max_fanout"])
+    max_transitions = validate_positive_list("max_transition_ns", axes["max_transition_ns"])
+    max_caps = validate_positive_list("max_capacitance_ff", axes["max_capacitance_ff"])
+
+    recipes = []
+    for clock_period_ns, max_fanout, max_transition_ns, max_capacitance_ff in itertools.product(
+        clock_periods, max_fanouts, max_transitions, max_caps
+    ):
+        recipes.append({
+            "id": build_recipe_id(
+                clock_period_ns=clock_period_ns,
+                max_fanout=max_fanout,
+                max_transition_ns=max_transition_ns,
+                max_capacitance_ff=max_capacitance_ff,
+            ),
+            "abc_fast": True,
+            "abc_extra": "",
+            "clock_period_ns": clock_period_ns,
+            "max_fanout": max_fanout,
+            "max_transition_ns": max_transition_ns,
+            "max_capacitance_ff": max_capacitance_ff,
+        })
+    return recipes, sweep_mode
 
 
 def collect_rtl_files(design, project_root):
@@ -167,14 +271,37 @@ def make_synth_yosys_script(
     return "\n".join(lines) + "\n"
 
 
-def write_sdc(sdc_path, clock_port, period_ns):
+def write_sdc(
+    sdc_path,
+    clock_port,
+    period_ns,
+    max_fanout=None,
+    max_transition_ns=None,
+    max_capacitance_ff=None,
+):
     lines = [
         "create_clock [get_ports {}] -name core_clock -period {:.3f}".format(
             clock_port, float(period_ns)
         ),
+    ]
+    if max_fanout is not None:
+        lines.append("set_max_fanout {:.3f} [current_design]".format(float(max_fanout)))
+    if max_transition_ns is not None:
+        lines.append(
+            "set_max_transition {:.3f} [current_design]".format(
+                float(max_transition_ns)
+            )
+        )
+    if max_capacitance_ff is not None:
+        lines.append(
+            "set_max_capacitance {:.3f} [current_design]".format(
+                float(max_capacitance_ff)
+            )
+        )
+    lines.extend([
         "set_all_input_output_delays",
         "",
-    ]
+    ])
     sdc_path.parent.mkdir(parents=True, exist_ok=True)
     with open(sdc_path, "w") as f:
         f.write("\n".join(lines))
@@ -249,7 +376,7 @@ def build_context(config_arg):
         output_cfg.get("result_shards_dir", DEFAULT_RESULTS_SHARDS_DIR),
     )
 
-    recipes = cfg.get("recipes", DEFAULT_RECIPES)
+    recipes, recipe_source = expand_recipes(cfg)
     designs = load_designs(cfg, project_root)
     if not recipes:
         raise ValueError("No recipes specified.")
@@ -274,6 +401,7 @@ def build_context(config_arg):
         "ast_log_dir": ast_log_dir,
         "result_shards_dir": result_shards_dir,
         "recipes": recipes,
+        "recipe_source": recipe_source,
         "designs": designs,
     }
 
@@ -288,13 +416,20 @@ def ensure_common_output_dirs(ctx):
 
 
 def build_run_specs(ctx):
+    recipe_count = len(ctx["recipes"])
+    if recipe_count > 200:
+        print(
+            "Warning: generated {} recipes per design. Consider Slurm array execution.".format(
+                recipe_count
+            )
+        )
     specs = []
     for design in ctx["designs"]:
         design_name = design["name"]
         top = design["top"]
         include_dirs = [resolve(ctx["project_root"], p) for p in design.get("include_dirs", [])]
         clock_port = design.get("clock_port", ctx["cfg"].get("default_clock_port", "clk"))
-        period_ns = design.get(
+        design_period_ns = design.get(
             "clock_period_ns",
             ctx["cfg"].get("default_clock_period_ns", 3.0),
         )
@@ -306,6 +441,10 @@ def build_run_specs(ctx):
             recipe_id = recipe["id"]
             run_id = "{}__{}".format(design_name, recipe_id)
             run_dir = ctx["runs_dir"] / run_id
+            period_ns = float(recipe.get("clock_period_ns", design_period_ns))
+            max_fanout = recipe.get("max_fanout")
+            max_transition_ns = recipe.get("max_transition_ns")
+            max_capacitance_ff = recipe.get("max_capacitance_ff")
             spec = {
                 "config_path": str(ctx["cfg_path"]),
                 "project_root": str(ctx["project_root"]),
@@ -324,6 +463,9 @@ def build_run_specs(ctx):
                 "top_module": top,
                 "clock_port": clock_port,
                 "clock_period_ns_cfg": float(period_ns),
+                "max_fanout_cfg": "" if max_fanout is None else float(max_fanout),
+                "max_transition_ns_cfg": "" if max_transition_ns is None else float(max_transition_ns),
+                "max_capacitance_ff_cfg": "" if max_capacitance_ff is None else float(max_capacitance_ff),
                 "rtl_files": [str(p) for p in files],
                 "include_dirs": [str(p) for p in include_dirs],
                 "num_rtl_files": len(files),
@@ -331,6 +473,9 @@ def build_run_specs(ctx):
                     "id": recipe_id,
                     "abc_fast": bool(recipe.get("abc_fast", True)),
                     "abc_extra": recipe.get("abc_extra", ""),
+                    "max_fanout": max_fanout,
+                    "max_transition_ns": max_transition_ns,
+                    "max_capacitance_ff": max_capacitance_ff,
                 },
                 "ast_json_path": str(ast_json_out),
                 "ast_log_path": str(ast_log_path),
@@ -383,6 +528,9 @@ def make_base_row(spec):
         "top_module": spec["top_module"],
         "clock_port": spec["clock_port"],
         "clock_period_ns_cfg": spec["clock_period_ns_cfg"],
+        "max_fanout_cfg": spec.get("max_fanout_cfg", ""),
+        "max_transition_ns_cfg": spec.get("max_transition_ns_cfg", ""),
+        "max_capacitance_ff_cfg": spec.get("max_capacitance_ff_cfg", ""),
         "num_rtl_files": spec["num_rtl_files"],
         "ast_json_path": spec["ast_json_path"],
         "ast_log_path": spec["ast_log_path"],
@@ -489,7 +637,14 @@ def run_single_spec(spec, write_shard=True):
             tf.write(synth_script)
             synth_script_path = Path(tf.name)
 
-        write_sdc(sdc_out, spec["clock_port"], spec["clock_period_ns_cfg"])
+        write_sdc(
+            sdc_out,
+            spec["clock_port"],
+            spec["clock_period_ns_cfg"],
+            max_fanout=spec["recipe"].get("max_fanout"),
+            max_transition_ns=spec["recipe"].get("max_transition_ns"),
+            max_capacitance_ff=spec["recipe"].get("max_capacitance_ff"),
+        )
 
         try:
             yosys_cmd = [
@@ -592,6 +747,8 @@ def cmd_build_manifest(args):
     )
     write_manifest(manifest_path, run_specs)
     print("Wrote {} manifest entries to {}".format(len(run_specs), manifest_path))
+    if len(run_specs) > 100:
+        print("Recommendation: use the Slurm job-array workflow for manifests larger than 100 entries.")
 
 
 def cmd_run_manifest_entry(args):
@@ -630,6 +787,9 @@ def cmd_run_serial(args):
     ensure_common_output_dirs(ctx)
     run_specs = build_run_specs(ctx)
     rows = []
+
+    if len(run_specs) > 100:
+        print("Recommendation: use the Slurm job-array workflow for this run size.")
 
     for idx, spec in enumerate(run_specs, start=1):
         print("[{}/{}] Running {}".format(idx, len(run_specs), spec["run_id"]))
