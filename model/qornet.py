@@ -4,9 +4,9 @@ Graph Attention Network model for post-placement TNS and WNS prediction from RTL
 
 import argparse
 import torch
-import pandas as pd
-from torch import Tensor, nn
-from torch_geometric.data import Batch, Data
+import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.nn import GAT, global_mean_pool
 
 class QoRNet:
     def __init__(self):

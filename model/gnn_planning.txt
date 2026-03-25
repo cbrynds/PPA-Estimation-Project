@@ -30,6 +30,7 @@ First implementation plan
     c. Larger structural context from the graph
 - Our target is a graph-level target, so we must convert the N node vectors to one graph vector through a process called pooling or readout
     - Mean pooling, sum pooling, max pooling produces a single vector, called the "graph embedding"
+    - Start with mean pooling. For WNS prediction, mean pooling could wash out the important features contributing to the critical path. We can try add pooling if this occurs
 
 4. Put an MLP head on top for scalar regression
 - After obtaining graph embedding, map it to the final prediction with a small MLP
