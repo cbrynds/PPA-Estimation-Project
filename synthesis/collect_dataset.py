@@ -25,10 +25,14 @@ DEFAULT_EXTENSIONS = [".v", ".sv"]
 DEFAULT_RECIPES = [{"id": "abc_fast", "abc_fast": True, "abc_extra": ""}]
 DEFAULT_SWEEP_MODE = "bounded_cartesian"
 DEFAULT_SWEEP = {
+    "abc_fast": [True, False],
     "clock_period_ns": [2.5, 3.0, 3.5, 4.0, 5.0],
     "max_fanout": [8, 16, 32],
     "max_transition_ns": [0.10, 0.20, 0.40],
     "max_capacitance_ff": [20.0, 60.0, 120.0],
+    "limit_sizing_leakage": [1.5, 2.0, 4.0],
+    "high_fanout_net_threshold": [64, 128],
+    "fanout_load": [1.0, 4.0, 16.0],
 }
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
 SUBCOMMANDS = {"build-manifest", "run-manifest-entry", "merge-results", "run-serial"}
@@ -42,10 +46,14 @@ CSV_FIELDNAMES = [
     "flow_mode",
     "top_module",
     "clock_port",
+    "abc_fast_cfg",
     "clock_period_ns_cfg",
     "max_fanout_cfg",
     "max_transition_ns_cfg",
     "max_capacitance_ff_cfg",
+    "limit_sizing_leakage_cfg",
+    "high_fanout_net_threshold_cfg",
+    "fanout_load_cfg",
     "num_rtl_files",
     "ast_json_path",
     "ast_log_path",
@@ -91,12 +99,25 @@ def format_recipe_value(value):
     return text.replace("-", "m").replace(".", "p")
 
 
-def build_recipe_id(clock_period_ns, max_fanout, max_transition_ns, max_capacitance_ff):
-    return "clk{}_fo{}_tr{}_cap{}".format(
+def build_recipe_id(
+    abc_fast,
+    clock_period_ns,
+    max_fanout,
+    max_transition_ns,
+    max_capacitance_ff,
+    limit_sizing_leakage,
+    high_fanout_net_threshold,
+    fanout_load,
+):
+    return "abc{}_clk{}_fo{}_tr{}_cap{}_leak{}_hfn{}_fload{}".format(
+        "fast" if abc_fast else "full",
         format_recipe_value(clock_period_ns),
         format_recipe_value(max_fanout),
         format_recipe_value(max_transition_ns),
         format_recipe_value(max_capacitance_ff),
+        format_recipe_value(limit_sizing_leakage),
+        format_recipe_value(high_fanout_net_threshold),
+        format_recipe_value(fanout_load),
     )
 
 
@@ -109,6 +130,26 @@ def validate_positive_list(name, values):
         if value <= 0:
             raise ValueError("Sweep axis '{}' values must be > 0.".format(name))
         normalized.append(value)
+    return normalized
+
+
+def validate_bool_list(name, values):
+    if not values:
+        raise ValueError("Sweep axis '{}' must be non-empty.".format(name))
+    normalized = []
+    for raw_value in values:
+        if isinstance(raw_value, bool):
+            normalized.append(raw_value)
+            continue
+        if isinstance(raw_value, str):
+            lowered = raw_value.strip().lower()
+            if lowered in ("true", "1", "yes", "y", "on"):
+                normalized.append(True)
+                continue
+            if lowered in ("false", "0", "no", "n", "off"):
+                normalized.append(False)
+                continue
+        raise ValueError("Sweep axis '{}' values must be boolean.".format(name))
     return normalized
 
 
@@ -126,6 +167,12 @@ def normalize_explicit_recipe(recipe):
         normalized["max_transition_ns"] = float(recipe["max_transition_ns"])
     if "max_capacitance_ff" in recipe:
         normalized["max_capacitance_ff"] = float(recipe["max_capacitance_ff"])
+    if "limit_sizing_leakage" in recipe:
+        normalized["limit_sizing_leakage"] = float(recipe["limit_sizing_leakage"])
+    if "high_fanout_net_threshold" in recipe:
+        normalized["high_fanout_net_threshold"] = float(recipe["high_fanout_net_threshold"])
+    if "fanout_load" in recipe:
+        normalized["fanout_load"] = float(recipe["fanout_load"])
     return normalized
 
 
@@ -149,28 +196,57 @@ def expand_recipes(cfg):
     axes = dict(DEFAULT_SWEEP)
     axes.update(sweep_cfg)
 
+    abc_fast_values = validate_bool_list("abc_fast", axes["abc_fast"])
     clock_periods = validate_positive_list("clock_period_ns", axes["clock_period_ns"])
     max_fanouts = validate_positive_list("max_fanout", axes["max_fanout"])
     max_transitions = validate_positive_list("max_transition_ns", axes["max_transition_ns"])
     max_caps = validate_positive_list("max_capacitance_ff", axes["max_capacitance_ff"])
+    leakage_limits = validate_positive_list("limit_sizing_leakage", axes["limit_sizing_leakage"])
+    high_fanout_thresholds = validate_positive_list(
+        "high_fanout_net_threshold", axes["high_fanout_net_threshold"]
+    )
+    fanout_loads = validate_positive_list("fanout_load", axes["fanout_load"])
 
     recipes = []
-    for clock_period_ns, max_fanout, max_transition_ns, max_capacitance_ff in itertools.product(
-        clock_periods, max_fanouts, max_transitions, max_caps
+    for (
+        abc_fast,
+        clock_period_ns,
+        max_fanout,
+        max_transition_ns,
+        max_capacitance_ff,
+        limit_sizing_leakage,
+        high_fanout_net_threshold,
+        fanout_load,
+    ) in itertools.product(
+        abc_fast_values,
+        clock_periods,
+        max_fanouts,
+        max_transitions,
+        max_caps,
+        leakage_limits,
+        high_fanout_thresholds,
+        fanout_loads,
     ):
         recipes.append({
             "id": build_recipe_id(
+                abc_fast=abc_fast,
                 clock_period_ns=clock_period_ns,
                 max_fanout=max_fanout,
                 max_transition_ns=max_transition_ns,
                 max_capacitance_ff=max_capacitance_ff,
+                limit_sizing_leakage=limit_sizing_leakage,
+                high_fanout_net_threshold=high_fanout_net_threshold,
+                fanout_load=fanout_load,
             ),
-            "abc_fast": True,
+            "abc_fast": abc_fast,
             "abc_extra": "",
             "clock_period_ns": clock_period_ns,
             "max_fanout": max_fanout,
             "max_transition_ns": max_transition_ns,
             "max_capacitance_ff": max_capacitance_ff,
+            "limit_sizing_leakage": limit_sizing_leakage,
+            "high_fanout_net_threshold": high_fanout_net_threshold,
+            "fanout_load": fanout_load,
         })
     return recipes, sweep_mode
 
@@ -278,6 +354,7 @@ def write_sdc(
     max_fanout=None,
     max_transition_ns=None,
     max_capacitance_ff=None,
+    fanout_load=None,
 ):
     lines = [
         "create_clock [get_ports {}] -name core_clock -period {:.3f}".format(
@@ -298,6 +375,8 @@ def write_sdc(
                 float(max_capacitance_ff)
             )
         )
+    if fanout_load is not None:
+        lines.append("set_fanout_load {:.3f} [all_outputs]".format(float(fanout_load)))
     lines.extend([
         "set_all_input_output_delays",
         "",
@@ -445,6 +524,9 @@ def build_run_specs(ctx):
             max_fanout = recipe.get("max_fanout")
             max_transition_ns = recipe.get("max_transition_ns")
             max_capacitance_ff = recipe.get("max_capacitance_ff")
+            limit_sizing_leakage = recipe.get("limit_sizing_leakage")
+            high_fanout_net_threshold = recipe.get("high_fanout_net_threshold")
+            fanout_load = recipe.get("fanout_load")
             spec = {
                 "config_path": str(ctx["cfg_path"]),
                 "project_root": str(ctx["project_root"]),
@@ -462,10 +544,14 @@ def build_run_specs(ctx):
                 "run_id": run_id,
                 "top_module": top,
                 "clock_port": clock_port,
+                "abc_fast_cfg": bool(recipe.get("abc_fast", True)),
                 "clock_period_ns_cfg": float(period_ns),
                 "max_fanout_cfg": "" if max_fanout is None else float(max_fanout),
                 "max_transition_ns_cfg": "" if max_transition_ns is None else float(max_transition_ns),
                 "max_capacitance_ff_cfg": "" if max_capacitance_ff is None else float(max_capacitance_ff),
+                "limit_sizing_leakage_cfg": "" if limit_sizing_leakage is None else float(limit_sizing_leakage),
+                "high_fanout_net_threshold_cfg": "" if high_fanout_net_threshold is None else float(high_fanout_net_threshold),
+                "fanout_load_cfg": "" if fanout_load is None else float(fanout_load),
                 "rtl_files": [str(p) for p in files],
                 "include_dirs": [str(p) for p in include_dirs],
                 "num_rtl_files": len(files),
@@ -476,6 +562,9 @@ def build_run_specs(ctx):
                     "max_fanout": max_fanout,
                     "max_transition_ns": max_transition_ns,
                     "max_capacitance_ff": max_capacitance_ff,
+                    "limit_sizing_leakage": limit_sizing_leakage,
+                    "high_fanout_net_threshold": high_fanout_net_threshold,
+                    "fanout_load": fanout_load,
                 },
                 "ast_json_path": str(ast_json_out),
                 "ast_log_path": str(ast_log_path),
@@ -527,10 +616,14 @@ def make_base_row(spec):
         "flow_mode": spec["flow_mode"],
         "top_module": spec["top_module"],
         "clock_port": spec["clock_port"],
+        "abc_fast_cfg": spec.get("abc_fast_cfg", ""),
         "clock_period_ns_cfg": spec["clock_period_ns_cfg"],
         "max_fanout_cfg": spec.get("max_fanout_cfg", ""),
         "max_transition_ns_cfg": spec.get("max_transition_ns_cfg", ""),
         "max_capacitance_ff_cfg": spec.get("max_capacitance_ff_cfg", ""),
+        "limit_sizing_leakage_cfg": spec.get("limit_sizing_leakage_cfg", ""),
+        "high_fanout_net_threshold_cfg": spec.get("high_fanout_net_threshold_cfg", ""),
+        "fanout_load_cfg": spec.get("fanout_load_cfg", ""),
         "num_rtl_files": spec["num_rtl_files"],
         "ast_json_path": spec["ast_json_path"],
         "ast_log_path": spec["ast_log_path"],
@@ -644,6 +737,7 @@ def run_single_spec(spec, write_shard=True):
             max_fanout=spec["recipe"].get("max_fanout"),
             max_transition_ns=spec["recipe"].get("max_transition_ns"),
             max_capacitance_ff=spec["recipe"].get("max_capacitance_ff"),
+            fanout_load=spec["recipe"].get("fanout_load"),
         )
 
         try:
@@ -665,6 +759,10 @@ def run_single_spec(spec, write_shard=True):
             env["SDC_FILE"] = "data/constraints/{}.sdc".format(spec["run_id"])
             env["DIE_AREA"] = str(spec["die_area"])
             env["CORE_AREA"] = str(spec["core_area"])
+            if spec["recipe"].get("limit_sizing_leakage") is not None:
+                env["RSZ_LIMIT_SIZING_LEAKAGE"] = str(spec["recipe"]["limit_sizing_leakage"])
+            if spec["recipe"].get("high_fanout_net_threshold") is not None:
+                env["HIGH_FANOUT_NET_THRESHOLD"] = str(spec["recipe"]["high_fanout_net_threshold"])
             env["TEST_TMPDIR"] = str(run_dir)
             openroad_cmd = [
                 "apptainer", "exec", str(apptainer_image),
