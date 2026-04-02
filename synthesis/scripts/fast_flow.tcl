@@ -72,9 +72,6 @@ source $layer_rc_file
 set_wire_rc -signal -layer $wire_rc_layer
 set_wire_rc -clock  -layer $wire_rc_layer_clk
 set_dont_use $dont_use
-if {$rsz_limit_sizing_leakage ne ""} {
-  set_opt_config -limit_sizing_leakage $rsz_limit_sizing_leakage
-}
 
 estimate_parasitics -placement
 
