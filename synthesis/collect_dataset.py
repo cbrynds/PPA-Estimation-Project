@@ -37,6 +37,7 @@ DEFAULT_SWEEP = {
 }
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
 DEFAULT_YOSYS_LOGS_DIR = "synthesis/results/yosys_logs"
+DEFAULT_SHARED_FAILURES_DIR = "synthesis/results/shared_failures"
 SUBCOMMANDS = {"build-manifest", "run-manifest-entry", "merge-results", "run-serial"}
 
 CSV_FIELDNAMES = [
@@ -408,13 +409,72 @@ def read_last_ppa_row(ppa_csv):
     return rows[-1]
 
 
-def generate_ast_if_needed(spec, project_root, apptainer_image, ast_json_out, ast_log_path, files, include_dirs):
+def read_failure_marker(marker_path):
+    if not marker_path.exists():
+        return None
+    with open(marker_path, "r") as f:
+        return json.load(f)
+
+
+def write_failure_marker(marker_path, stage, error_message):
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "stage": stage,
+        "error_message": error_message,
+    }
+    with open(marker_path, "w") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def remove_failure_marker(marker_path):
+    try:
+        marker_path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def raise_cached_failure(marker_path, design_name):
+    failure = read_failure_marker(marker_path)
+    if failure is None:
+        return
+    raise RuntimeError(
+        "Cached shared failure for {} at {}: {}".format(
+            design_name,
+            failure.get("stage", "unknown"),
+            failure.get("error_message", "unknown error"),
+        )
+    )
+
+
+def validate_openroad_output(output):
+    error_markers = [
+        "\n[ERROR ",
+        "\nError: ",
+        "openroad> ",
+    ]
+    if any(marker in output for marker in error_markers):
+        raise RuntimeError("OpenROAD reported an error:\n{}".format(output))
+
+
+def generate_ast_if_needed(
+    spec,
+    project_root,
+    apptainer_image,
+    ast_json_out,
+    ast_log_path,
+    shared_failure_path,
+    files,
+    include_dirs,
+):
+    raise_cached_failure(shared_failure_path, spec["design_name"])
     if ast_json_out.exists():
         return
 
     lock_path = ast_log_path.with_suffix(ast_log_path.suffix + ".lock")
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        raise_cached_failure(shared_failure_path, spec["design_name"])
         if ast_json_out.exists():
             return
 
@@ -443,6 +503,10 @@ def generate_ast_if_needed(spec, project_root, apptainer_image, ast_json_out, as
                 "yosys", "-Q", "-s", str(ast_script_path),
             ]
             run_cmd(ast_cmd, cwd=project_root, log_path=ast_log_path)
+            remove_failure_marker(shared_failure_path)
+        except Exception as exc:
+            write_failure_marker(shared_failure_path, "ast", str(exc))
+            raise
         finally:
             try:
                 ast_script_path.unlink()
@@ -457,15 +521,18 @@ def synthesize_if_needed(
     apptainer_image,
     netlist_out,
     yosys_log_path,
+    shared_failure_path,
     files,
     include_dirs,
 ):
+    raise_cached_failure(shared_failure_path, spec["design_name"])
     if netlist_out.exists():
         return
 
     lock_path = yosys_log_path.with_suffix(yosys_log_path.suffix + ".lock")
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        raise_cached_failure(shared_failure_path, spec["design_name"])
         if netlist_out.exists():
             return
 
@@ -494,6 +561,10 @@ def synthesize_if_needed(
                 "yosys", "-Q", "-s", str(synth_script_path),
             ]
             run_cmd(yosys_cmd, cwd=project_root, log_path=yosys_log_path)
+            remove_failure_marker(shared_failure_path)
+        except Exception as exc:
+            write_failure_marker(shared_failure_path, "yosys_synth", str(exc))
+            raise
         finally:
             try:
                 synth_script_path.unlink()
@@ -564,6 +635,10 @@ def build_context(config_arg):
         project_root,
         output_cfg.get("yosys_log_dir", DEFAULT_YOSYS_LOGS_DIR),
     )
+    shared_failures_dir = resolve(
+        project_root,
+        output_cfg.get("shared_failures_dir", DEFAULT_SHARED_FAILURES_DIR),
+    )
 
     recipes, recipe_source = expand_recipes(cfg)
     designs = load_designs(cfg, project_root)
@@ -590,6 +665,7 @@ def build_context(config_arg):
         "ast_log_dir": ast_log_dir,
         "result_shards_dir": result_shards_dir,
         "yosys_log_dir": yosys_log_dir,
+        "shared_failures_dir": shared_failures_dir,
         "recipes": recipes,
         "recipe_source": recipe_source,
         "designs": designs,
@@ -602,6 +678,7 @@ def ensure_common_output_dirs(ctx):
     ensure_dir(ctx["ast_log_dir"])
     ensure_dir(ctx["result_shards_dir"])
     ensure_dir(ctx["yosys_log_dir"])
+    ensure_dir(ctx["shared_failures_dir"])
     ensure_dir(ctx["synthesis_root"] / "data" / "rtl")
     ensure_dir(ctx["synthesis_root"] / "data" / "constraints")
 
@@ -694,6 +771,9 @@ def build_run_specs(ctx):
                 "yosys_log_path": str(
                     ctx["yosys_log_dir"] / "{}__{}.log".format(design_name, synth_variant)
                 ),
+                "shared_failure_path": str(
+                    ctx["shared_failures_dir"] / "{}.json".format(design_name)
+                ),
                 "sdc_path": str(ctx["synthesis_root"] / "data" / "constraints" / "{}.sdc".format(run_id)),
                 "ppa_csv_path": str(run_dir / "results" / "ppa.csv"),
                 "result_shard_path": str(ctx["result_shards_dir"] / "{}.json".format(run_id)),
@@ -783,6 +863,7 @@ def run_single_spec(spec, write_shard=True):
     run_dir = spec_path(spec, "run_dir")
     netlist_out = spec_path(spec, "netlist_path")
     yosys_log_path = spec_path(spec, "yosys_log_path")
+    shared_failure_path = spec_path(spec, "shared_failure_path")
     sdc_out = spec_path(spec, "sdc_path")
     ppa_csv = spec_path(spec, "ppa_csv_path")
     shard_path = spec_path(spec, "result_shard_path")
@@ -794,6 +875,7 @@ def run_single_spec(spec, write_shard=True):
     ensure_dir(ast_log_path.parent)
     ensure_dir(netlist_out.parent)
     ensure_dir(yosys_log_path.parent)
+    ensure_dir(shared_failure_path.parent)
     ensure_dir(sdc_out.parent)
     ensure_dir(shard_path.parent)
 
@@ -808,6 +890,7 @@ def run_single_spec(spec, write_shard=True):
             apptainer_image=apptainer_image,
             ast_json_out=ast_json_out,
             ast_log_path=ast_log_path,
+            shared_failure_path=shared_failure_path,
             files=files,
             include_dirs=include_dirs,
         )
@@ -820,6 +903,7 @@ def run_single_spec(spec, write_shard=True):
             apptainer_image=apptainer_image,
             netlist_out=netlist_out,
             yosys_log_path=yosys_log_path,
+            shared_failure_path=shared_failure_path,
             files=files,
             include_dirs=include_dirs,
         )
@@ -851,13 +935,16 @@ def run_single_spec(spec, write_shard=True):
         if spec["recipe"].get("limit_sizing_leakage") is not None:
             env["RSZ_LIMIT_SIZING_LEAKAGE"] = str(spec["recipe"]["limit_sizing_leakage"])
         if spec["recipe"].get("high_fanout_net_threshold") is not None:
-            env["HIGH_FANOUT_NET_THRESHOLD"] = str(spec["recipe"]["high_fanout_net_threshold"])
+            env["HIGH_FANOUT_NET_THRESHOLD"] = str(
+                int(spec["recipe"]["high_fanout_net_threshold"])
+            )
         env["TEST_TMPDIR"] = str(run_dir)
         openroad_cmd = [
             "apptainer", "exec", str(apptainer_image),
             "openroad", str(openroad_script.relative_to(synthesis_root)),
         ]
-        run_cmd(openroad_cmd, cwd=synthesis_root, env=env, log_path=or_log)
+        openroad_output = run_cmd(openroad_cmd, cwd=synthesis_root, env=env, log_path=or_log)
+        validate_openroad_output(openroad_output)
 
         stage = "ppa_read"
         ppa = read_last_ppa_row(ppa_csv)
@@ -881,6 +968,7 @@ def run_single_spec(spec, write_shard=True):
             "error_stage": stage,
             "error_message": str(exc),
         })
+        print("Failed {} at {}: {}".format(spec["run_id"], stage, exc))
     finally:
         if write_shard:
             write_result_shard(row, shard_path)
