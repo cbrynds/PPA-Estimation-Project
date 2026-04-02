@@ -10,6 +10,7 @@ Modes:
 
 import argparse
 import csv
+import fcntl
 import itertools
 import json
 import os
@@ -35,6 +36,7 @@ DEFAULT_SWEEP = {
     "fanout_load": [1.0, 4.0, 16.0],
 }
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
+DEFAULT_YOSYS_LOGS_DIR = "synthesis/results/yosys_logs"
 SUBCOMMANDS = {"build-manifest", "run-manifest-entry", "merge-results", "run-serial"}
 
 CSV_FIELDNAMES = [
@@ -97,6 +99,17 @@ def format_recipe_value(value):
         text = str(value)
     text = text.rstrip("0").rstrip(".") if "." in text else text
     return text.replace("-", "m").replace(".", "p")
+
+
+def format_token(value):
+    token = format_recipe_value(value)
+    normalized = []
+    for ch in token:
+        if ch.isalnum() or ch in ("_", "-", "p", "m"):
+            normalized.append(ch)
+        else:
+            normalized.append("_")
+    return "".join(normalized) or "default"
 
 
 def build_recipe_id(
@@ -395,6 +408,99 @@ def read_last_ppa_row(ppa_csv):
     return rows[-1]
 
 
+def generate_ast_if_needed(spec, project_root, apptainer_image, ast_json_out, ast_log_path, files, include_dirs):
+    if ast_json_out.exists():
+        return
+
+    lock_path = ast_log_path.with_suffix(ast_log_path.suffix + ".lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        if ast_json_out.exists():
+            return
+
+        print("Generating AST for {}".format(spec["design_name"]))
+        ast_script = make_ast_yosys_script(
+            files=files,
+            top=spec["top_module"],
+            json_out=ast_json_out,
+            include_dirs=include_dirs,
+            use_proc=bool(spec.get("ast_proc", True)),
+            use_flatten=bool(spec.get("ast_flatten", True)),
+            dump_ast=bool(spec.get("ast_dump", False)),
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".ys",
+            dir=str(ast_log_path.parent),
+            delete=False,
+        ) as tf:
+            tf.write(ast_script)
+            ast_script_path = Path(tf.name)
+
+        try:
+            ast_cmd = [
+                "apptainer", "exec", str(apptainer_image),
+                "yosys", "-Q", "-s", str(ast_script_path),
+            ]
+            run_cmd(ast_cmd, cwd=project_root, log_path=ast_log_path)
+        finally:
+            try:
+                ast_script_path.unlink()
+            except OSError:
+                pass
+
+
+def synthesize_if_needed(
+    spec,
+    project_root,
+    synthesis_root,
+    apptainer_image,
+    netlist_out,
+    yosys_log_path,
+    files,
+    include_dirs,
+):
+    if netlist_out.exists():
+        return
+
+    lock_path = yosys_log_path.with_suffix(yosys_log_path.suffix + ".lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        if netlist_out.exists():
+            return
+
+        print("Synthesizing {} ({})".format(spec["design_name"], spec["synth_variant"]))
+        synth_script = make_synth_yosys_script(
+            files=files,
+            top=spec["top_module"],
+            netlist_out=netlist_out,
+            include_dirs=include_dirs,
+            liberty_file=(synthesis_root / "data" / "NangateOpenCellLibrary_typical.lib"),
+            abc_fast=bool(spec["recipe"].get("abc_fast", True)),
+            abc_extra=spec["recipe"].get("abc_extra", ""),
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".ys",
+            dir=str(yosys_log_path.parent),
+            delete=False,
+        ) as tf:
+            tf.write(synth_script)
+            synth_script_path = Path(tf.name)
+
+        try:
+            yosys_cmd = [
+                "apptainer", "exec", str(apptainer_image),
+                "yosys", "-Q", "-s", str(synth_script_path),
+            ]
+            run_cmd(yosys_cmd, cwd=project_root, log_path=yosys_log_path)
+        finally:
+            try:
+                synth_script_path.unlink()
+            except OSError:
+                pass
+
+
 def write_csv_file(csv_path, fieldnames, rows):
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with open(csv_path, "w", newline="") as f:
@@ -454,6 +560,10 @@ def build_context(config_arg):
         project_root,
         output_cfg.get("result_shards_dir", DEFAULT_RESULTS_SHARDS_DIR),
     )
+    yosys_log_dir = resolve(
+        project_root,
+        output_cfg.get("yosys_log_dir", DEFAULT_YOSYS_LOGS_DIR),
+    )
 
     recipes, recipe_source = expand_recipes(cfg)
     designs = load_designs(cfg, project_root)
@@ -479,6 +589,7 @@ def build_context(config_arg):
         "ast_dir": ast_dir,
         "ast_log_dir": ast_log_dir,
         "result_shards_dir": result_shards_dir,
+        "yosys_log_dir": yosys_log_dir,
         "recipes": recipes,
         "recipe_source": recipe_source,
         "designs": designs,
@@ -490,6 +601,7 @@ def ensure_common_output_dirs(ctx):
     ensure_dir(ctx["ast_dir"])
     ensure_dir(ctx["ast_log_dir"])
     ensure_dir(ctx["result_shards_dir"])
+    ensure_dir(ctx["yosys_log_dir"])
     ensure_dir(ctx["synthesis_root"] / "data" / "rtl")
     ensure_dir(ctx["synthesis_root"] / "data" / "constraints")
 
@@ -520,6 +632,10 @@ def build_run_specs(ctx):
             recipe_id = recipe["id"]
             run_id = "{}__{}".format(design_name, recipe_id)
             run_dir = ctx["runs_dir"] / run_id
+            synth_variant = "abcfast" if bool(recipe.get("abc_fast", True)) else "abcfull"
+            abc_extra = recipe.get("abc_extra", "")
+            if abc_extra:
+                synth_variant = "{}__{}".format(synth_variant, format_token(abc_extra))
             period_ns = float(recipe.get("clock_period_ns", design_period_ns))
             max_fanout = recipe.get("max_fanout")
             max_transition_ns = recipe.get("max_transition_ns")
@@ -569,7 +685,15 @@ def build_run_specs(ctx):
                 "ast_json_path": str(ast_json_out),
                 "ast_log_path": str(ast_log_path),
                 "run_dir": str(run_dir),
-                "netlist_path": str(ctx["synthesis_root"] / "data" / "rtl" / "{}_netlist.v".format(run_id)),
+                "synth_variant": synth_variant,
+                "netlist_path": str(
+                    ctx["synthesis_root"] / "data" / "rtl" / "{}__{}_netlist.v".format(
+                        design_name, synth_variant
+                    )
+                ),
+                "yosys_log_path": str(
+                    ctx["yosys_log_dir"] / "{}__{}.log".format(design_name, synth_variant)
+                ),
                 "sdc_path": str(ctx["synthesis_root"] / "data" / "constraints" / "{}.sdc".format(run_id)),
                 "ppa_csv_path": str(run_dir / "results" / "ppa.csv"),
                 "result_shard_path": str(ctx["result_shards_dir"] / "{}.json".format(run_id)),
@@ -658,6 +782,7 @@ def run_single_spec(spec, write_shard=True):
     ast_log_path = spec_path(spec, "ast_log_path")
     run_dir = spec_path(spec, "run_dir")
     netlist_out = spec_path(spec, "netlist_path")
+    yosys_log_path = spec_path(spec, "yosys_log_path")
     sdc_out = spec_path(spec, "sdc_path")
     ppa_csv = spec_path(spec, "ppa_csv_path")
     shard_path = spec_path(spec, "result_shard_path")
@@ -668,6 +793,7 @@ def run_single_spec(spec, write_shard=True):
     ensure_dir(ast_json_out.parent)
     ensure_dir(ast_log_path.parent)
     ensure_dir(netlist_out.parent)
+    ensure_dir(yosys_log_path.parent)
     ensure_dir(sdc_out.parent)
     ensure_dir(shard_path.parent)
 
@@ -676,59 +802,28 @@ def run_single_spec(spec, write_shard=True):
     tool_start_s = time.perf_counter()
 
     try:
-        print("Generating AST for {}".format(spec["design_name"]))
-        ast_script = make_ast_yosys_script(
+        generate_ast_if_needed(
+            spec=spec,
+            project_root=project_root,
+            apptainer_image=apptainer_image,
+            ast_json_out=ast_json_out,
+            ast_log_path=ast_log_path,
             files=files,
-            top=spec["top_module"],
-            json_out=ast_json_out,
             include_dirs=include_dirs,
-            use_proc=bool(spec.get("ast_proc", True)),
-            use_flatten=bool(spec.get("ast_flatten", True)),
-            dump_ast=bool(spec.get("ast_dump", False)),
         )
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".ys",
-            dir=str(ast_log_path.parent),
-            delete=False,
-        ) as tf:
-            tf.write(ast_script)
-            ast_script_path = Path(tf.name)
 
-        try:
-            ast_cmd = [
-                "apptainer", "exec", str(apptainer_image),
-                "yosys", "-Q", "-s", str(ast_script_path),
-            ]
-            run_cmd(ast_cmd, cwd=project_root, log_path=ast_log_path)
-        finally:
-            try:
-                ast_script_path.unlink()
-            except OSError:
-                pass
-
-        print("Synthesizing {}".format(spec["run_id"]))
         stage = "yosys_synth"
-        synth_script = make_synth_yosys_script(
-            files=files,
-            top=spec["top_module"],
+        synthesize_if_needed(
+            spec=spec,
+            project_root=project_root,
+            synthesis_root=synthesis_root,
+            apptainer_image=apptainer_image,
             netlist_out=netlist_out,
+            yosys_log_path=yosys_log_path,
+            files=files,
             include_dirs=include_dirs,
-            liberty_file=(synthesis_root / "data" / "NangateOpenCellLibrary_typical.lib"),
-            abc_fast=bool(spec["recipe"].get("abc_fast", True)),
-            abc_extra=spec["recipe"].get("abc_extra", ""),
         )
-        ys_log = run_dir / "yosys.log"
         or_log = run_dir / "openroad.log"
-
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".ys",
-            dir=str(run_dir),
-            delete=False,
-        ) as tf:
-            tf.write(synth_script)
-            synth_script_path = Path(tf.name)
 
         write_sdc(
             sdc_out,
@@ -740,40 +835,29 @@ def run_single_spec(spec, write_shard=True):
             fanout_load=spec["recipe"].get("fanout_load"),
         )
 
-        try:
-            yosys_cmd = [
-                "apptainer", "exec", str(apptainer_image),
-                "yosys", "-Q", "-s", str(synth_script_path),
-            ]
-            run_cmd(yosys_cmd, cwd=project_root, log_path=ys_log)
-
-            print("Implementing {}".format(spec["run_id"]))
-            stage = "openroad"
-            openroad_script = synthesis_root / "scripts" / (
-                "openroad_flow.tcl" if spec["flow_mode"] == "full" else "openroad_fast_flow.tcl"
-            )
-            env = os.environ.copy()
-            env["DESIGN_NAME"] = spec["run_id"]
-            env["TOP_MODULE"] = spec["top_module"]
-            env["SYNTH_VERILOG"] = "data/rtl/{}_netlist.v".format(spec["run_id"])
-            env["SDC_FILE"] = "data/constraints/{}.sdc".format(spec["run_id"])
-            env["DIE_AREA"] = str(spec["die_area"])
-            env["CORE_AREA"] = str(spec["core_area"])
-            if spec["recipe"].get("limit_sizing_leakage") is not None:
-                env["RSZ_LIMIT_SIZING_LEAKAGE"] = str(spec["recipe"]["limit_sizing_leakage"])
-            if spec["recipe"].get("high_fanout_net_threshold") is not None:
-                env["HIGH_FANOUT_NET_THRESHOLD"] = str(spec["recipe"]["high_fanout_net_threshold"])
-            env["TEST_TMPDIR"] = str(run_dir)
-            openroad_cmd = [
-                "apptainer", "exec", str(apptainer_image),
-                "openroad", str(openroad_script.relative_to(synthesis_root)),
-            ]
-            run_cmd(openroad_cmd, cwd=synthesis_root, env=env, log_path=or_log)
-        finally:
-            try:
-                synth_script_path.unlink()
-            except OSError:
-                pass
+        print("Implementing {}".format(spec["run_id"]))
+        stage = "openroad"
+        openroad_script = synthesis_root / "scripts" / (
+            "openroad_flow.tcl" if spec["flow_mode"] == "full" else "openroad_fast_flow.tcl"
+        )
+        env = os.environ.copy()
+        env["DESIGN_NAME"] = spec["run_id"]
+        env["TOP_MODULE"] = spec["top_module"]
+        env["SYNTH_VERILOG"] = str(netlist_out.relative_to(synthesis_root))
+        env["SDC_FILE"] = str(sdc_out.relative_to(synthesis_root))
+        env["DIE_AREA"] = str(spec["die_area"])
+        env["CORE_AREA"] = str(spec["core_area"])
+        env["RESULT_DIR"] = str(run_dir / "results")
+        if spec["recipe"].get("limit_sizing_leakage") is not None:
+            env["RSZ_LIMIT_SIZING_LEAKAGE"] = str(spec["recipe"]["limit_sizing_leakage"])
+        if spec["recipe"].get("high_fanout_net_threshold") is not None:
+            env["HIGH_FANOUT_NET_THRESHOLD"] = str(spec["recipe"]["high_fanout_net_threshold"])
+        env["TEST_TMPDIR"] = str(run_dir)
+        openroad_cmd = [
+            "apptainer", "exec", str(apptainer_image),
+            "openroad", str(openroad_script.relative_to(synthesis_root)),
+        ]
+        run_cmd(openroad_cmd, cwd=synthesis_root, env=env, log_path=or_log)
 
         stage = "ppa_read"
         ppa = read_last_ppa_row(ppa_csv)
