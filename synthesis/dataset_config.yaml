@@ -14,12 +14,12 @@ default_clock_period_ns: 3.0
 
 sweep_mode: bounded_cartesian
 sweep:
-  abc_fast: [true, false]
+  abc_fast: [true]
   clock_period_ns: [0.5, 1.0, 2.0, 3.0, 4.0]
   max_fanout: [8, 16, 32, 64]
-  max_transition_ns: [0.20]
-  max_capacitance_ff: [60.0]
-  fanout_load: [1.0, 4.0, 8.0]
+  max_transition_ns: [0.16, 0.20, 0.24]
+  max_capacitance_ff: [40.0, 60.0, 80.0]
+  fanout_load: [1.0, 2.0, 4.0]
 
 ast:
   proc: true
