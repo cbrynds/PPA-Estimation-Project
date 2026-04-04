@@ -215,9 +215,9 @@ set route_guide [make_result_file ${design}_${platform}.route_guide]
 set global_route_args [list \
   -guide_file $route_guide \
   -congestion_iterations 100]
-if {$high_fanout_net_threshold ne ""} {
-  lappend global_route_args -skip_large_fanout_nets $high_fanout_net_threshold
-}
+# if {$high_fanout_net_threshold ne ""} {
+#   lappend global_route_args -skip_large_fanout_nets $high_fanout_net_threshold
+# }
 eval global_route $global_route_args
 
 set verilog_file [make_result_file ${design}_${platform}.v]
