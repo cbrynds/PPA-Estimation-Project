@@ -62,9 +62,6 @@ set global_placement_args [list \
   -density $global_place_density \
   -pad_left $global_place_pad \
   -pad_right $global_place_pad]
-if {$high_fanout_net_threshold ne ""} {
-  lappend global_placement_args -initial_place_max_fanout $high_fanout_net_threshold
-}
 eval global_placement $global_placement_args
 
 # IO Placement
@@ -215,9 +212,6 @@ set route_guide [make_result_file ${design}_${platform}.route_guide]
 set global_route_args [list \
   -guide_file $route_guide \
   -congestion_iterations 100]
-# if {$high_fanout_net_threshold ne ""} {
-#   lappend global_route_args -skip_large_fanout_nets $high_fanout_net_threshold
-# }
 eval global_route $global_route_args
 
 set verilog_file [make_result_file ${design}_${platform}.v]

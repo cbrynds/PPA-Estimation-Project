@@ -31,7 +31,6 @@ DEFAULT_SWEEP = {
     "max_fanout": [8, 16, 32],
     "max_transition_ns": [0.10, 0.20, 0.40],
     "max_capacitance_ff": [20.0, 60.0, 120.0],
-    "high_fanout_net_threshold": [64, 128],
     "fanout_load": [1.0, 4.0, 16.0],
 }
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
@@ -53,7 +52,6 @@ CSV_FIELDNAMES = [
     "max_fanout_cfg",
     "max_transition_ns_cfg",
     "max_capacitance_ff_cfg",
-    "high_fanout_net_threshold_cfg",
     "fanout_load_cfg",
     "num_rtl_files",
     "ast_json_path",
@@ -117,16 +115,14 @@ def build_recipe_id(
     max_fanout,
     max_transition_ns,
     max_capacitance_ff,
-    high_fanout_net_threshold,
     fanout_load,
 ):
-    return "abc{}_clk{}_fo{}_tr{}_cap{}_hfn{}_fload{}".format(
+    return "abc{}_clk{}_fo{}_tr{}_cap{}_fload{}".format(
         "fast" if abc_fast else "full",
         format_recipe_value(clock_period_ns),
         format_recipe_value(max_fanout),
         format_recipe_value(max_transition_ns),
         format_recipe_value(max_capacitance_ff),
-        format_recipe_value(high_fanout_net_threshold),
         format_recipe_value(fanout_load),
     )
 
@@ -177,8 +173,6 @@ def normalize_explicit_recipe(recipe):
         normalized["max_transition_ns"] = float(recipe["max_transition_ns"])
     if "max_capacitance_ff" in recipe:
         normalized["max_capacitance_ff"] = float(recipe["max_capacitance_ff"])
-    if "high_fanout_net_threshold" in recipe:
-        normalized["high_fanout_net_threshold"] = float(recipe["high_fanout_net_threshold"])
     if "fanout_load" in recipe:
         normalized["fanout_load"] = float(recipe["fanout_load"])
     return normalized
@@ -209,9 +203,6 @@ def expand_recipes(cfg):
     max_fanouts = validate_positive_list("max_fanout", axes["max_fanout"])
     max_transitions = validate_positive_list("max_transition_ns", axes["max_transition_ns"])
     max_caps = validate_positive_list("max_capacitance_ff", axes["max_capacitance_ff"])
-    high_fanout_thresholds = validate_positive_list(
-        "high_fanout_net_threshold", axes["high_fanout_net_threshold"]
-    )
     fanout_loads = validate_positive_list("fanout_load", axes["fanout_load"])
 
     recipes = []
@@ -221,7 +212,6 @@ def expand_recipes(cfg):
         max_fanout,
         max_transition_ns,
         max_capacitance_ff,
-        high_fanout_net_threshold,
         fanout_load,
     ) in itertools.product(
         abc_fast_values,
@@ -229,7 +219,6 @@ def expand_recipes(cfg):
         max_fanouts,
         max_transitions,
         max_caps,
-        high_fanout_thresholds,
         fanout_loads,
     ):
         recipes.append({
@@ -239,7 +228,6 @@ def expand_recipes(cfg):
                 max_fanout=max_fanout,
                 max_transition_ns=max_transition_ns,
                 max_capacitance_ff=max_capacitance_ff,
-                high_fanout_net_threshold=high_fanout_net_threshold,
                 fanout_load=fanout_load,
             ),
             "abc_fast": abc_fast,
@@ -248,7 +236,6 @@ def expand_recipes(cfg):
             "max_fanout": max_fanout,
             "max_transition_ns": max_transition_ns,
             "max_capacitance_ff": max_capacitance_ff,
-            "high_fanout_net_threshold": high_fanout_net_threshold,
             "fanout_load": fanout_load,
         })
     return recipes, sweep_mode
@@ -706,7 +693,6 @@ def build_run_specs(ctx):
             max_fanout = recipe.get("max_fanout")
             max_transition_ns = recipe.get("max_transition_ns")
             max_capacitance_ff = recipe.get("max_capacitance_ff")
-            high_fanout_net_threshold = recipe.get("high_fanout_net_threshold")
             fanout_load = recipe.get("fanout_load")
             spec = {
                 "config_path": str(ctx["cfg_path"]),
@@ -730,7 +716,6 @@ def build_run_specs(ctx):
                 "max_fanout_cfg": "" if max_fanout is None else float(max_fanout),
                 "max_transition_ns_cfg": "" if max_transition_ns is None else float(max_transition_ns),
                 "max_capacitance_ff_cfg": "" if max_capacitance_ff is None else float(max_capacitance_ff),
-                "high_fanout_net_threshold_cfg": "" if high_fanout_net_threshold is None else float(high_fanout_net_threshold),
                 "fanout_load_cfg": "" if fanout_load is None else float(fanout_load),
                 "rtl_files": [str(p) for p in files],
                 "include_dirs": [str(p) for p in include_dirs],
@@ -742,7 +727,6 @@ def build_run_specs(ctx):
                     "max_fanout": max_fanout,
                     "max_transition_ns": max_transition_ns,
                     "max_capacitance_ff": max_capacitance_ff,
-                    "high_fanout_net_threshold": high_fanout_net_threshold,
                     "fanout_load": fanout_load,
                 },
                 "ast_json_path": str(ast_json_out),
@@ -811,7 +795,6 @@ def make_base_row(spec):
         "max_fanout_cfg": spec.get("max_fanout_cfg", ""),
         "max_transition_ns_cfg": spec.get("max_transition_ns_cfg", ""),
         "max_capacitance_ff_cfg": spec.get("max_capacitance_ff_cfg", ""),
-        "high_fanout_net_threshold_cfg": spec.get("high_fanout_net_threshold_cfg", ""),
         "fanout_load_cfg": spec.get("fanout_load_cfg", ""),
         "num_rtl_files": spec["num_rtl_files"],
         "ast_json_path": spec["ast_json_path"],
@@ -917,10 +900,6 @@ def run_single_spec(spec, write_shard=True):
         env["DIE_AREA"] = str(spec["die_area"])
         env["CORE_AREA"] = str(spec["core_area"])
         env["RESULT_DIR"] = str(run_dir / "results")
-        if spec["recipe"].get("high_fanout_net_threshold") is not None:
-            env["HIGH_FANOUT_NET_THRESHOLD"] = str(
-                int(spec["recipe"]["high_fanout_net_threshold"])
-            )
         env["TEST_TMPDIR"] = str(run_dir)
         openroad_cmd = [
             "apptainer", "exec", str(apptainer_image),

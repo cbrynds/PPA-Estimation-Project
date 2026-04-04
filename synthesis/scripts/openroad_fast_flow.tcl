@@ -42,10 +42,4 @@ if {[info exists ::env(CORE_AREA)]} {
   set core_area {0 0 80 80}
 }
 
-if {[info exists ::env(HIGH_FANOUT_NET_THRESHOLD)]} {
-  set high_fanout_net_threshold $::env(HIGH_FANOUT_NET_THRESHOLD)
-} else {
-  set high_fanout_net_threshold ""
-}
-
 source -echo "scripts/fast_flow.tcl"

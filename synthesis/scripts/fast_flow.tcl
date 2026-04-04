@@ -53,9 +53,6 @@ set global_placement_args [list \
   -density $global_place_density \
   -pad_left $global_place_pad \
   -pad_right $global_place_pad]
-if {$high_fanout_net_threshold ne ""} {
-  lappend global_placement_args -initial_place_max_fanout $high_fanout_net_threshold
-}
 eval global_placement $global_placement_args
 
 # IO Placement
