@@ -56,6 +56,13 @@ The simplest submission command is:
 synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
 ```
 
+If you use the helper setup script, make sure to source it so the module load and
+exports affect your current shell:
+
+```bash
+source synthesis/slurm_setup.sh
+```
+
 This will:
 
 - expand the YAML into a JSONL manifest
@@ -119,6 +126,10 @@ path and export `APPTAINER_BINDPATH` before calling `slurm_submit_array.sh`:
 cd "$(readlink -f .)"
 export APPTAINER_BINDPATH="$PWD:$PWD"
 ```
+
+The batch wrapper now runs `module load apptainer` inside each Slurm array task
+as well, so compute nodes do not depend on the submit shell still having the
+Apptainer module in its `PATH`.
 
 If your site has a misconfigured node, you can exclude it without editing the
 submission script:
