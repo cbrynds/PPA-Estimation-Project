@@ -1,5 +1,5 @@
 """
-Edge-aware graph neural network model for post-placement TNS and WNS prediction from RTL code.
+Graph attention network model for post-routing TNS and WNS prediction from RTL code.
 
 Author: Cory Brynds
 """
@@ -33,9 +33,9 @@ paper and based on recommendations from GNN literature.
 """
 @dataclass
 class Hyperparameters:
-    num_epochs: int = 20
+    num_epochs: int = 200
     learning_rate: float = 1e-3
-    batch_size: int = 64
+    batch_size: int = 16
     weight_decay: float = 0.0
     loss_fn: nn.Module = nn.MSELoss()
     target_name: str = "wns"
@@ -49,11 +49,11 @@ class Hyperparameters:
 
 class QoRNet(nn.Module):
     """
-    Edge-aware graph regressor for predicting one QoR target per design graph.
+    Graph attention network model for predicting one QoR target per design graph.
 
     The model concatenates broadcasted recipe features onto each node feature
     vector, projects the result into a hidden space, applies several
-    edge-aware `GATv2Conv` layers, pools node embeddings to a graph embedding,
+    edge-aware `GATConv` layers, pools node embeddings to a graph embedding,
     and maps that embedding to a single scalar prediction (TNS or WNS).
 
     TODO: we will need to determine if the number of GNN layers, number of FC
@@ -112,24 +112,11 @@ class QoRNet(nn.Module):
         Run the end-to-end forward pass for a batched PyG `Data` object and
         return one scalar prediction per graph.
         """
-        if not hasattr(data, "x"):
-            raise AttributeError("Batch data is missing required attribute 'x'.")
-        if not hasattr(data, "edge_index"):
-            raise AttributeError("Batch data is missing required attribute 'edge_index'.")
-        if not hasattr(data, "edge_attr"):
-            raise AttributeError("Batch data is missing required attribute 'edge_attr'.")
-        if not hasattr(data, "batch"):
-            raise AttributeError("Batch data is missing required attribute 'batch'.")
-        if not hasattr(data, "recipe"):
-            raise AttributeError("Batch data is missing required attribute 'recipe'.")
-        if data.edge_attr.dim() != 2:
-            raise ValueError("Edge attribute tensor must be a 2D matrix.")
 
         recipe_tensor = data.recipe.to(device=data.x.device, dtype=data.x.dtype)
+        
         if recipe_tensor.dim() == 1:
             recipe_tensor = recipe_tensor.view(1, -1)
-        elif recipe_tensor.dim() != 2:
-            raise ValueError("Recipe tensor must be 1D or 2D.")
 
         num_graphs = int(data.batch.max().item()) + 1 if data.batch.numel() > 0 else 0
         if recipe_tensor.size(0) == 1 and num_graphs > 1:

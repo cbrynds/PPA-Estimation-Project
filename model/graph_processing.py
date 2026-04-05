@@ -4,7 +4,6 @@ Graph dataset loading and preprocessing utilities for QoRNet.
 Author: Cory Brynds
 """
 
-import copy
 import csv
 from pathlib import Path
 import torch
@@ -12,9 +11,6 @@ import yaml
 
 
 def summarize_graph(graph, design_name):
-    """
-    Returns a summary of graph statistics for debugging.
-    """
     num_nodes = int(graph.num_nodes) if getattr(graph, "num_nodes", None) is not None else 0
     num_edges = int(graph.edge_index.size(1)) if hasattr(graph, "edge_index") else 0
     node_feature_dim = int(graph.x.size(1)) if hasattr(graph, "x") and graph.x.dim() == 2 else 0
@@ -140,6 +136,24 @@ def list_graph_design_names(dataset_dir):
     return {(graph_path.stem).split(".")[0] for graph_path in dataset_dir.glob("*.pt") if graph_path.is_file()}
 
 
+def create_label_conditioned_sample(graph):
+    """
+    Create a per-run PyG sample that reuses the original graph
+    tensors instead of deep-copying the whole graph.
+
+    Structural tensors such as `x`, `edge_index`, and `edge_attr` are treated
+    as read-only during training. Sharing them across recipe-conditioned
+    samples dramatically reduces host-memory usage.
+    """
+    graph_data = dict(graph.to_dict())
+    graph_copy = graph.__class__.from_dict(graph_data)
+
+    if getattr(graph, "num_nodes", None) is not None:
+        graph_copy.num_nodes = int(graph.num_nodes)
+
+    return graph_copy
+
+
 def attach_label_metadata(graph, label_row, recipe_feature_keys):
     """
     Copy a design graph and attach run-specific metadata, regression targets,
@@ -148,7 +162,7 @@ def attach_label_metadata(graph, label_row, recipe_feature_keys):
     This function attaches recipe data at the graph level. Per-node annotations are made
     in the QoRNet model class.
     """
-    graph_copy = copy.deepcopy(graph)
+    graph_copy = create_label_conditioned_sample(graph)
 
     graph_copy.design_name = label_row["design_name"]
     graph_copy.design_id = label_row.get("design_id")
