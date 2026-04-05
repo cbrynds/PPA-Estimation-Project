@@ -7,7 +7,9 @@
 #SBATCH --mem=16G
 #SBATCH --time=04:00:00
 
-source venv/bin/activate
+source /apps/anaconda/anaconda-2023.09/etc/profile.d/conda.sh
+conda activate pytorch2.2.0+py3.11+cuda12.1
+pip install torch_geometric
 
 set -euo pipefail
 
@@ -20,7 +22,7 @@ export NUMEXPR_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export PYTHONUNBUFFERED=1
 
-python3 python3 model/qornet.py \
+python3 model/qornet.py \
     --config data/qornet_training_config.yaml \
     --labels data/ground_truth_recipe_sweep.csv \
     --dataset_dir ast-parser/pt \

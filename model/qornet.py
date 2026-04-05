@@ -184,6 +184,20 @@ def r2_score(predictions, targets, epsilon=1e-8):
     return 1.0 - (residual_sum_squares / total_sum_squares)
 
 
+def resolve_batch_metadata(batch, attribute_name, batch_size):
+    if not hasattr(batch, attribute_name):
+        return [None] * batch_size
+
+    value = getattr(batch, attribute_name)
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    if isinstance(value, torch.Tensor):
+        flattened = value.detach().cpu().view(-1).tolist()
+        return flattened[:batch_size]
+
+    return [value] * batch_size
+
+
 def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
     evaluation_loader = DataLoader(
         evaluation_data,
@@ -197,9 +211,15 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
     total_graphs = 0
     all_predictions = []
     all_targets = []
+    epoch_predictions = []
 
     with torch.no_grad():
         for batch in evaluation_loader:
+            design_names = resolve_batch_metadata(batch, "design_name", batch.num_graphs)
+            design_ids = resolve_batch_metadata(batch, "design_id", batch.num_graphs)
+            recipe_ids = resolve_batch_metadata(batch, "recipe_id", batch.num_graphs)
+            run_ids = resolve_batch_metadata(batch, "run_id", batch.num_graphs)
+
             batch = batch.to(hyperparameters.device)
             predictions = qornet(batch)
             targets = resolve_target(batch, hyperparameters.target_name)
@@ -216,9 +236,28 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
             all_predictions.append(predictions.detach())
             all_targets.append(targets.detach())
 
+            prediction_values = predictions.detach().cpu().view(-1).tolist()
+            target_values = targets.detach().cpu().view(-1).tolist()
+            for sample_idx in range(batch_size):
+                absolute_error = abs(prediction_values[sample_idx] - target_values[sample_idx])
+                relative_error = absolute_error / max(abs(target_values[sample_idx]), 1e-8)
+                epoch_predictions.append(
+                    {
+                        "design_name": design_names[sample_idx],
+                        "design_id": design_ids[sample_idx],
+                        "recipe_id": recipe_ids[sample_idx],
+                        "run_id": run_ids[sample_idx],
+                        "target_name": hyperparameters.target_name,
+                        "target": target_values[sample_idx],
+                        "prediction": prediction_values[sample_idx],
+                        "abs_error": absolute_error,
+                        "rel_error": relative_error,
+                    }
+                )
+
     if total_graphs == 0:
         print("Evaluation skipped because no samples were provided.")
-        return {"loss": 0.0, "error": 0.0, "r2": 0.0}
+        return {"loss": 0.0, "error": 0.0, "r2": 0.0, "epoch_predictions": []}
 
     r2 = r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0))
 
@@ -226,6 +265,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
         "loss": total_loss / total_graphs,
         "error": total_error / total_graphs,
         "r2": float(r2.item()),
+        "epoch_predictions": epoch_predictions,
     }
 
 
@@ -237,6 +277,7 @@ def train(qornet, training_data, testing_data, hyperparameters):
         "test_loss": [],
         "test_error": [],
         "test_r2": [],
+        "test_epoch_predictions": [],
     } # Tracks training and testing metrics across epochs
 
     # Load training data with specified batch size and optional data shuffling per epoch
@@ -313,6 +354,13 @@ def train(qornet, training_data, testing_data, hyperparameters):
         history["test_loss"].append(test_metrics["loss"])
         history["test_error"].append(test_metrics["error"])
         history["test_r2"].append(test_metrics["r2"])
+        history["test_epoch_predictions"].extend(
+            {
+                "epoch": epoch_idx,
+                **sample_prediction,
+            }
+            for sample_prediction in test_metrics["epoch_predictions"]
+        )
 
         print_epoch_metrics(
             epoch_idx,
@@ -362,7 +410,7 @@ def main():
 
     print_section("Plot Generation")
     # Plot training history
-    plot_training_history(history, args.plot_dir)
+    plot_training_history(history, hyperparameters, args.plot_dir)
     print_key_value("plot_dir", args.plot_dir, ANSI_GREY)
     print(colorize("Saved training plots to {}".format(args.plot_dir), ANSI_GREY))
     print_rule()

@@ -4,6 +4,7 @@ Plotting utilities for QoRNet training and evaluation results.
 Author: Cory Brynds
 """
 
+import csv
 from pathlib import Path
 import matplotlib.pyplot as plt
 
@@ -102,7 +103,91 @@ def plot_metric(metric_values, title, ylabel, output_path):
     plt.close()
 
 
-def plot_training_history(history, output_dir):
+def write_training_history_csv(history, hyperparameters, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    hyperparameter_values = {
+        "num_epochs": hyperparameters.num_epochs,
+        "learning_rate": hyperparameters.learning_rate,
+        "batch_size": hyperparameters.batch_size,
+        "weight_decay": hyperparameters.weight_decay,
+        "loss_fn": type(hyperparameters.loss_fn).__name__,
+        "target_name": hyperparameters.target_name,
+        "device": hyperparameters.device,
+        "shuffle_training": hyperparameters.shuffle_training,
+        "hidden_dim": hyperparameters.hidden_dim,
+        "num_gat_layers": hyperparameters.num_gat_layers,
+        "num_heads": hyperparameters.num_heads,
+        "dropout": hyperparameters.dropout,
+    }
+
+    fieldnames = (
+        "epoch",
+        "train_loss",
+        "train_error",
+        "train_r2",
+        "test_loss",
+        "test_error",
+        "test_r2",
+        "num_epochs",
+        "learning_rate",
+        "batch_size",
+        "weight_decay",
+        "loss_fn",
+        "target_name",
+        "device",
+        "shuffle_training",
+        "hidden_dim",
+        "num_gat_layers",
+        "num_heads",
+        "dropout",
+    )
+    num_epochs = len(history["train_loss"])
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for epoch_idx in range(num_epochs):
+            writer.writerow(
+                {
+                    "epoch": epoch_idx + 1,
+                    "train_loss": history["train_loss"][epoch_idx],
+                    "train_error": history["train_error"][epoch_idx],
+                    "train_r2": history["train_r2"][epoch_idx],
+                    "test_loss": history["test_loss"][epoch_idx],
+                    "test_error": history["test_error"][epoch_idx],
+                    "test_r2": history["test_r2"][epoch_idx],
+                    **hyperparameter_values,
+                }
+            )
+
+
+def write_epoch_predictions_csv(epoch_predictions, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fieldnames = (
+        "epoch",
+        "design_name",
+        "design_id",
+        "recipe_id",
+        "run_id",
+        "target_name",
+        "target",
+        "prediction",
+        "abs_error",
+        "rel_error",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(epoch_predictions)
+
+
+def plot_training_history(history, hyperparameters, output_dir):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -122,3 +207,6 @@ def plot_training_history(history, output_dir):
             ylabel,
             output_dir / filename,
         )
+
+    write_training_history_csv(history, hyperparameters, output_dir / "training_history.csv")
+    write_epoch_predictions_csv(history["test_epoch_predictions"], output_dir / "test_epoch_predictions.csv")
