@@ -30,6 +30,8 @@ output:
   ast_dir: synthesis/iscas_results/ast
   ast_log_dir: synthesis/iscas_results/ast_logs
   result_shards_dir: synthesis/iscas_results/result_shards
+  yosys_logs_dir: synthesis/iscas_results/yosys_logs
+  shared_failures_dir: synthesis/iscas_results/shared_failures
 
 designs:
   # - name: s1196

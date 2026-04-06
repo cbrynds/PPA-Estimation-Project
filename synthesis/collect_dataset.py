@@ -26,12 +26,12 @@ DEFAULT_EXTENSIONS = [".v", ".sv"]
 DEFAULT_RECIPES = [{"id": "abc_fast", "abc_fast": True, "abc_extra": ""}]
 DEFAULT_SWEEP_MODE = "bounded_cartesian"
 DEFAULT_SWEEP = {
-    "abc_fast": [True, False],
+    "abc_fast": [True],
     "clock_period_ns": [2.5, 3.0, 3.5, 4.0, 5.0],
     "max_fanout": [8, 16, 32],
     "max_transition_ns": [0.10, 0.20, 0.40],
     "max_capacitance_ff": [20.0, 60.0, 120.0],
-    "fanout_load": [1.0, 4.0, 16.0],
+    "fanout_load": [1.0],
 }
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
 DEFAULT_YOSYS_LOGS_DIR = "synthesis/results/yosys_logs"
