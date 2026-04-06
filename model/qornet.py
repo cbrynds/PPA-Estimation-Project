@@ -45,6 +45,8 @@ class Hyperparameters:
     num_gat_layers: int = 3 # Reduced to 2 for simplicity
     num_heads: int = 4
     dropout: float = 0.1
+    early_stopping_patience: int = 15 # Number of epochs to wait for improvement before stopping
+    early_stopping_min_delta: float = 0.0 # Minimum improvement to reset early stopping counter
 
 
 class QoRNet(nn.Module):
@@ -276,6 +278,10 @@ def train(qornet, training_data, testing_data, hyperparameters):
         "test_error": [],
         "test_r2": [],
         "test_epoch_predictions": [],
+        "best_epoch": None,
+        "best_test_loss": None,
+        "best_test_mae": None,
+        "best_test_r2": None,
     } # Tracks training and testing metrics across epochs
 
     # Load training data with specified batch size and optional data shuffling per epoch
@@ -294,6 +300,8 @@ def train(qornet, training_data, testing_data, hyperparameters):
         weight_decay=hyperparameters.weight_decay,
     )
     loss_fn = hyperparameters.loss_fn
+    best_metric = float("inf")
+    epochs_without_improvement = 0
 
     # Loop across training epochs
     for _ in range(hyperparameters.num_epochs):
@@ -368,6 +376,26 @@ def train(qornet, training_data, testing_data, hyperparameters):
             train_r2,
             test_metrics,
         )
+
+        current_metric = test_metrics["error"]
+        if current_metric < (best_metric - hyperparameters.early_stopping_min_delta):
+            best_metric = current_metric
+            epochs_without_improvement = 0
+            history["best_epoch"] = epoch_idx
+            history["best_test_loss"] = test_metrics["loss"]
+            history["best_test_mae"] = test_metrics["error"]
+            history["best_test_r2"] = test_metrics["r2"]
+            print_key_value("best_epoch", epoch_idx, ANSI_GREY)
+        else:
+            epochs_without_improvement += 1
+
+        if epochs_without_improvement >= hyperparameters.early_stopping_patience:
+            print_section("Early Stopping")
+            print_key_value("stopped_epoch", epoch_idx)
+            print_key_value("best_epoch", history["best_epoch"])
+            print_key_value("best_test_mae", "{:.6f}".format(history["best_test_mae"]))
+            print_key_value("patience", hyperparameters.early_stopping_patience)
+            break
 
     return history
 
