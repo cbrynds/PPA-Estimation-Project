@@ -35,7 +35,7 @@ paper and based on recommendations from GNN literature.
 class Hyperparameters:
     num_epochs: int = 200
     learning_rate: float = 5e-4 # Changed from 1e-3
-    batch_size: int = 16
+    batch_size: int = 32
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
     loss_fn: nn.Module = nn.MSELoss()
     target_name: str = "wns"
@@ -170,9 +170,9 @@ def resolve_target(data, target_name):
     
     return getattr(data, target_name).view(-1, 1).float()
 
-def relative_prediction_error(predictions, targets, epsilon=1e-8):
-    denominator = torch.clamp(torch.abs(targets), min=epsilon)
-    return torch.mean(torch.abs(predictions - targets) / denominator)
+
+def mean_absolute_error(predictions, targets):
+    return torch.mean(torch.abs(predictions - targets))
 
 
 def r2_score(predictions, targets, epsilon=1e-8):
@@ -227,7 +227,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
                 raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
 
             loss = loss_fn(predictions, targets)
-            error = relative_prediction_error(predictions, targets)
+            error = mean_absolute_error(predictions, targets)
 
             batch_size = targets.size(0)
             total_loss += loss.item() * batch_size
@@ -240,7 +240,6 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
             target_values = targets.detach().cpu().view(-1).tolist()
             for sample_idx in range(batch_size):
                 absolute_error = abs(prediction_values[sample_idx] - target_values[sample_idx])
-                relative_error = absolute_error / max(abs(target_values[sample_idx]), 1e-8)
                 epoch_predictions.append(
                     {
                         "design_name": design_names[sample_idx],
@@ -251,7 +250,6 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
                         "target": target_values[sample_idx],
                         "prediction": prediction_values[sample_idx],
                         "abs_error": absolute_error,
-                        "rel_error": relative_error,
                     }
                 )
 
@@ -323,7 +321,7 @@ def train(qornet, training_data, testing_data, hyperparameters):
                     )
                 )
             loss = loss_fn(predictions, targets)
-            error = relative_prediction_error(predictions, targets)
+            error = mean_absolute_error(predictions, targets)
 
             # Update parameters
             loss.backward()

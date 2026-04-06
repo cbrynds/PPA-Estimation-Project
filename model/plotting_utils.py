@@ -82,10 +82,10 @@ def print_model_summary(hyperparameters, training_data, testing_data, node_input
 def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_r2, test_metrics):
     print_section("Epoch {}/{}".format(epoch_idx, num_epochs))
     print_key_value("train_loss", "{:.6f}".format(train_loss))
-    print_key_value("train_rel_error", "{:.6f}".format(train_error), ANSI_RED)
+    print_key_value("train_mae", "{:.6f}".format(train_error), ANSI_RED)
     print_key_value("train_r2", "{:.6f}".format(train_r2))
     print_key_value("test_loss", "{:.6f}".format(test_metrics["loss"]))
-    print_key_value("test_rel_error", "{:.6f}".format(test_metrics["error"]), ANSI_RED)
+    print_key_value("test_mae", "{:.6f}".format(test_metrics["error"]), ANSI_RED)
     print_key_value("test_r2", "{:.6f}".format(test_metrics["r2"]))
 
 
@@ -125,10 +125,10 @@ def write_training_history_csv(history, hyperparameters, output_path):
     fieldnames = (
         "epoch",
         "train_loss",
-        "train_error",
+        "train_mae",
         "train_r2",
         "test_loss",
-        "test_error",
+        "test_mae",
         "test_r2",
         "num_epochs",
         "learning_rate",
@@ -154,10 +154,10 @@ def write_training_history_csv(history, hyperparameters, output_path):
                 {
                     "epoch": epoch_idx + 1,
                     "train_loss": history["train_loss"][epoch_idx],
-                    "train_error": history["train_error"][epoch_idx],
+                    "train_mae": history["train_error"][epoch_idx],
                     "train_r2": history["train_r2"][epoch_idx],
                     "test_loss": history["test_loss"][epoch_idx],
-                    "test_error": history["test_error"][epoch_idx],
+                    "test_mae": history["test_error"][epoch_idx],
                     "test_r2": history["test_r2"][epoch_idx],
                     **hyperparameter_values,
                 }
@@ -178,7 +178,6 @@ def write_epoch_predictions_csv(epoch_predictions, output_path):
         "target",
         "prediction",
         "abs_error",
-        "rel_error",
     )
 
     with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
@@ -193,10 +192,10 @@ def plot_training_history(history, hyperparameters, output_dir):
 
     metric_specs = (
         ("train_loss", "Training Loss", "Loss", "training_loss.png"),
-        ("train_error", "Training Relative Error", "Relative Error", "training_error.png"),
+        ("train_error", "Training Mean Absolute Error", "MAE", "training_error.png"),
         ("train_r2", "Training R^2", "R^2", "training_r2.png"),
         ("test_loss", "Testing Loss", "Loss", "testing_loss.png"),
-        ("test_error", "Testing Relative Error", "Relative Error", "testing_error.png"),
+        ("test_error", "Testing Mean Absolute Error", "MAE", "testing_error.png"),
         ("test_r2", "Testing R^2", "R^2", "testing_r2.png"),
     )
 
