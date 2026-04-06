@@ -1,0 +1,409 @@
+project_root: .
+synthesis_root: synthesis
+
+apptainer_image: Open-EDA-Flow/eda-flow.sif
+
+# full: includes routing + extraction (slower, closer to routed metrics)
+# fast: stops post-placement, faster but less accurate
+flow_mode: full
+die_area: "0 0 800 800"
+core_area: "10 10 790 790"
+
+default_clock_port: clk
+default_clock_period_ns: 3.0
+
+sweep_mode: bounded_cartesian
+sweep:
+  clock_period_ns: [0.25, 0.5, 1.0, 2.0, 3.0]
+  max_fanout: [8, 16, 32, 64]
+  max_transition_ns: [0.16, 0.20, 0.24]
+  max_capacitance_ff: [40.0, 60.0, 80.0]
+
+ast:
+  proc: true
+  flatten: true
+  dump_ast: true
+
+output:
+  csv_path: synthesis/iscas_results/iscas_ground_truth_qor_dataset.csv
+  runs_dir: synthesis/iscas_runs
+  ast_dir: synthesis/iscas_results/ast
+  ast_log_dir: synthesis/iscas_results/ast_logs
+  result_shards_dir: synthesis/iscas_results/result_shards
+
+designs:
+  # - name: s1196
+  #   id: iscas89_0001
+  #   rtl_dir: hdl-benchmarks/iscas89/verilog
+  #   top: s1196
+  #   clock_port: # No explict clock port
+  #   recursive: false
+  #   extensions: [".v"]
+
+  - name: ss_pcm
+    id: iwls05_0012
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/ss_pcm
+    top: pcm_slv_top
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: usb_phy
+    id: iwls05_0018
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/usb_phy
+    top: usb_phy
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: sasc
+    id: iwls05_0009
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/sasc
+    top: sasc_top
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: simple_spi
+    id: iwls05_0010
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/simple_spi
+    top: simple_spi_top
+    clock_port: clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: i2c
+    id: iwls05_0006
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/i2c
+    top: i2c_master_top
+    clock_port: wb_clk_i
+    recursive: true
+    extensions: [".v"]
+
+  - name: systemcdes
+    id: iwls05_0015
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/systemcdes
+    top: des
+    clock_port: clk
+    recursive: true
+    extensions: [".v"]
+
+  - name: s1196a
+    id: iscas89_0002
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s1196
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s1196b
+    id: iscas89_0003
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s1196
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s1238
+    id: iscas89_0004
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s1238
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s1238a
+    id: iscas89_0005
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s1238
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s13207
+    id: iscas89_0006
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s13207
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s13207a
+    id: iscas89_0007
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s13207
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s1423
+    id: iscas89_0008
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s1423
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s1423a
+    id: iscas89_0009
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s1423
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s1488
+    id: iscas89_0010
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s1488
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s15850
+    id: iscas89_0011
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s15850
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s15850a
+    id: iscas89_0012
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s15850
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s27
+    id: iscas89_0013
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s27
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s298
+    id: iscas89_0014
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s298
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s344
+    id: iscas89_0015
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s344
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s349
+    id: iscas89_0016
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s349
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s35932
+    id: iscas89_0017
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s35932
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s382
+    id: iscas89_0018
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s382
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s38417
+    id: iscas89_0019
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s38417
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s38584
+    id: iscas89_0020
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s38584
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  # - name: s38584a
+  #   id: iscas89_0021
+  #   rtl_dir: hdl-benchmarks/iscas89/verilog
+  #   top: s38584
+  #   clock_port: # No explict clock port
+  #   recursive: false
+  #   extensions: [".v"]
+
+  - name: s386
+    id: iscas89_0022
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s386
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s400
+    id: iscas89_0023
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s400
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s420
+    id: iscas89_0024
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s420
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s444
+    id: iscas89_0025
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s444
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s510
+    id: iscas89_0026
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s510
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s526
+    id: iscas89_0027
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s526
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s526a
+    id: iscas89_0028
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s526n
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s5378
+    id: iscas89_0029
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s5378
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s5378a
+    id: iscas89_0030
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s5378
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s641
+    id: iscas89_0031
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s641
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s713
+    id: iscas89_0032
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s713
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s820
+    id: iscas89_0033
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s820
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s820a
+    id: iscas89_0034
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s820
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s832
+    id: iscas89_0035
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s832
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s832a
+    id: iscas89_0036
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s832
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s838
+    id: iscas89_0037
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s838
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s9234
+    id: iscas89_0038
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s9234
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s9234a
+    id: iscas89_0039
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s9234
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s953
+    id: iscas89_0040
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s953
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
+
+  - name: s953a
+    id: iscas89_0041
+    rtl_dir: hdl-benchmarks/iscas89/verilog
+    top: s953
+    clock_port: CK
+    recursive: false
+    extensions: [".v"]
