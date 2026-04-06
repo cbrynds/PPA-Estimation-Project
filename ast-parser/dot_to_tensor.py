@@ -5,6 +5,7 @@ from torch_geometric.data import Data
 from torch_geometric.utils import to_networkx
 from pathlib import Path
 import os
+from concurrent.futures import ProcessPoolExecutor
 
 def plot_tensor(data):
     G = to_networkx(data, to_undirected=False)
@@ -48,11 +49,19 @@ def convert_dot_to_tensor(file):
     data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
     return data
 
-for file in Path('./dot_files/').glob("*.dot"):
+def process_file(file):
     print(file)
     data = convert_dot_to_tensor(file)
-    data.feature_names = ["input_bits", "output_bits", "neighbor_nodes"]
-    data.edge_feature_names = ["bit_width", "sd"]
+    data.feature_names = ["elt", "input_bits", "output_bits", "neighbor_nodes", "type"]
+    data.edge_feature_names = ["bit_width", "sd", "edge_type"]
     print(data)
     print(data.x)
-    torch.save(data, "./dot_files/" + os.path.basename(file) + ".pt")
+
+    out_path = "./iscas_asts_dot_files/" + os.path.basename(file).replace(".json.dot", ".pt")
+    torch.save(data, out_path)
+
+if __name__ == "__main__":
+    files = list(Path('./iscas_asts_dot_files/').glob("*.dot"))
+
+    with ProcessPoolExecutor() as executor:
+        executor.map(process_file, files)
