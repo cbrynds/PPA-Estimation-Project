@@ -23,7 +23,7 @@ export VECLIB_MAXIMUM_THREADS=1
 export PYTHONUNBUFFERED=1
 
 python3 model/qornet.py \
-    --config data/qornet_training_config.yaml \
-    --labels data/ground_truth_recipe_sweep.csv \
+    --config data/iscas_89_config.yaml \
+    --labels data/iscas_ground_truth_qor.csv \
     --dataset_dir ast-parser/pt \
     --plot_dir qornet-plots
