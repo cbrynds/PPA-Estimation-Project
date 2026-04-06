@@ -36,7 +36,7 @@ output:
 designs:
   - name: s1196
     id: iscas89_0001
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1196
     top: s1196
     clock_port: CK # No explict clock port
     recursive: false
@@ -92,7 +92,7 @@ designs:
 
   - name: s1196a
     id: iscas89_0002
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1196a
     top: s1196
     clock_port: CK
     recursive: false
@@ -100,7 +100,7 @@ designs:
 
   - name: s1196b
     id: iscas89_0003
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1196b
     top: s1196
     clock_port: CK
     recursive: false
@@ -108,7 +108,7 @@ designs:
 
   - name: s1238
     id: iscas89_0004
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1238
     top: s1238
     clock_port: CK
     recursive: false
@@ -116,7 +116,7 @@ designs:
 
   - name: s1238a
     id: iscas89_0005
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1238a
     top: s1238
     clock_port: CK
     recursive: false
@@ -124,7 +124,7 @@ designs:
 
   - name: s13207
     id: iscas89_0006
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s13207
     top: s13207
     clock_port: CK
     recursive: false
@@ -132,7 +132,7 @@ designs:
 
   - name: s13207a
     id: iscas89_0007
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s13207a
     top: s13207
     clock_port: CK
     recursive: false
@@ -140,7 +140,7 @@ designs:
 
   - name: s1423
     id: iscas89_0008
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1423
     top: s1423
     clock_port: CK
     recursive: false
@@ -148,7 +148,7 @@ designs:
 
   - name: s1423a
     id: iscas89_0009
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1423a
     top: s1423
     clock_port: CK
     recursive: false
@@ -156,7 +156,7 @@ designs:
 
   - name: s1488
     id: iscas89_0010
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s1488
     top: s1488
     clock_port: CK
     recursive: false
@@ -164,7 +164,7 @@ designs:
 
   - name: s15850
     id: iscas89_0011
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s15850
     top: s15850
     clock_port: CK
     recursive: false
@@ -172,7 +172,7 @@ designs:
 
   - name: s15850a
     id: iscas89_0012
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s15850a
     top: s15850
     clock_port: CK
     recursive: false
@@ -180,7 +180,7 @@ designs:
 
   - name: s27
     id: iscas89_0013
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s27
     top: s27
     clock_port: CK
     recursive: false
@@ -188,7 +188,7 @@ designs:
 
   - name: s298
     id: iscas89_0014
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s298
     top: s298
     clock_port: CK
     recursive: false
@@ -196,7 +196,7 @@ designs:
 
   - name: s344
     id: iscas89_0015
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s344
     top: s344
     clock_port: CK
     recursive: false
@@ -204,7 +204,7 @@ designs:
 
   - name: s349
     id: iscas89_0016
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s349
     top: s349
     clock_port: CK
     recursive: false
@@ -212,7 +212,7 @@ designs:
 
   - name: s35932
     id: iscas89_0017
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s35932
     top: s35932
     clock_port: CK
     recursive: false
@@ -220,7 +220,7 @@ designs:
 
   - name: s382
     id: iscas89_0018
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s382
     top: s382
     clock_port: CK
     recursive: false
@@ -228,7 +228,7 @@ designs:
 
   - name: s38417
     id: iscas89_0019
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s38417
     top: s38417
     clock_port: CK
     recursive: false
@@ -236,7 +236,7 @@ designs:
 
   - name: s38584
     id: iscas89_0020
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s38584
     top: s38584
     clock_port: CK
     recursive: false
@@ -244,7 +244,7 @@ designs:
 
   - name: s38584a
     id: iscas89_0021
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s38584a
     top: s38584
     clock_port: CK # No explict clock port
     recursive: false
@@ -252,7 +252,7 @@ designs:
 
   - name: s386
     id: iscas89_0022
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s386
     top: s386
     clock_port: CK
     recursive: false
@@ -260,7 +260,7 @@ designs:
 
   - name: s400
     id: iscas89_0023
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s400
     top: s400
     clock_port: CK
     recursive: false
@@ -268,7 +268,7 @@ designs:
 
   - name: s420
     id: iscas89_0024
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s420
     top: s420
     clock_port: CK
     recursive: false
@@ -276,7 +276,7 @@ designs:
 
   - name: s444
     id: iscas89_0025
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s444
     top: s444
     clock_port: CK
     recursive: false
@@ -284,7 +284,7 @@ designs:
 
   - name: s510
     id: iscas89_0026
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s510
     top: s510
     clock_port: CK
     recursive: false
@@ -292,7 +292,7 @@ designs:
 
   - name: s526
     id: iscas89_0027
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s526
     top: s526
     clock_port: CK
     recursive: false
@@ -300,7 +300,7 @@ designs:
 
   - name: s526a
     id: iscas89_0028
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s526a
     top: s526n
     clock_port: CK
     recursive: false
@@ -308,7 +308,7 @@ designs:
 
   - name: s5378
     id: iscas89_0029
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s5378
     top: s5378
     clock_port: CK
     recursive: false
@@ -316,7 +316,7 @@ designs:
 
   - name: s5378a
     id: iscas89_0030
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s5378a
     top: s5378
     clock_port: CK
     recursive: false
@@ -324,7 +324,7 @@ designs:
 
   - name: s641
     id: iscas89_0031
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s641
     top: s641
     clock_port: CK
     recursive: false
@@ -332,7 +332,7 @@ designs:
 
   - name: s713
     id: iscas89_0032
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s713
     top: s713
     clock_port: CK
     recursive: false
@@ -340,7 +340,7 @@ designs:
 
   - name: s820
     id: iscas89_0033
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s820
     top: s820
     clock_port: CK
     recursive: false
@@ -348,7 +348,7 @@ designs:
 
   - name: s820a
     id: iscas89_0034
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s820a
     top: s820
     clock_port: CK
     recursive: false
@@ -356,7 +356,7 @@ designs:
 
   - name: s832
     id: iscas89_0035
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s832
     top: s832
     clock_port: CK
     recursive: false
@@ -364,7 +364,7 @@ designs:
 
   - name: s832a
     id: iscas89_0036
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s832a
     top: s832
     clock_port: CK
     recursive: false
@@ -372,7 +372,7 @@ designs:
 
   - name: s838
     id: iscas89_0037
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s838
     top: s838
     clock_port: CK
     recursive: false
@@ -380,7 +380,7 @@ designs:
 
   - name: s9234
     id: iscas89_0038
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s9234
     top: s9234
     clock_port: CK
     recursive: false
@@ -388,7 +388,7 @@ designs:
 
   - name: s9234a
     id: iscas89_0039
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s9234a
     top: s9234
     clock_port: CK
     recursive: false
@@ -396,7 +396,7 @@ designs:
 
   - name: s953
     id: iscas89_0040
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s953
     top: s953
     clock_port: CK
     recursive: false
@@ -404,7 +404,7 @@ designs:
 
   - name: s953a
     id: iscas89_0041
-    rtl_dir: iscas89-benchmarks
+    rtl_dir: iscas89-benchmarks/s953a
     top: s953
     clock_port: CK
     recursive: false
