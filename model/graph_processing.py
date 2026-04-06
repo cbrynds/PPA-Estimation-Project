@@ -6,6 +6,7 @@ Author: Cory Brynds
 
 import csv
 from pathlib import Path
+import random
 import torch
 import yaml
 
@@ -344,22 +345,25 @@ def load_data(args):
     if not designs_with_labels:
         raise ValueError("No successful labeled rows were found for any config design in {}.".format(args.labels))
 
+    shuffled_designs = list(designs_with_labels)
+    random.Random(0).shuffle(shuffled_designs)
+
     num_training_designs = max(
         1,
         min(
-            int(len(designs_with_labels) * args.training_split),
-            len(designs_with_labels) - 1,
+            int(len(shuffled_designs) * args.training_split),
+            len(shuffled_designs) - 1,
         ),
     )
 
-    training_designs = set(designs_with_labels[:num_training_designs])
-    testing_designs = set(designs_with_labels[num_training_designs:])
+    training_designs = set(shuffled_designs[:num_training_designs])
+    testing_designs = set(shuffled_designs[num_training_designs:])
 
     training_data = []
     testing_data = []
     graph_summaries = []
 
-    for design_name in designs_with_labels:
+    for design_name in shuffled_designs:
         graph = load_graph_for_design(dataset_dir, design_name)
         graph_summaries.append(summarize_graph(graph, design_name))
         print(graph_summaries[-1])
@@ -409,6 +413,7 @@ def load_data(args):
 
     print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
     print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
+    print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
     print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
     print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
 

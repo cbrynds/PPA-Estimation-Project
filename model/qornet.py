@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GATConv, global_mean_pool
+from torch_geometric.nn import GATConv, global_add_pool
 from plotting_utils import (
     ANSI_GREY,
     print_key_value,
@@ -34,15 +34,15 @@ paper and based on recommendations from GNN literature.
 @dataclass
 class Hyperparameters:
     num_epochs: int = 200
-    learning_rate: float = 1e-3
+    learning_rate: float = 5e-4 # Changed from 1e-3
     batch_size: int = 16
-    weight_decay: float = 0.0
+    weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
     loss_fn: nn.Module = nn.MSELoss()
     target_name: str = "wns"
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     shuffle_training: bool = True
-    hidden_dim: int = 128
-    num_gat_layers: int = 3
+    hidden_dim: int = 64 # Reduced from 128 to mitigate overfitting
+    num_gat_layers: int = 3 # Reduced to 2 for simplicity
     num_heads: int = 4
     dropout: float = 0.1
 
@@ -136,10 +136,10 @@ class QoRNet(nn.Module):
 
         """
         Produce global graph embedding by pooling all of the node embeddings
-        TODO: For WNS prediction, mean pooling may eliminate the contextual information necessary 
-        for accurate predictions. We may need to switch to a different strategy such as sum pooling.
+        Sum pooling better preserves the contribution of high-importance nodes
+        than mean pooling for graph-level timing prediction.
         """
-        graph_embedding = global_mean_pool(h, data.batch)
+        graph_embedding = global_add_pool(h, data.batch)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
