@@ -118,7 +118,7 @@ def load_graph_for_design(dataset_dir, design_name):
     """
     Load a graph for a specific design from the dataset directory. Raises an error if the file is not found.
     """
-    file_name = dataset_dir / "{}.json.dot.pt".format(design_name)
+    file_name = dataset_dir / "{}.pt".format(design_name)
     if file_name.is_file():
         return torch.load(file_name, weights_only=False)
 
