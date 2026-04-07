@@ -6,6 +6,7 @@ Author: Cory Brynds
 
 import argparse
 from dataclasses import dataclass
+import math
 
 import torch
 import torch.nn as nn
@@ -49,6 +50,10 @@ class Hyperparameters:
     early_stopping_min_delta: float = 0.0 # Minimum improvement to reset early stopping counter
 
 
+def embedding_dim_for_vocab(vocab_size):
+    return min(16, max(4, int(math.ceil(math.sqrt(max(vocab_size, 1))))))
+
+
 class QoRNet(nn.Module):
     """
     Graph attention network model for predicting one QoR target per design graph.
@@ -63,8 +68,7 @@ class QoRNet(nn.Module):
     """
     def __init__(
         self,
-        node_input_dim,
-        edge_input_dim,
+        feature_schema,
         recipe_dim,
         hidden_dim=128,
         num_gat_layers=3,
@@ -73,8 +77,7 @@ class QoRNet(nn.Module):
     ):
         super().__init__()
 
-        self.node_input_dim = node_input_dim
-        self.edge_input_dim = edge_input_dim
+        self.feature_schema = feature_schema
         self.recipe_dim = recipe_dim
         self.hidden_dim = hidden_dim
         self.num_gat_layers = num_gat_layers
@@ -88,8 +91,37 @@ class QoRNet(nn.Module):
                 )
             )
 
-        self.input_projection = nn.Linear(node_input_dim + recipe_dim, hidden_dim)
-        self.edge_encoder = nn.Linear(edge_input_dim, hidden_dim)
+        node_numeric_dim = len(feature_schema.node_numeric_indices)
+        edge_numeric_dim = len(feature_schema.edge_numeric_indices)
+        node_embedding_dims = [
+            embedding_dim_for_vocab(vocab_size)
+            for vocab_size in feature_schema.node_categorical_vocab_sizes
+        ]
+        edge_embedding_dims = [
+            embedding_dim_for_vocab(vocab_size)
+            for vocab_size in feature_schema.edge_categorical_vocab_sizes
+        ]
+
+        self.node_categorical_embeddings = nn.ModuleList(
+            nn.Embedding(vocab_size, embedding_dim)
+            for vocab_size, embedding_dim in zip(
+                feature_schema.node_categorical_vocab_sizes,
+                node_embedding_dims,
+            )
+        )
+        self.edge_categorical_embeddings = nn.ModuleList(
+            nn.Embedding(vocab_size, embedding_dim)
+            for vocab_size, embedding_dim in zip(
+                feature_schema.edge_categorical_vocab_sizes,
+                edge_embedding_dims,
+            )
+        )
+
+        input_projection_dim = node_numeric_dim + recipe_dim + sum(node_embedding_dims)
+        edge_encoder_dim = edge_numeric_dim + sum(edge_embedding_dims)
+
+        self.input_projection = nn.Linear(input_projection_dim, hidden_dim)
+        self.edge_encoder = nn.Linear(edge_encoder_dim, hidden_dim)
         self.gnn_layers = nn.ModuleList()
         for _ in range(num_gat_layers):
             self.gnn_layers.append(
@@ -109,6 +141,42 @@ class QoRNet(nn.Module):
             nn.Linear(hidden_dim, 1),
         )
 
+    def encode_node_features(self, data, recipe_features):
+        node_parts = []
+        if self.feature_schema.node_numeric_indices:
+            node_parts.append(
+                data.x[:, list(self.feature_schema.node_numeric_indices)].float()
+            )
+
+        for embedding_layer, column_index in zip(
+            self.node_categorical_embeddings,
+            self.feature_schema.node_categorical_indices,
+        ):
+            categorical_values = data.x[:, column_index].long()
+            node_parts.append(embedding_layer(categorical_values))
+
+        node_parts.append(recipe_features)
+        return torch.cat(node_parts, dim=1)
+
+    def encode_edge_features(self, data, device, dtype):
+        edge_parts = []
+        if self.feature_schema.edge_numeric_indices:
+            edge_parts.append(
+                data.edge_attr[:, list(self.feature_schema.edge_numeric_indices)].to(
+                    device=device,
+                    dtype=dtype,
+                )
+            )
+
+        for embedding_layer, column_index in zip(
+            self.edge_categorical_embeddings,
+            self.feature_schema.edge_categorical_indices,
+        ):
+            categorical_values = data.edge_attr[:, column_index].to(device=device).long()
+            edge_parts.append(embedding_layer(categorical_values))
+
+        return torch.cat(edge_parts, dim=1)
+
     def forward(self, data):
         """
         Run the end-to-end forward pass for a batched PyG `Data` object and
@@ -125,10 +193,10 @@ class QoRNet(nn.Module):
             recipe_tensor = recipe_tensor.repeat(num_graphs, 1)
 
         recipe_features = recipe_tensor[data.batch]
-        h = torch.cat([data.x, recipe_features], dim=1)
+        h = self.encode_node_features(data, recipe_features)
         h = self.input_projection(h)
         h = F.relu(h)
-        edge_attr = self.edge_encoder(data.edge_attr.to(device=h.device, dtype=h.dtype))
+        edge_attr = self.edge_encoder(self.encode_edge_features(data, h.device, h.dtype))
 
         # Forward pass through edge-aware attention layers
         for gnn_layer in self.gnn_layers:
@@ -177,6 +245,10 @@ def mean_absolute_error(predictions, targets):
     return torch.mean(torch.abs(predictions - targets))
 
 
+def denormalize_targets(values, normalization_context):
+    return (values * normalization_context.target_std) + normalization_context.target_mean
+
+
 def r2_score(predictions, targets, epsilon=1e-8):
     target_mean = torch.mean(targets)
     residual_sum_squares = torch.sum((predictions - targets) ** 2)
@@ -200,7 +272,7 @@ def resolve_batch_metadata(batch, attribute_name, batch_size):
     return [value] * batch_size
 
 
-def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
+def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_context):
     evaluation_loader = DataLoader(
         evaluation_data,
         batch_size=hyperparameters.batch_size,
@@ -225,21 +297,23 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
             batch = batch.to(hyperparameters.device)
             predictions = qornet(batch)
             targets = resolve_target(batch, hyperparameters.target_name)
+            predictions_denormalized = denormalize_targets(predictions, normalization_context)
+            targets_denormalized = denormalize_targets(targets, normalization_context)
             if predictions.shape != targets.shape:
                 raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
 
             loss = loss_fn(predictions, targets)
-            error = mean_absolute_error(predictions, targets)
+            error = mean_absolute_error(predictions_denormalized, targets_denormalized)
 
             batch_size = targets.size(0)
             total_loss += loss.item() * batch_size
             total_error += error.item() * batch_size
             total_graphs += batch_size
-            all_predictions.append(predictions.detach())
-            all_targets.append(targets.detach())
+            all_predictions.append(predictions_denormalized.detach())
+            all_targets.append(targets_denormalized.detach())
 
-            prediction_values = predictions.detach().cpu().view(-1).tolist()
-            target_values = targets.detach().cpu().view(-1).tolist()
+            prediction_values = predictions_denormalized.detach().cpu().view(-1).tolist()
+            target_values = targets_denormalized.detach().cpu().view(-1).tolist()
             for sample_idx in range(batch_size):
                 absolute_error = abs(prediction_values[sample_idx] - target_values[sample_idx])
                 epoch_predictions.append(
@@ -269,7 +343,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn):
     }
 
 
-def train(qornet, training_data, testing_data, hyperparameters):
+def train(qornet, training_data, testing_data, hyperparameters, normalization_context):
     history = {
         "train_loss": [],
         "train_error": [],
@@ -322,6 +396,8 @@ def train(qornet, training_data, testing_data, hyperparameters):
 
             optimizer.zero_grad()
             predictions = qornet(batch)
+            predictions_denormalized = denormalize_targets(predictions, normalization_context)
+            targets_denormalized = denormalize_targets(targets, normalization_context)
             if predictions.shape != targets.shape:
                 raise ValueError(
                     "Prediction shape {} does not match target shape {}.".format(
@@ -329,7 +405,7 @@ def train(qornet, training_data, testing_data, hyperparameters):
                     )
                 )
             loss = loss_fn(predictions, targets)
-            error = mean_absolute_error(predictions, targets)
+            error = mean_absolute_error(predictions_denormalized, targets_denormalized)
 
             # Update parameters
             loss.backward()
@@ -339,8 +415,8 @@ def train(qornet, training_data, testing_data, hyperparameters):
             total_loss += loss.item() * batch_size
             total_error += error.item() * batch_size
             total_graphs += batch_size
-            all_predictions.append(predictions.detach())
-            all_targets.append(targets.detach())
+            all_predictions.append(predictions_denormalized.detach())
+            all_targets.append(targets_denormalized.detach())
 
         train_loss = total_loss / total_graphs if total_graphs else 0.0
         train_error = total_error / total_graphs if total_graphs else 0.0
@@ -351,7 +427,13 @@ def train(qornet, training_data, testing_data, hyperparameters):
         )
         
         # Evaluate network on validation set
-        test_metrics = evaluate(qornet, testing_data, hyperparameters, loss_fn)
+        test_metrics = evaluate(
+            qornet,
+            testing_data,
+            hyperparameters,
+            loss_fn,
+            normalization_context,
+        )
 
         # Log historical training data
         history["train_loss"].append(train_loss)
@@ -402,11 +484,11 @@ def train(qornet, training_data, testing_data, hyperparameters):
 def main():
     args = parse_arguments()
     print_startup_banner(args)
+    hyperparameters = Hyperparameters()
 
     print_section("Dataset Loading")
-    training_data, testing_data = load_data(args)
-    
-    hyperparameters = Hyperparameters()
+    training_data, testing_data, normalization_context = load_data(args, hyperparameters.target_name)
+
     node_input_dim, edge_input_dim, recipe_dim = validate_input_dimensions(training_data, testing_data)
 
     print_model_summary(
@@ -420,8 +502,7 @@ def main():
 
     print_section("Model Initialization")
     qornet = QoRNet(
-        node_input_dim=node_input_dim,
-        edge_input_dim=edge_input_dim,
+        feature_schema=normalization_context.feature_schema,
         recipe_dim=recipe_dim,
         hidden_dim=hyperparameters.hidden_dim,
         num_gat_layers=hyperparameters.num_gat_layers,
@@ -432,7 +513,13 @@ def main():
 
     print_section("Training")
     # Train QoRNet
-    history = train(qornet, training_data, testing_data, hyperparameters)
+    history = train(
+        qornet,
+        training_data,
+        testing_data,
+        hyperparameters,
+        normalization_context,
+    )
 
     print_section("Plot Generation")
     # Plot training history

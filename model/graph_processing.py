@@ -5,10 +5,219 @@ Author: Cory Brynds
 """
 
 import csv
+from dataclasses import dataclass
 from pathlib import Path
 import random
 import torch
 import yaml
+
+
+EPSILON = 1e-8
+
+
+@dataclass
+class FeatureSchema:
+    node_numeric_indices: tuple[int, ...]
+    node_categorical_indices: tuple[int, ...]
+    node_categorical_vocab_sizes: tuple[int, ...]
+    edge_numeric_indices: tuple[int, ...]
+    edge_categorical_indices: tuple[int, ...]
+    edge_categorical_vocab_sizes: tuple[int, ...]
+    recipe_numeric_indices: tuple[int, ...]
+
+
+@dataclass
+class NormalizationContext:
+    feature_schema: FeatureSchema
+    node_mean: torch.Tensor
+    node_std: torch.Tensor
+    edge_mean: torch.Tensor
+    edge_std: torch.Tensor
+    recipe_mean: torch.Tensor
+    recipe_std: torch.Tensor
+    target_mean: float
+    target_std: float
+
+
+def _default_categorical_indices(feature_width, kind):
+    if kind == "node" and feature_width == 5:
+        return (2, 3)
+    if kind == "edge" and feature_width == 3:
+        return (1, 2)
+    return ()
+
+
+def _resolve_categorical_indices(sample, attribute_name, feature_width, kind):
+    metadata_name = "{}_categorical_indices".format(attribute_name)
+    if hasattr(sample, metadata_name):
+        indices = tuple(int(index) for index in getattr(sample, metadata_name))
+    else:
+        indices = _default_categorical_indices(feature_width, kind)
+
+    for index in indices:
+        if index < 0 or index >= feature_width:
+            raise ValueError(
+                "Invalid categorical {} feature index {} for width {}.".format(
+                    kind, index, feature_width
+                )
+            )
+
+    return tuple(sorted(set(indices)))
+
+
+def _invert_indices(feature_width, selected_indices):
+    selected = set(selected_indices)
+    return tuple(index for index in range(feature_width) if index not in selected)
+
+
+def _compute_vocab_sizes(samples, tensor_name, categorical_indices):
+    vocab_sizes = []
+    for index in categorical_indices:
+        max_value = 0
+        for sample in samples:
+            values = getattr(sample, tensor_name)[:, index].view(-1)
+            if values.numel() == 0:
+                continue
+            max_value = max(max_value, int(values.max().item()))
+        vocab_sizes.append(max_value + 1)
+
+    return tuple(vocab_sizes)
+
+
+def build_feature_schema(training_data, testing_data):
+    all_samples = list(training_data) + list(testing_data)
+    if not all_samples:
+        raise ValueError("Cannot build feature schema because no data samples were loaded.")
+
+    reference_sample = all_samples[0]
+    node_feature_width = reference_sample.x.size(1)
+    edge_feature_width = reference_sample.edge_attr.size(1)
+    recipe_width = reference_sample.recipe.numel() if reference_sample.recipe.dim() == 1 else reference_sample.recipe.size(-1)
+
+    node_categorical_indices = _resolve_categorical_indices(
+        reference_sample, "x", node_feature_width, "node"
+    )
+    edge_categorical_indices = _resolve_categorical_indices(
+        reference_sample, "edge_attr", edge_feature_width, "edge"
+    )
+
+    return FeatureSchema(
+        node_numeric_indices=_invert_indices(node_feature_width, node_categorical_indices),
+        node_categorical_indices=node_categorical_indices,
+        node_categorical_vocab_sizes=_compute_vocab_sizes(
+            all_samples, "x", node_categorical_indices
+        ),
+        edge_numeric_indices=_invert_indices(edge_feature_width, edge_categorical_indices),
+        edge_categorical_indices=edge_categorical_indices,
+        edge_categorical_vocab_sizes=_compute_vocab_sizes(
+            all_samples, "edge_attr", edge_categorical_indices
+        ),
+        recipe_numeric_indices=tuple(range(recipe_width)),
+    )
+
+
+def _gather_columns(samples, tensor_name, column_indices):
+    if not column_indices:
+        return torch.empty((0, 0), dtype=torch.float32)
+
+    columns = []
+    for sample in samples:
+        tensor = getattr(sample, tensor_name)
+        columns.append(tensor[:, list(column_indices)].float())
+
+    return torch.cat(columns, dim=0) if columns else torch.empty((0, len(column_indices)), dtype=torch.float32)
+
+
+def _compute_mean_std(samples, tensor_name, column_indices):
+    if not column_indices:
+        return torch.zeros(0, dtype=torch.float32), torch.ones(0, dtype=torch.float32)
+
+    values = _gather_columns(samples, tensor_name, column_indices)
+    if values.numel() == 0:
+        return torch.zeros(len(column_indices), dtype=torch.float32), torch.ones(len(column_indices), dtype=torch.float32)
+
+    mean = values.mean(dim=0)
+    std = values.std(dim=0, unbiased=False)
+    std = torch.where(std <= EPSILON, torch.ones_like(std), std)
+    return mean, std
+
+
+def _compute_target_stats(samples, target_name):
+    target_values = torch.cat(
+        [getattr(sample, target_name).view(-1).float() for sample in samples], dim=0
+    )
+    mean = float(target_values.mean().item())
+    std = float(target_values.std(unbiased=False).item())
+    if std <= EPSILON:
+        std = 1.0
+    return mean, std
+
+
+def fit_normalization_context(training_data, testing_data, target_name):
+    feature_schema = build_feature_schema(training_data, testing_data)
+    node_mean, node_std = _compute_mean_std(
+        training_data, "x", feature_schema.node_numeric_indices
+    )
+    edge_mean, edge_std = _compute_mean_std(
+        training_data, "edge_attr", feature_schema.edge_numeric_indices
+    )
+    recipe_mean, recipe_std = _compute_mean_std(
+        training_data, "recipe", feature_schema.recipe_numeric_indices
+    )
+    target_mean, target_std = _compute_target_stats(training_data, target_name)
+
+    return NormalizationContext(
+        feature_schema=feature_schema,
+        node_mean=node_mean,
+        node_std=node_std,
+        edge_mean=edge_mean,
+        edge_std=edge_std,
+        recipe_mean=recipe_mean,
+        recipe_std=recipe_std,
+        target_mean=target_mean,
+        target_std=target_std,
+    )
+
+
+def _normalize_selected_columns(tensor, column_indices, mean, std):
+    normalized = tensor.clone().float()
+    if column_indices:
+        normalized[:, list(column_indices)] = (
+            normalized[:, list(column_indices)] - mean
+        ) / std
+    return normalized
+
+
+def _normalize_target_tensor(target_tensor, context):
+    return (target_tensor.float() - context.target_mean) / context.target_std
+
+
+def apply_normalization_context(samples, context, target_name):
+    for sample in samples:
+        sample.x = _normalize_selected_columns(
+            sample.x,
+            context.feature_schema.node_numeric_indices,
+            context.node_mean,
+            context.node_std,
+        )
+        sample.edge_attr = _normalize_selected_columns(
+            sample.edge_attr,
+            context.feature_schema.edge_numeric_indices,
+            context.edge_mean,
+            context.edge_std,
+        )
+        sample.recipe = _normalize_selected_columns(
+            sample.recipe,
+            context.feature_schema.recipe_numeric_indices,
+            context.recipe_mean,
+            context.recipe_std,
+        )
+
+        target_tensor = getattr(sample, target_name).view(-1, 1).float()
+        setattr(sample, "raw_{}".format(target_name), target_tensor.clone())
+        setattr(sample, target_name, _normalize_target_tensor(target_tensor, context))
+
+    return samples
 
 
 def summarize_graph(graph, design_name):
@@ -310,7 +519,7 @@ def validate_input_dimensions(training_data, testing_data):
     return node_input_dim, edge_input_dim, recipe_dim
 
 
-def load_data(args):
+def load_data(args, target_name):
     """
     Build the training and testing sample lists from the config, labels CSV,
     and serialized design graphs.
@@ -411,10 +620,34 @@ def load_data(args):
             )
         )
 
+    normalization_context = fit_normalization_context(
+        training_data,
+        testing_data,
+        target_name,
+    )
+    apply_normalization_context(training_data, normalization_context, target_name)
+    apply_normalization_context(testing_data, normalization_context, target_name)
+
     print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
     print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
     print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
     print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
     print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
+    print(
+        "Normalization summary: node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
+            normalization_context.feature_schema.node_numeric_indices,
+            normalization_context.feature_schema.node_categorical_indices,
+            normalization_context.feature_schema.edge_numeric_indices,
+            normalization_context.feature_schema.edge_categorical_indices,
+            normalization_context.feature_schema.recipe_numeric_indices,
+        )
+    )
+    print(
+        "Target normalization ({}): mean={:.6f} std={:.6f}".format(
+            target_name,
+            normalization_context.target_mean,
+            normalization_context.target_std,
+        )
+    )
 
-    return training_data, testing_data
+    return training_data, testing_data, normalization_context
