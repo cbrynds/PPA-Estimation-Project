@@ -233,13 +233,6 @@ def parse_arguments():
         help="Which validation fold to run when --cv_folds is greater than 1.",
     )
     parser.add_argument(
-        "--disable_normalization",
-        "--disable_feature_normalization",
-        dest="disable_normalization",
-        action="store_true",
-        help="Skip normalization of node, edge, recipe, and target values.",
-    )
-    parser.add_argument(
         "--mode",
         type=str,
         choices=("train", "inference"),
@@ -515,9 +508,6 @@ def main():
     args = parse_arguments()
     log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
-    normalization_enabled = not args.disable_normalization
-    hyperparameters.feature_normalization_enabled = normalization_enabled
-    hyperparameters.target_normalization_enabled = normalization_enabled
     checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
     plot_dir = resolve_plot_dir(args)
 
@@ -544,35 +534,19 @@ def main():
         normalization_context = ckpt_utils.normalization_context_from_dict(
             checkpoint["normalization_context"]
         )
-        feature_normalization_enabled = checkpoint.get(
-            "feature_normalization_enabled",
-            True,
-        )
-        target_normalization_enabled = checkpoint.get(
-            "target_normalization_enabled",
-            True,
-        )
-        hyperparameters.feature_normalization_enabled = feature_normalization_enabled
-        hyperparameters.target_normalization_enabled = target_normalization_enabled
         graph_proc.apply_normalization_context(
             training_data,
             normalization_context,
             hyperparameters.target_name,
-            normalize_features=feature_normalization_enabled,
-            normalize_targets=target_normalization_enabled,
         )
         graph_proc.apply_normalization_context(
             testing_data,
             normalization_context,
             hyperparameters.target_name,
-            normalize_features=feature_normalization_enabled,
-            normalize_targets=target_normalization_enabled,
         )
         print(
-            "Using checkpoint normalization for target '{}' (feature normalization: {}, target normalization: {}).".format(
-                hyperparameters.target_name,
-                "enabled" if feature_normalization_enabled else "disabled",
-                "enabled" if target_normalization_enabled else "disabled",
+            "Using checkpoint normalization for target '{}'.".format(
+                hyperparameters.target_name
             )
         )
 
