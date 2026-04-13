@@ -36,7 +36,7 @@ class Hyperparameters:
     loss_fn: nn.Module = nn.SmoothL1Loss()
     target_name: str = "wns"
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    shuffle_training: bool = True
+    shuffle_training: bool = False
     hidden_dim: int = 32 # Reduced from 128 to mitigate overfitting
     num_gat_layers: int = 2 # Reduced to 2 for simplicity
     num_heads: int = 4
