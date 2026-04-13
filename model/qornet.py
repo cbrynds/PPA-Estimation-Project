@@ -30,15 +30,15 @@ paper and based on recommendations from GNN literature.
 @dataclass
 class Hyperparameters:
     num_epochs: int = 200
-    learning_rate: float = 5e-4 # Changed from 1e-3
+    learning_rate: float = 1e-4 # Changed from 1e-3
     batch_size: int = 32
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
     loss_fn: nn.Module = nn.MSELoss()
     target_name: str = "wns"
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     shuffle_training: bool = True
-    hidden_dim: int = 64 # Reduced from 128 to mitigate overfitting
-    num_gat_layers: int = 3 # Reduced to 2 for simplicity
+    hidden_dim: int = 32 # Reduced from 128 to mitigate overfitting
+    num_gat_layers: int = 2 # Reduced to 2 for simplicity
     num_heads: int = 4
     dropout: float = 0.1
     early_stopping_patience: int = 15 # Number of epochs to wait for improvement before stopping
