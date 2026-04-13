@@ -33,7 +33,7 @@ class Hyperparameters:
     learning_rate: float = 1e-4 # Changed from 1e-3
     batch_size: int = 32
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
-    loss_fn: nn.Module = nn.MSELoss()
+    loss_fn: nn.Module = nn.SmoothL1Loss()
     target_name: str = "wns"
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     shuffle_training: bool = True
