@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GATConv, global_add_pool, global_mean_pool, global_max_pool
+from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool
 import checkpointing_utils as ckpt_utils
 import evaluation_utils as eval_utils
 import graph_processing as graph_proc
@@ -129,8 +129,9 @@ class QoRNet(nn.Module):
                     edge_dim=hidden_dim,
                 )
             )
+        regressor_input_dim = (2 * hidden_dim) + 2
         self.regressor = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(regressor_input_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, 1),
@@ -172,6 +173,47 @@ class QoRNet(nn.Module):
 
         return torch.cat(edge_parts, dim=1)
 
+    def build_graph_level_features(self, data, node_embeddings):
+        mean_graph_embedding = global_mean_pool(node_embeddings, data.batch)
+        max_graph_embedding = global_max_pool(node_embeddings, data.batch)
+
+        num_graphs = mean_graph_embedding.size(0)
+        node_counts = torch.bincount(data.batch, minlength=num_graphs).to(
+            device=node_embeddings.device,
+            dtype=node_embeddings.dtype,
+        ).view(-1, 1)
+
+        if data.edge_index.numel() == 0:
+            edge_counts = torch.zeros(
+                (num_graphs, 1),
+                device=node_embeddings.device,
+                dtype=node_embeddings.dtype,
+            )
+        else:
+            edge_batch = data.batch[data.edge_index[0]]
+            edge_counts = torch.bincount(edge_batch, minlength=num_graphs).to(
+                device=node_embeddings.device,
+                dtype=node_embeddings.dtype,
+            ).view(-1, 1)
+
+        # Log scaling keeps graph-size features informative without letting
+        # very large circuits dominate the regressor input magnitude.
+        graph_size_features = torch.cat(
+            (
+                torch.log1p(node_counts),
+                torch.log1p(edge_counts),
+            ),
+            dim=1,
+        )
+        return torch.cat(
+            (
+                mean_graph_embedding,
+                max_graph_embedding,
+                graph_size_features,
+            ),
+            dim=1,
+        )
+
     def forward(self, data):
         """
         Run the end-to-end forward pass for a batched PyG `Data` object and
@@ -199,12 +241,7 @@ class QoRNet(nn.Module):
             h = F.relu(h)
             h = F.dropout(h, p=self.dropout, training=self.training)
 
-        """
-        Produce global graph embedding by pooling all of the node embeddings
-        Sum pooling better preserves the contribution of high-importance nodes
-        than mean pooling for graph-level timing prediction.
-        """
-        graph_embedding = global_add_pool(h, data.batch)
+        graph_embedding = self.build_graph_level_features(data, h)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
@@ -374,8 +411,10 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         weight_decay=hyperparameters.weight_decay,
     )
     loss_fn = hyperparameters.loss_fn
-    best_metric = float("inf")
-    epochs_without_improvement = 0
+    best_error = float("inf")
+    best_r2 = float("-inf")
+    last_error_improvement_epoch = 0
+    last_r2_improvement_epoch = 0
 
     # Loop across training epochs
     for _ in range(hyperparameters.num_epochs):
@@ -459,23 +498,41 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             test_metrics,
         )
 
-        current_metric = test_metrics["error"]
-        if current_metric < (best_metric - hyperparameters.early_stopping_min_delta):
-            best_metric = current_metric
-            epochs_without_improvement = 0
+        error_improved = test_metrics["error"] < (
+            best_error - hyperparameters.early_stopping_min_delta
+        )
+        r2_improved = test_metrics["r2"] > (
+            best_r2 + hyperparameters.early_stopping_min_delta
+        )
+
+        if error_improved:
+            best_error = test_metrics["error"]
+            last_error_improvement_epoch = epoch_idx
+
+        if r2_improved:
+            best_r2 = test_metrics["r2"]
+            last_r2_improvement_epoch = epoch_idx
+
+        if error_improved or r2_improved:
             history["best_epoch"] = epoch_idx
             history["best_test_loss"] = test_metrics["loss"]
             history["best_test_mae"] = test_metrics["error"]
             history["best_test_r2"] = test_metrics["r2"]
             log_utils.print_key_value("best_epoch", epoch_idx, log_utils.ANSI_GREY)
-        else:
-            epochs_without_improvement += 1
 
-        if epochs_without_improvement >= hyperparameters.early_stopping_patience:
+        epochs_since_error_improvement = epoch_idx - last_error_improvement_epoch
+        epochs_since_r2_improvement = epoch_idx - last_r2_improvement_epoch
+        if (
+            epochs_since_error_improvement >= hyperparameters.early_stopping_patience
+            and epochs_since_r2_improvement >= hyperparameters.early_stopping_patience
+        ):
             log_utils.print_section("Early Stopping")
             log_utils.print_key_value("stopped_epoch", epoch_idx)
             log_utils.print_key_value("best_epoch", history["best_epoch"])
             log_utils.print_key_value("best_test_mae", "{:.6f}".format(history["best_test_mae"]))
+            log_utils.print_key_value("best_test_r2", "{:.6f}".format(history["best_test_r2"]))
+            log_utils.print_key_value("last_error_improvement_epoch", last_error_improvement_epoch)
+            log_utils.print_key_value("last_r2_improvement_epoch", last_r2_improvement_epoch)
             log_utils.print_key_value("patience", hyperparameters.early_stopping_patience)
             break
 
