@@ -519,10 +519,10 @@ def validate_input_dimensions(training_data, testing_data):
     return node_input_dim, edge_input_dim, recipe_dim
 
 
-def load_data(args, target_name):
+def load_raw_data(args):
     """
     Build the training and testing sample lists from the config, labels CSV,
-    and serialized design graphs.
+    and serialized design graphs without applying normalization.
     """
     if not 0.0 < args.training_split < 1.0:
         raise ValueError("--training_split must be between 0 and 1.")
@@ -620,6 +620,21 @@ def load_data(args, target_name):
             )
         )
 
+    print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
+    print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
+    print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
+    print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
+    print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
+    return training_data, testing_data
+
+
+def load_data(args, target_name):
+    """
+    Build the training and testing sample lists from the config, labels CSV,
+    and serialized design graphs, then fit and apply normalization.
+    """
+    training_data, testing_data = load_raw_data(args)
+
     normalization_context = fit_normalization_context(
         training_data,
         testing_data,
@@ -628,11 +643,6 @@ def load_data(args, target_name):
     apply_normalization_context(training_data, normalization_context, target_name)
     apply_normalization_context(testing_data, normalization_context, target_name)
 
-    print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
-    print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
-    print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
-    print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
-    print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
     print(
         "Normalization summary: node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
             normalization_context.feature_schema.node_numeric_indices,

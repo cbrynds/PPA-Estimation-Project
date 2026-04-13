@@ -5,26 +5,21 @@ Author: Cory Brynds
 """
 
 import argparse
+import csv
 from dataclasses import dataclass
 import math
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
 from torch_geometric.nn import GATConv, global_add_pool
-from plotting_utils import (
-    ANSI_GREY,
-    print_key_value,
-    print_model_summary,
-    print_epoch_metrics,
-    print_rule,
-    print_section,
-    print_startup_banner,
-    plot_training_history,
-    colorize,
-)
-from graph_processing import load_data, validate_input_dimensions
+import checkpointing_utils as ckpt_utils
+import evaluation_utils as eval_utils
+import graph_processing as graph_proc
+import logging_utils as log_utils
+import plotting_utils as plot_utils
 
 """
 Hyperparameters for training
@@ -225,51 +220,44 @@ def parse_arguments():
         default=0.8,
         help="Fraction of designs to place in the training split",
     )
-    parser.add_argument("--plot_dir", type=str, required=True, help="Path to the directory for saving plots")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=("train", "inference"),
+        default="train",
+        help="Whether to train a model or load a checkpoint and run inference.",
+    )
+    parser.add_argument(
+        "--plot_dir",
+        type=str,
+        default=None,
+        help="Path to the directory for saving plots and inference CSV outputs.",
+    )
+    parser.add_argument(
+        "--checkpoint_path",
+        type=str,
+        default=None,
+        help="Path to save a training checkpoint or load one for inference.",
+    )
+    parser.add_argument(
+        "--inference_split",
+        type=str,
+        choices=("train", "test", "both"),
+        default="both",
+        help="Dataset split to run during inference mode.",
+    )
     return parser.parse_args()
 
 
-def resolve_target(data, target_name):
-    """
-    Return the requested graph-level regression target as a float tensor with shape `[num_graphs, 1]`.
+def resolve_plot_dir(args):
+    if args.plot_dir:
+        return Path(args.plot_dir)
 
-    The batch object is expected to expose `target_name` as an attribute such as `wns` or `tns`.
-    """
-    if not hasattr(data, target_name):
-        raise AttributeError("Batch data does not contain target attribute '{}'.".format(target_name))
-    
-    return getattr(data, target_name).view(-1, 1).float()
+    if args.mode == "train":
+        raise ValueError("--plot_dir is required in train mode.")
 
-
-def mean_absolute_error(predictions, targets):
-    return torch.mean(torch.abs(predictions - targets))
-
-
-def denormalize_targets(values, normalization_context):
-    return (values * normalization_context.target_std) + normalization_context.target_mean
-
-
-def r2_score(predictions, targets, epsilon=1e-8):
-    target_mean = torch.mean(targets)
-    residual_sum_squares = torch.sum((predictions - targets) ** 2)
-    total_sum_squares = torch.sum((targets - target_mean) ** 2)
-    if total_sum_squares <= epsilon:
-        return torch.tensor(0.0, device=predictions.device, dtype=predictions.dtype)
-    return 1.0 - (residual_sum_squares / total_sum_squares)
-
-
-def resolve_batch_metadata(batch, attribute_name, batch_size):
-    if not hasattr(batch, attribute_name):
-        return [None] * batch_size
-
-    value = getattr(batch, attribute_name)
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    if isinstance(value, torch.Tensor):
-        flattened = value.detach().cpu().view(-1).tolist()
-        return flattened[:batch_size]
-
-    return [value] * batch_size
+    checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
+    return checkpoint_path.parent / "inference_outputs"
 
 
 def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_context):
@@ -289,21 +277,21 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
 
     with torch.no_grad():
         for batch in evaluation_loader:
-            design_names = resolve_batch_metadata(batch, "design_name", batch.num_graphs)
-            design_ids = resolve_batch_metadata(batch, "design_id", batch.num_graphs)
-            recipe_ids = resolve_batch_metadata(batch, "recipe_id", batch.num_graphs)
-            run_ids = resolve_batch_metadata(batch, "run_id", batch.num_graphs)
+            design_names = eval_utils.resolve_batch_metadata(batch, "design_name", batch.num_graphs)
+            design_ids = eval_utils.resolve_batch_metadata(batch, "design_id", batch.num_graphs)
+            recipe_ids = eval_utils.resolve_batch_metadata(batch, "recipe_id", batch.num_graphs)
+            run_ids = eval_utils.resolve_batch_metadata(batch, "run_id", batch.num_graphs)
 
             batch = batch.to(hyperparameters.device)
             predictions = qornet(batch)
-            targets = resolve_target(batch, hyperparameters.target_name)
-            predictions_denormalized = denormalize_targets(predictions, normalization_context)
-            targets_denormalized = denormalize_targets(targets, normalization_context)
+            targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
+            predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+            targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
             if predictions.shape != targets.shape:
                 raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
 
             loss = loss_fn(predictions, targets)
-            error = mean_absolute_error(predictions_denormalized, targets_denormalized)
+            error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
 
             batch_size = targets.size(0)
             total_loss += loss.item() * batch_size
@@ -333,7 +321,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
         print("Evaluation skipped because no samples were provided.")
         return {"loss": 0.0, "error": 0.0, "r2": 0.0, "epoch_predictions": []}
 
-    r2 = r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0))
+    r2 = eval_utils.r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0))
 
     return {
         "loss": total_loss / total_graphs,
@@ -392,12 +380,12 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             batch = batch.to(hyperparameters.device)
             
             # Get target labels
-            targets = resolve_target(batch, hyperparameters.target_name)
+            targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
 
             optimizer.zero_grad()
             predictions = qornet(batch)
-            predictions_denormalized = denormalize_targets(predictions, normalization_context)
-            targets_denormalized = denormalize_targets(targets, normalization_context)
+            predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+            targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
             if predictions.shape != targets.shape:
                 raise ValueError(
                     "Prediction shape {} does not match target shape {}.".format(
@@ -405,7 +393,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
                     )
                 )
             loss = loss_fn(predictions, targets)
-            error = mean_absolute_error(predictions_denormalized, targets_denormalized)
+            error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
 
             # Update parameters
             loss.backward()
@@ -421,7 +409,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         train_loss = total_loss / total_graphs if total_graphs else 0.0
         train_error = total_error / total_graphs if total_graphs else 0.0
         train_r2 = (
-            float(r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0)).item())
+            float(eval_utils.r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0)).item())
             if total_graphs
             else 0.0
         )
@@ -450,7 +438,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             for sample_prediction in test_metrics["epoch_predictions"]
         )
 
-        print_epoch_metrics(
+        log_utils.print_epoch_metrics(
             epoch_idx,
             hyperparameters.num_epochs,
             train_loss,
@@ -467,31 +455,99 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             history["best_test_loss"] = test_metrics["loss"]
             history["best_test_mae"] = test_metrics["error"]
             history["best_test_r2"] = test_metrics["r2"]
-            print_key_value("best_epoch", epoch_idx, ANSI_GREY)
+            log_utils.print_key_value("best_epoch", epoch_idx, log_utils.ANSI_GREY)
         else:
             epochs_without_improvement += 1
 
         if epochs_without_improvement >= hyperparameters.early_stopping_patience:
-            print_section("Early Stopping")
-            print_key_value("stopped_epoch", epoch_idx)
-            print_key_value("best_epoch", history["best_epoch"])
-            print_key_value("best_test_mae", "{:.6f}".format(history["best_test_mae"]))
-            print_key_value("patience", hyperparameters.early_stopping_patience)
+            log_utils.print_section("Early Stopping")
+            log_utils.print_key_value("stopped_epoch", epoch_idx)
+            log_utils.print_key_value("best_epoch", history["best_epoch"])
+            log_utils.print_key_value("best_test_mae", "{:.6f}".format(history["best_test_mae"]))
+            log_utils.print_key_value("patience", hyperparameters.early_stopping_patience)
             break
 
     return history
 
+
+def run_inference(qornet, datasets_by_split, hyperparameters, normalization_context, output_dir):
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    loss_fn = hyperparameters.loss_fn
+
+    for split_name, split_data in datasets_by_split.items():
+        metrics = evaluate(
+            qornet,
+            split_data,
+            hyperparameters,
+            loss_fn,
+            normalization_context,
+        )
+        log_utils.print_inference_metrics(split_name, metrics)
+        output_path = output_dir / "{}_predictions.csv".format(split_name)
+        log_utils.write_predictions_csv(
+            [{**prediction, "split": split_name} for prediction in metrics["epoch_predictions"]],
+            output_path,
+        )
+        log_utils.print_key_value("predictions_csv", output_path, log_utils.ANSI_GREY)
+
+
 def main():
     args = parse_arguments()
-    print_startup_banner(args)
+    log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
+    checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
+    plot_dir = resolve_plot_dir(args)
 
-    print_section("Dataset Loading")
-    training_data, testing_data, normalization_context = load_data(args, hyperparameters.target_name)
+    log_utils.print_section("Dataset Loading")
+    if args.mode == "train":
+        training_data, testing_data, normalization_context = graph_proc.load_data(
+            args,
+            hyperparameters.target_name,
+        )
+    else:
+        training_data, testing_data = graph_proc.load_raw_data(args)
+        checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
+        hyperparameters = ckpt_utils.update_hyperparameters_from_dict(
+            hyperparameters,
+            checkpoint["hyperparameters"],
+        )
+        hyperparameters.device = (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"
+        )
+        normalization_context = ckpt_utils.normalization_context_from_dict(
+            checkpoint["normalization_context"]
+        )
+        graph_proc.apply_normalization_context(
+            training_data,
+            normalization_context,
+            hyperparameters.target_name,
+        )
+        graph_proc.apply_normalization_context(
+            testing_data,
+            normalization_context,
+            hyperparameters.target_name,
+        )
+        print(
+            "Using checkpoint normalization for target '{}'.".format(
+                hyperparameters.target_name
+            )
+        )
 
-    node_input_dim, edge_input_dim, recipe_dim = validate_input_dimensions(training_data, testing_data)
+    node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
+    if args.mode == "inference" and recipe_dim != int(checkpoint["recipe_dim"]):
+        raise ValueError(
+            "Current dataset recipe dimension {} does not match checkpoint recipe dimension {}.".format(
+                recipe_dim,
+                checkpoint["recipe_dim"],
+            )
+        )
 
-    print_model_summary(
+    log_utils.print_model_summary(
         hyperparameters,
         training_data,
         testing_data,
@@ -500,7 +556,7 @@ def main():
         recipe_dim,
     )
 
-    print_section("Model Initialization")
+    log_utils.print_section("Model Initialization")
     qornet = QoRNet(
         feature_schema=normalization_context.feature_schema,
         recipe_dim=recipe_dim,
@@ -511,22 +567,47 @@ def main():
     )
     print("Initialized QoRNet model")
 
-    print_section("Training")
-    # Train QoRNet
-    history = train(
-        qornet,
-        training_data,
-        testing_data,
-        hyperparameters,
-        normalization_context,
-    )
+    if args.mode == "train":
+        log_utils.print_section("Training")
+        history = train(
+            qornet,
+            training_data,
+            testing_data,
+            hyperparameters,
+            normalization_context,
+        )
 
-    print_section("Plot Generation")
-    # Plot training history
-    plot_training_history(history, hyperparameters, args.plot_dir)
-    print_key_value("plot_dir", args.plot_dir, ANSI_GREY)
-    print(colorize("Saved training plots to {}".format(args.plot_dir), ANSI_GREY))
-    print_rule()
+        log_utils.print_section("Checkpoint Save")
+        saved_checkpoint = ckpt_utils.save_checkpoint(
+            qornet,
+            hyperparameters,
+            normalization_context,
+            recipe_dim,
+            checkpoint_path,
+        )
+        log_utils.print_key_value("checkpoint_path", saved_checkpoint, log_utils.ANSI_GREY)
+
+        log_utils.print_section("Plot Generation")
+        plot_utils.plot_training_history(history, hyperparameters, plot_dir)
+        log_utils.print_key_value("plot_dir", plot_dir, log_utils.ANSI_GREY)
+        print(log_utils.colorize("Saved training plots to {}".format(plot_dir), log_utils.ANSI_GREY))
+        log_utils.print_rule()
+        return
+
+    log_utils.print_section("Checkpoint Load")
+    qornet.load_state_dict(checkpoint["model_state_dict"])
+    qornet = qornet.to(hyperparameters.device)
+    log_utils.print_key_value("checkpoint_path", checkpoint_path, log_utils.ANSI_GREY)
+    log_utils.print_key_value("inference_split", args.inference_split)
+
+    datasets_by_split = {}
+    if args.inference_split in {"train", "both"}:
+        datasets_by_split["train"] = training_data
+    if args.inference_split in {"test", "both"}:
+        datasets_by_split["test"] = testing_data
+
+    run_inference(qornet, datasets_by_split, hyperparameters, normalization_context, plot_dir)
+    log_utils.print_rule()
 
 if __name__ == "__main__":
     main()
