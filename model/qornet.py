@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GATConv, global_add_pool, global_mean_pool
+from torch_geometric.nn import GATConv, global_add_pool, global_mean_pool, global_max_pool
 import checkpointing_utils as ckpt_utils
 import evaluation_utils as eval_utils
 import graph_processing as graph_proc
@@ -204,7 +204,7 @@ class QoRNet(nn.Module):
         Sum pooling better preserves the contribution of high-importance nodes
         than mean pooling for graph-level timing prediction.
         """
-        graph_embedding = global_mean_pool(h, data.batch)
+        graph_embedding = global_max_pool(h, data.batch)
         # graph_embedding = global_add_pool(h, data.batch)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
