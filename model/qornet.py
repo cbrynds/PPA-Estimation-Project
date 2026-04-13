@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GATConv, global_add_pool
+from torch_geometric.nn import GATConv, global_add_pool, global_mean_pool
 import checkpointing_utils as ckpt_utils
 import evaluation_utils as eval_utils
 import graph_processing as graph_proc
@@ -33,10 +33,10 @@ class Hyperparameters:
     learning_rate: float = 1e-4 # Changed from 1e-3
     batch_size: int = 32
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
-    loss_fn: nn.Module = nn.SmoothL1Loss()
+    loss_fn: nn.Module = nn.SmoothL1Loss() # Much less sensitive to outliers than MSELoss
     target_name: str = "wns"
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    shuffle_training: bool = False
+    shuffle_training: bool = True
     hidden_dim: int = 32 # Reduced from 128 to mitigate overfitting
     num_gat_layers: int = 2 # Reduced to 2 for simplicity
     num_heads: int = 4
@@ -204,7 +204,8 @@ class QoRNet(nn.Module):
         Sum pooling better preserves the contribution of high-importance nodes
         than mean pooling for graph-level timing prediction.
         """
-        graph_embedding = global_add_pool(h, data.batch)
+        graph_embedding = global_mean_pool(h, data.batch)
+        # graph_embedding = global_add_pool(h, data.batch)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
