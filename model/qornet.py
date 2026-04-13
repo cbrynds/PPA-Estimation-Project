@@ -221,6 +221,18 @@ def parse_arguments():
         help="Fraction of designs to place in the training split",
     )
     parser.add_argument(
+        "--cv_folds",
+        type=int,
+        default=1,
+        help="Number of design-level cross-validation folds. Use 1 to keep a single train/test split.",
+    )
+    parser.add_argument(
+        "--cv_fold_index",
+        type=int,
+        default=0,
+        help="Which validation fold to run when --cv_folds is greater than 1.",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         choices=("train", "inference"),

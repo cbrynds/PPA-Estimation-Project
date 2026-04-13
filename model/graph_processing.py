@@ -577,14 +577,66 @@ def validate_input_dimensions(training_data, testing_data):
     return node_input_dim, edge_input_dim, recipe_dim
 
 
+def split_designs(shuffled_designs, training_split, cv_folds=1, cv_fold_index=0):
+    if cv_folds < 1:
+        raise ValueError("--cv_folds must be at least 1.")
+
+    if cv_folds == 1:
+        if not 0.0 < training_split < 1.0:
+            raise ValueError("--training_split must be between 0 and 1.")
+
+        num_training_designs = max(
+            1,
+            min(
+                int(len(shuffled_designs) * training_split),
+                len(shuffled_designs) - 1,
+            ),
+        )
+        training_designs = set(shuffled_designs[:num_training_designs])
+        testing_designs = set(shuffled_designs[num_training_designs:])
+        return training_designs, testing_designs
+
+    if len(shuffled_designs) < cv_folds:
+        raise ValueError(
+            "Cannot create {} cross-validation folds from only {} designs.".format(
+                cv_folds,
+                len(shuffled_designs),
+            )
+        )
+
+    if not 0 <= cv_fold_index < cv_folds:
+        raise ValueError(
+            "--cv_fold_index must be between 0 and {} when --cv_folds={}.".format(
+                cv_folds - 1,
+                cv_folds,
+            )
+        )
+
+    fold_sizes = [len(shuffled_designs) // cv_folds] * cv_folds
+    for fold_idx in range(len(shuffled_designs) % cv_folds):
+        fold_sizes[fold_idx] += 1
+
+    folds = []
+    start_index = 0
+    for fold_size in fold_sizes:
+        folds.append(shuffled_designs[start_index:start_index + fold_size])
+        start_index += fold_size
+
+    testing_designs = set(folds[cv_fold_index])
+    training_designs = {
+        design_name
+        for fold_idx, fold_designs in enumerate(folds)
+        if fold_idx != cv_fold_index
+        for design_name in fold_designs
+    }
+    return training_designs, testing_designs
+
+
 def load_raw_data(args):
     """
     Build the training and testing sample lists from the config, labels CSV,
     and serialized design graphs without applying normalization.
     """
-    if not 0.0 < args.training_split < 1.0:
-        raise ValueError("--training_split must be between 0 and 1.")
-
     dataset_dir = Path(args.dataset_dir)
     
     if not dataset_dir.exists():
@@ -619,17 +671,12 @@ def load_raw_data(args):
 
     shuffled_designs = list(designs_with_labels)
     random.Random(0).shuffle(shuffled_designs)
-
-    num_training_designs = max(
-        1,
-        min(
-            int(len(shuffled_designs) * args.training_split),
-            len(shuffled_designs) - 1,
-        ),
+    training_designs, testing_designs = split_designs(
+        shuffled_designs,
+        args.training_split,
+        cv_folds=args.cv_folds,
+        cv_fold_index=args.cv_fold_index,
     )
-
-    training_designs = set(shuffled_designs[:num_training_designs])
-    testing_designs = set(shuffled_designs[num_training_designs:])
 
     training_data = []
     testing_data = []
@@ -686,6 +733,13 @@ def load_raw_data(args):
     print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
     print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
     print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
+    if args.cv_folds > 1:
+        print(
+            "Cross-validation fold: {}/{}".format(
+                args.cv_fold_index + 1,
+                args.cv_folds,
+            )
+        )
     print(
         "Training designs: {}".format(
             ", ".join(design_name for design_name in shuffled_designs if design_name in training_designs)
