@@ -41,7 +41,7 @@ class Hyperparameters:
     num_gat_layers: int = 2 # Reduced to 2 for simplicity
     num_heads: int = 4
     dropout: float = 0.1
-    early_stopping_patience: int = 15 # Number of epochs to wait for improvement before stopping
+    early_stopping_patience: int = 30 # Number of epochs to wait for improvement before stopping
     early_stopping_min_delta: float = 0.0 # Minimum improvement to reset early stopping counter
 
 
