@@ -623,6 +623,16 @@ def load_raw_data(args):
     print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
     print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
     print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
+    print(
+        "Training designs: {}".format(
+            ", ".join(design_name for design_name in shuffled_designs if design_name in training_designs)
+        )
+    )
+    print(
+        "Testing designs: {}".format(
+            ", ".join(design_name for design_name in shuffled_designs if design_name in testing_designs)
+        )
+    )
     print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
     print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
     return training_data, testing_data
