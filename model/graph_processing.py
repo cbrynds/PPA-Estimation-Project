@@ -192,30 +192,40 @@ def _normalize_target_tensor(target_tensor, context):
     return (target_tensor.float() - context.target_mean) / context.target_std
 
 
-def apply_normalization_context(samples, context, target_name):
+def apply_normalization_context(
+    samples,
+    context,
+    target_name,
+    normalize_features=True,
+    normalize_targets=True,
+):
     for sample in samples:
-        sample.x = _normalize_selected_columns(
-            sample.x,
-            context.feature_schema.node_numeric_indices,
-            context.node_mean,
-            context.node_std,
-        )
-        sample.edge_attr = _normalize_selected_columns(
-            sample.edge_attr,
-            context.feature_schema.edge_numeric_indices,
-            context.edge_mean,
-            context.edge_std,
-        )
-        sample.recipe = _normalize_selected_columns(
-            sample.recipe,
-            context.feature_schema.recipe_numeric_indices,
-            context.recipe_mean,
-            context.recipe_std,
-        )
+        if normalize_features:
+            sample.x = _normalize_selected_columns(
+                sample.x,
+                context.feature_schema.node_numeric_indices,
+                context.node_mean,
+                context.node_std,
+            )
+            sample.edge_attr = _normalize_selected_columns(
+                sample.edge_attr,
+                context.feature_schema.edge_numeric_indices,
+                context.edge_mean,
+                context.edge_std,
+            )
+            sample.recipe = _normalize_selected_columns(
+                sample.recipe,
+                context.feature_schema.recipe_numeric_indices,
+                context.recipe_mean,
+                context.recipe_std,
+            )
 
         target_tensor = getattr(sample, target_name).view(-1, 1).float()
         setattr(sample, "raw_{}".format(target_name), target_tensor.clone())
-        setattr(sample, target_name, _normalize_target_tensor(target_tensor, context))
+        if normalize_targets:
+            setattr(sample, target_name, _normalize_target_tensor(target_tensor, context))
+        else:
+            setattr(sample, target_name, target_tensor)
 
     return samples
 
@@ -767,18 +777,37 @@ def load_data(args, target_name):
         testing_data,
         target_name,
     )
-    apply_normalization_context(training_data, normalization_context, target_name)
-    apply_normalization_context(testing_data, normalization_context, target_name)
-
-    print(
-        "Normalization summary: node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
-            normalization_context.feature_schema.node_numeric_indices,
-            normalization_context.feature_schema.node_categorical_indices,
-            normalization_context.feature_schema.edge_numeric_indices,
-            normalization_context.feature_schema.edge_categorical_indices,
-            normalization_context.feature_schema.recipe_numeric_indices,
-        )
+    normalization_enabled = not getattr(args, "disable_normalization", False)
+    apply_normalization_context(
+        training_data,
+        normalization_context,
+        target_name,
+        normalize_features=normalization_enabled,
+        normalize_targets=normalization_enabled,
     )
+    apply_normalization_context(
+        testing_data,
+        normalization_context,
+        target_name,
+        normalize_features=normalization_enabled,
+        normalize_targets=normalization_enabled,
+    )
+
+    if normalization_enabled:
+        print(
+            "Normalization summary: node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
+                normalization_context.feature_schema.node_numeric_indices,
+                normalization_context.feature_schema.node_categorical_indices,
+                normalization_context.feature_schema.edge_numeric_indices,
+                normalization_context.feature_schema.edge_categorical_indices,
+                normalization_context.feature_schema.recipe_numeric_indices,
+            )
+        )
+    else:
+        print("Feature normalization: disabled")
+        print("Target normalization ({}): disabled".format(target_name))
+        return training_data, testing_data, normalization_context
+
     print(
         "Target normalization ({}): mean={:.6f} std={:.6f}".format(
             target_name,

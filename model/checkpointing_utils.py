@@ -96,6 +96,12 @@ def save_checkpoint(qornet, hyperparameters, normalization_context, recipe_dim, 
             "hyperparameters": hyperparameters_to_dict(hyperparameters),
             "normalization_context": normalization_context_to_dict(normalization_context),
             "recipe_dim": int(recipe_dim),
+            "feature_normalization_enabled": bool(
+                getattr(hyperparameters, "feature_normalization_enabled", True)
+            ),
+            "target_normalization_enabled": bool(
+                getattr(hyperparameters, "target_normalization_enabled", True)
+            ),
         },
         checkpoint_path,
     )
