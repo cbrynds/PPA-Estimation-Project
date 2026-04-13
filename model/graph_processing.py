@@ -297,7 +297,42 @@ def load_recipe_feature_keys(config_path):
     return tuple(recipe_feature_keys)
 
 
-def load_label_rows(labels_path, allowed_design_names):
+def _normalize_recipe_value(value):
+    if isinstance(value, bool):
+        return float(value)
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped in {"True", "False"}:
+            return 1.0 if stripped == "True" else 0.0
+        try:
+            return float(stripped)
+        except ValueError:
+            return stripped
+    return value
+
+
+def load_allowed_recipe_values(config_path):
+    with open(config_path, "r", encoding="utf-8") as config_file:
+        config = yaml.safe_load(config_file) or {}
+
+    sweep = config.get("sweep")
+    if not isinstance(sweep, dict) or not sweep:
+        return {}
+
+    allowed_values = {}
+    for key, values in sweep.items():
+        cfg_key = "{}_cfg".format(key)
+        if isinstance(values, (list, tuple, set)):
+            allowed_values[cfg_key] = {_normalize_recipe_value(value) for value in values}
+        else:
+            allowed_values[cfg_key] = {_normalize_recipe_value(values)}
+
+    return allowed_values
+
+
+def load_label_rows(labels_path, allowed_design_names, allowed_recipe_values=None):
     """
     Load ground truth label rows from the user-specified CSV and group them by design name.
     
@@ -307,6 +342,8 @@ def load_label_rows(labels_path, allowed_design_names):
     successful synthesis/implementation run) to be included in the output.
     """
     labels_by_design = {design_name: [] for design_name in allowed_design_names}
+    skipped_by_sweep = 0
+    allowed_recipe_values = allowed_recipe_values or {}
 
     with open(labels_path, "r", encoding="utf-8", newline="") as labels_file:
         reader = csv.DictReader(labels_file)
@@ -318,7 +355,28 @@ def load_label_rows(labels_path, allowed_design_names):
             if row.get("status", "").strip().lower() != "success":
                 continue
 
+            row_matches_sweep = True
+            for cfg_key, allowed_values in allowed_recipe_values.items():
+                row_value = row.get(cfg_key)
+                if row_value is None:
+                    row_matches_sweep = False
+                    break
+                if _normalize_recipe_value(row_value) not in allowed_values:
+                    row_matches_sweep = False
+                    break
+
+            if not row_matches_sweep:
+                skipped_by_sweep += 1
+                continue
+
             labels_by_design[design_name].append(row)
+
+    if allowed_recipe_values:
+        print(
+            "Skipped {} successful CSV rows that fell outside the YAML sweep values.".format(
+                skipped_by_sweep
+            )
+        )
 
     return labels_by_design
 
@@ -547,7 +605,12 @@ def load_raw_data(args):
         raise ValueError("No config designs have corresponding graph files under {}.".format(dataset_dir))
 
     recipe_feature_keys = load_recipe_feature_keys(args.config)
-    labels_by_design = load_label_rows(args.labels, set(allowed_design_names))
+    allowed_recipe_values = load_allowed_recipe_values(args.config)
+    labels_by_design = load_label_rows(
+        args.labels,
+        set(allowed_design_names),
+        allowed_recipe_values=allowed_recipe_values,
+    )
 
     designs_with_labels = [design_name for design_name in allowed_design_names if labels_by_design.get(design_name)]
     
