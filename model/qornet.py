@@ -204,8 +204,7 @@ class QoRNet(nn.Module):
         Sum pooling better preserves the contribution of high-importance nodes
         than mean pooling for graph-level timing prediction.
         """
-        graph_embedding = global_max_pool(h, data.batch)
-        # graph_embedding = global_add_pool(h, data.batch)
+        graph_embedding = global_add_pool(h, data.batch)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
