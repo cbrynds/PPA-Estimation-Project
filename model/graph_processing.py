@@ -577,7 +577,32 @@ def validate_input_dimensions(training_data, testing_data):
     return node_input_dim, edge_input_dim, recipe_dim
 
 
-def split_designs(shuffled_designs, training_split, cv_folds=1, cv_fold_index=0):
+def _build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds):
+    randomized_designs = list(shuffled_designs)
+    random.Random(0).shuffle(randomized_designs)
+    sorted_designs = sorted(
+        randomized_designs,
+        key=lambda design_name: design_sizes.get(design_name, 0),
+        reverse=True,
+    )
+
+    folds = [[] for _ in range(cv_folds)]
+    for design_index, design_name in enumerate(sorted_designs):
+        fold_index = design_index % cv_folds
+        if (design_index // cv_folds) % 2 == 1:
+            fold_index = (cv_folds - 1) - fold_index
+        folds[fold_index].append(design_name)
+    return folds
+
+
+def split_designs(
+    shuffled_designs,
+    training_split,
+    cv_folds=1,
+    cv_fold_index=0,
+    stratify_by_size=False,
+    design_sizes=None,
+):
     if cv_folds < 1:
         raise ValueError("--cv_folds must be at least 1.")
 
@@ -612,15 +637,20 @@ def split_designs(shuffled_designs, training_split, cv_folds=1, cv_fold_index=0)
             )
         )
 
-    fold_sizes = [len(shuffled_designs) // cv_folds] * cv_folds
-    for fold_idx in range(len(shuffled_designs) % cv_folds):
-        fold_sizes[fold_idx] += 1
+    if stratify_by_size:
+        if not design_sizes:
+            raise ValueError("Size-stratified cross-validation requires per-design size metadata.")
+        folds = _build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds)
+    else:
+        fold_sizes = [len(shuffled_designs) // cv_folds] * cv_folds
+        for fold_idx in range(len(shuffled_designs) % cv_folds):
+            fold_sizes[fold_idx] += 1
 
-    folds = []
-    start_index = 0
-    for fold_size in fold_sizes:
-        folds.append(shuffled_designs[start_index:start_index + fold_size])
-        start_index += fold_size
+        folds = []
+        start_index = 0
+        for fold_size in fold_sizes:
+            folds.append(shuffled_designs[start_index:start_index + fold_size])
+            start_index += fold_size
 
     testing_designs = set(folds[cv_fold_index])
     training_designs = {
@@ -671,21 +701,34 @@ def load_raw_data(args):
 
     shuffled_designs = list(designs_with_labels)
     random.Random(0).shuffle(shuffled_designs)
+    graphs_by_design = {}
+    graph_summaries = []
+    graph_summary_by_design = {}
+    design_sizes = {}
+    for design_name in shuffled_designs:
+        graph = load_graph_for_design(dataset_dir, design_name)
+        graphs_by_design[design_name] = graph
+        summary = summarize_graph(graph, design_name)
+        graph_summaries.append(summary)
+        graph_summary_by_design[design_name] = summary
+        design_sizes[design_name] = summary["num_nodes"]
+
     training_designs, testing_designs = split_designs(
         shuffled_designs,
         args.training_split,
         cv_folds=args.cv_folds,
         cv_fold_index=args.cv_fold_index,
+        stratify_by_size=getattr(args, "cv_stratify_by_size", False),
+        design_sizes=design_sizes,
     )
 
     training_data = []
     testing_data = []
-    graph_summaries = []
 
     for design_name in shuffled_designs:
-        graph = load_graph_for_design(dataset_dir, design_name)
-        graph_summaries.append(summarize_graph(graph, design_name))
-        print(graph_summaries[-1])
+        graph = graphs_by_design[design_name]
+        summary = graph_summary_by_design[design_name]
+        print(summary)
         design_samples = [
             attach_label_metadata(graph, label_row, recipe_feature_keys)
             for label_row in labels_by_design[design_name]
@@ -740,6 +783,8 @@ def load_raw_data(args):
                 args.cv_folds,
             )
         )
+        if getattr(args, "cv_stratify_by_size", False):
+            print("Cross-validation stratification: graph size (node count)")
     print(
         "Training designs: {}".format(
             ", ".join(design_name for design_name in shuffled_designs if design_name in training_designs)

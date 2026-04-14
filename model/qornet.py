@@ -270,6 +270,11 @@ def parse_arguments():
         help="Which validation fold to run when --cv_folds is greater than 1.",
     )
     parser.add_argument(
+        "--cv_stratify_by_size",
+        action="store_true",
+        help="When using cross-validation, balance folds by graph size so very large designs are spread across folds.",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         choices=("train", "inference"),
