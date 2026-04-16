@@ -1,3 +1,4 @@
-Uploaded .pt files.
-Use C++20 or greater to compile<br/>
-Code is in need of refactoring.
+To generate your own dataset update these two variables inside ast_vector_parse.py
+
+directory = "./iscas_asts"
+output_directory = "./ast_parser_results/"
