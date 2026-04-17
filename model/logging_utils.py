@@ -221,69 +221,48 @@ def build_best_epoch_design_summary_rows(history):
         if pct_error is not None and not math.isnan(pct_error):
             bucket["pct_errors"].append(pct_error)
 
-    fieldnames = (
-        "epoch",
-        "design_name",
-        "design_id",
-        "target_name",
-        "num_recipes",
-        "overall_best_test_mae",
-        "overall_best_test_r2",
-        "design_mae_mean",
-        "design_mae_median",
-        "design_pct_error_mean",
-        "design_pct_error_median",
-        "design_r2",
-        "target_mean",
-        "prediction_mean",
-    )
+    for design_name in sorted(per_design):
+        bucket = per_design[design_name]
+        targets = bucket["targets"]
+        predictions = bucket["predictions"]
+        abs_errors = bucket["abs_errors"]
+        pct_errors = bucket["pct_errors"]
 
-    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        writer.writeheader()
+        target_mean = sum(targets) / len(targets) if targets else 0.0
+        prediction_mean = sum(predictions) / len(predictions) if predictions else 0.0
+        mae_mean = sum(abs_errors) / len(abs_errors) if abs_errors else 0.0
+        mae_median = _median(abs_errors)
+        pct_mean = sum(pct_errors) / len(pct_errors) if pct_errors else 0.0
+        pct_median = _median(pct_errors)
 
-        for design_name in sorted(per_design):
-            bucket = per_design[design_name]
-            targets = bucket["targets"]
-            predictions = bucket["predictions"]
-            abs_errors = bucket["abs_errors"]
-            pct_errors = bucket["pct_errors"]
+        total_sum_squares = sum((target - target_mean) ** 2 for target in targets)
+        residual_sum_squares = sum(
+            (prediction - target) ** 2
+            for prediction, target in zip(predictions, targets)
+        )
+        if total_sum_squares <= 1e-8:
+            design_r2 = 0.0
+        else:
+            design_r2 = 1.0 - (residual_sum_squares / total_sum_squares)
 
-            target_mean = sum(targets) / len(targets) if targets else 0.0
-            prediction_mean = sum(predictions) / len(predictions) if predictions else 0.0
-            mae_mean = sum(abs_errors) / len(abs_errors) if abs_errors else 0.0
-            mae_median = _median(abs_errors)
-            pct_mean = sum(pct_errors) / len(pct_errors) if pct_errors else 0.0
-            pct_median = _median(pct_errors)
-
-            total_sum_squares = sum((target - target_mean) ** 2 for target in targets)
-            residual_sum_squares = sum(
-                (prediction - target) ** 2
-                for prediction, target in zip(predictions, targets)
-            )
-            if total_sum_squares <= 1e-8:
-                design_r2 = 0.0
-            else:
-                design_r2 = 1.0 - (residual_sum_squares / total_sum_squares)
-
-            rows.append(
-                {
-                    "epoch": best_epoch,
-                    "design_name": bucket["design_name"],
-                    "design_id": bucket["design_id"],
-                    "target_name": bucket["target_name"],
-                    "num_recipes": len(bucket["recipe_ids"]),
-                    "overall_best_test_mae": history.get("best_test_mae"),
-                    "overall_best_test_r2": history.get("best_test_r2"),
-                    "design_mae_mean": mae_mean,
-                    "design_mae_median": mae_median,
-                    "design_pct_error_mean": pct_mean,
-                    "design_pct_error_median": pct_median,
-                    "design_r2": design_r2,
-                    "target_mean": target_mean,
-                    "prediction_mean": prediction_mean,
-                }
-            )
+        rows.append(
+            {
+                "epoch": best_epoch,
+                "design_name": bucket["design_name"],
+                "design_id": bucket["design_id"],
+                "target_name": bucket["target_name"],
+                "num_recipes": len(bucket["recipe_ids"]),
+                "overall_best_test_mae": history.get("best_test_mae"),
+                "overall_best_test_r2": history.get("best_test_r2"),
+                "design_mae_mean": mae_mean,
+                "design_mae_median": mae_median,
+                "design_pct_error_mean": pct_mean,
+                "design_pct_error_median": pct_median,
+                "design_r2": design_r2,
+                "target_mean": target_mean,
+                "prediction_mean": prediction_mean,
+            }
+        )
 
     return rows
 
