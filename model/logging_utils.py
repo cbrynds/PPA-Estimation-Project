@@ -183,16 +183,14 @@ def _safe_percentage_error(prediction, target):
     return (abs(prediction - target) / denominator) * 100.0
 
 
-def write_best_epoch_design_summary_csv(history, output_path):
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
+def build_best_epoch_design_summary_rows(history):
     best_epoch = history.get("best_epoch")
     all_predictions = history.get("test_epoch_predictions", [])
     if best_epoch is None or not all_predictions:
         raise ValueError("Cannot write per-design summary because no best epoch predictions are available.")
 
     per_design = {}
+    rows = []
     for row in all_predictions:
         if int(row.get("epoch", -1)) != int(best_epoch):
             continue
@@ -268,7 +266,7 @@ def write_best_epoch_design_summary_csv(history, output_path):
             else:
                 design_r2 = 1.0 - (residual_sum_squares / total_sum_squares)
 
-            writer.writerow(
+            rows.append(
                 {
                     "epoch": best_epoch,
                     "design_name": bucket["design_name"],
@@ -286,7 +284,65 @@ def write_best_epoch_design_summary_csv(history, output_path):
                     "prediction_mean": prediction_mean,
                 }
             )
-        
+
+    return rows
+
+
+def write_best_epoch_design_summary_csv(history, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = build_best_epoch_design_summary_rows(history)
+
+    fieldnames = (
+        "epoch",
+        "design_name",
+        "design_id",
+        "target_name",
+        "num_recipes",
+        "overall_best_test_mae",
+        "overall_best_test_r2",
+        "design_mae_mean",
+        "design_mae_median",
+        "design_pct_error_mean",
+        "design_pct_error_median",
+        "design_r2",
+        "target_mean",
+        "prediction_mean",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_cross_validation_design_summary_csv(rows, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fieldnames = (
+        "fold_index",
+        "epoch",
+        "design_name",
+        "design_id",
+        "target_name",
+        "num_recipes",
+        "overall_best_test_mae",
+        "overall_best_test_r2",
+        "design_mae_mean",
+        "design_mae_median",
+        "design_pct_error_mean",
+        "design_pct_error_median",
+        "design_r2",
+        "target_mean",
+        "prediction_mean",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
 def print_inference_metrics(split_name, metrics):
     print_section("Inference Results ({})".format(split_name))
     print_key_value("loss", "{:.6f}".format(metrics["loss"]))
