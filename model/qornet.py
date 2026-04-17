@@ -319,6 +319,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
         evaluation_data,
         batch_size=hyperparameters.batch_size,
         shuffle=False,
+        exclude_keys=["node_to_idx"],
     )
 
     qornet.eval()
@@ -405,6 +406,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         training_data,
         batch_size=hyperparameters.batch_size,
         shuffle=hyperparameters.shuffle_training,
+        exclude_keys=["node_to_idx"],
     )
 
     qornet = qornet.to(hyperparameters.device)
@@ -629,7 +631,7 @@ def main():
         edge_input_dim,
         recipe_dim,
     )
-
+    
     log_utils.print_section("Model Initialization")
     qornet = QoRNet(
         feature_schema=normalization_context.feature_schema,
