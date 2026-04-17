@@ -10,6 +10,7 @@ from pathlib import Path
 import random
 import torch
 import yaml
+from torch_geometric.data import Data
 
 
 EPSILON = 1e-8
@@ -387,7 +388,10 @@ def load_graph_for_design(dataset_dir, design_name):
     """
     file_name = dataset_dir / "{}.pt".format(design_name)
     if file_name.is_file():
-        return torch.load(file_name, weights_only=False)
+        graph = torch.load(file_name, weights_only=False)
+        if isinstance(graph, dict):
+            return Data.from_dict(graph)
+        return graph
 
     raise FileNotFoundError(
         "Could not find a PyG graph for design '{}' under {}".format(
