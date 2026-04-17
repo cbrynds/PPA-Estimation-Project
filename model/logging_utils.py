@@ -1,5 +1,6 @@
 import csv
 from pathlib import Path
+import math
 
 ASCII_BANNER = r"""
   ░██████              ░█████████  ░███    ░██               ░██
@@ -163,6 +164,128 @@ def write_epoch_predictions_csv(epoch_predictions, output_path):
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(epoch_predictions)
+
+
+def _median(values):
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2 == 1:
+        return ordered[midpoint]
+    return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
+
+
+def _safe_percentage_error(prediction, target):
+    denominator = abs(target)
+    if denominator <= 1e-8:
+        return None
+    return (abs(prediction - target) / denominator) * 100.0
+
+
+def write_best_epoch_design_summary_csv(history, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    best_epoch = history.get("best_epoch")
+    all_predictions = history.get("test_epoch_predictions", [])
+    if best_epoch is None or not all_predictions:
+        raise ValueError("Cannot write per-design summary because no best epoch predictions are available.")
+
+    per_design = {}
+    for row in all_predictions:
+        if int(row.get("epoch", -1)) != int(best_epoch):
+            continue
+        design_name = row.get("design_name")
+        if not design_name:
+            continue
+        bucket = per_design.setdefault(
+            design_name,
+            {
+                "design_name": design_name,
+                "design_id": row.get("design_id"),
+                "target_name": row.get("target_name"),
+                "recipe_ids": set(),
+                "targets": [],
+                "predictions": [],
+                "abs_errors": [],
+                "pct_errors": [],
+            },
+        )
+        bucket["recipe_ids"].add(row.get("recipe_id"))
+        target = float(row["target"])
+        prediction = float(row["prediction"])
+        abs_error = float(row["abs_error"])
+        pct_error = _safe_percentage_error(prediction, target)
+        bucket["targets"].append(target)
+        bucket["predictions"].append(prediction)
+        bucket["abs_errors"].append(abs_error)
+        if pct_error is not None and not math.isnan(pct_error):
+            bucket["pct_errors"].append(pct_error)
+
+    fieldnames = (
+        "epoch",
+        "design_name",
+        "design_id",
+        "target_name",
+        "num_recipes",
+        "overall_best_test_mae",
+        "overall_best_test_r2",
+        "design_mae_mean",
+        "design_mae_median",
+        "design_pct_error_mean",
+        "design_pct_error_median",
+        "design_r2",
+        "target_mean",
+        "prediction_mean",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for design_name in sorted(per_design):
+            bucket = per_design[design_name]
+            targets = bucket["targets"]
+            predictions = bucket["predictions"]
+            abs_errors = bucket["abs_errors"]
+            pct_errors = bucket["pct_errors"]
+
+            target_mean = sum(targets) / len(targets) if targets else 0.0
+            prediction_mean = sum(predictions) / len(predictions) if predictions else 0.0
+            mae_mean = sum(abs_errors) / len(abs_errors) if abs_errors else 0.0
+            mae_median = _median(abs_errors)
+            pct_mean = sum(pct_errors) / len(pct_errors) if pct_errors else 0.0
+            pct_median = _median(pct_errors)
+
+            total_sum_squares = sum((target - target_mean) ** 2 for target in targets)
+            residual_sum_squares = sum(
+                (prediction - target) ** 2
+                for prediction, target in zip(predictions, targets)
+            )
+            if total_sum_squares <= 1e-8:
+                design_r2 = 0.0
+            else:
+                design_r2 = 1.0 - (residual_sum_squares / total_sum_squares)
+
+            writer.writerow(
+                {
+                    "epoch": best_epoch,
+                    "design_name": bucket["design_name"],
+                    "design_id": bucket["design_id"],
+                    "target_name": bucket["target_name"],
+                    "num_recipes": len(bucket["recipe_ids"]),
+                    "overall_best_test_mae": history.get("best_test_mae"),
+                    "overall_best_test_r2": history.get("best_test_r2"),
+                    "design_mae_mean": mae_mean,
+                    "design_mae_median": mae_median,
+                    "design_pct_error_mean": pct_mean,
+                    "design_pct_error_median": pct_median,
+                    "design_r2": design_r2,
+                    "target_mean": target_mean,
+                    "prediction_mean": prediction_mean,
+                }
+            )
         
 def print_inference_metrics(split_name, metrics):
     print_section("Inference Results ({})".format(split_name))

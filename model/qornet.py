@@ -667,6 +667,10 @@ def main():
         plot_utils.plot_training_history(history, hyperparameters, plot_dir)
         log_utils.print_key_value("plot_dir", plot_dir, log_utils.ANSI_GREY)
         print(log_utils.colorize("Saved training plots to {}".format(plot_dir), log_utils.ANSI_GREY))
+
+        design_summary_path = plot_dir / "best_epoch_per_design_summary.csv"
+        log_utils.write_best_epoch_design_summary_csv(history, design_summary_path)
+        log_utils.print_key_value("design_summary_csv", design_summary_path, log_utils.ANSI_GREY)
         log_utils.print_rule()
         return
 
