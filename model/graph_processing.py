@@ -183,6 +183,8 @@ def fit_normalization_context(training_data, testing_data, target_name):
 def _normalize_selected_columns(tensor, column_indices, mean, std):
     normalized = tensor.clone().float()
     if column_indices:
+        mean = mean.to(device=normalized.device, dtype=normalized.dtype)
+        std = std.to(device=normalized.device, dtype=normalized.dtype)
         normalized[:, list(column_indices)] = (
             normalized[:, list(column_indices)] - mean
         ) / std
