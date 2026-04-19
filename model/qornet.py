@@ -127,7 +127,7 @@ class QoRNet(nn.Module):
                     edge_dim=hidden_dim,
                 )
             )
-        regressor_input_dim = hidden_dim
+        regressor_input_dim = (3 * hidden_dim) + 2
         
         # FC layers to map from graph embedding to final QoR prediction
         self.regressor = nn.Sequential(
@@ -222,7 +222,6 @@ class QoRNet(nn.Module):
 
         # Pool node embeddings to produce an embedding vector for the FC layers
         graph_embedding = self.build_graph_level_features(data, h)
-        # graph_embedding = global_mean_pool(h, data.batch)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
