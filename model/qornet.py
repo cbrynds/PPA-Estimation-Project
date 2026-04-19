@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool
+from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, global_add_pool
 import checkpointing_utils as ckpt_utils
 import evaluation_utils as eval_utils
 import graph_processing as graph_proc
@@ -167,11 +167,10 @@ class QoRNet(nn.Module):
         return torch.cat(edge_parts, dim=1)
 
     def build_graph_level_features(self, data, node_embeddings):
-        # Legacy richer readout path kept in place for reference. The active
-        # model now uses a single global_mean_pool readout in forward().
         mean_graph_embedding = global_mean_pool(node_embeddings, data.batch)
         max_graph_embedding = global_max_pool(node_embeddings, data.batch)
-
+        sum_graph_embedding = global_add_pool(node_embeddings, data.batch)
+        
         num_graphs = mean_graph_embedding.size(0)
         node_counts = torch.bincount(data.batch, minlength=num_graphs).to(device=node_embeddings.device, dtype=node_embeddings.dtype).view(-1, 1)
 
@@ -188,10 +187,9 @@ class QoRNet(nn.Module):
                 dtype=node_embeddings.dtype,
             ).view(-1, 1)
 
-        # Log scaling keeps graph-size features informative without letting
-        # very large circuits dominate the regressor input magnitude.
+        # Log scaling keeps graph-size meaningful without letting very large circuits dominate input magnitude
         graph_size_features = torch.cat((torch.log1p(node_counts), torch.log1p(edge_counts)), dim=1)
-        return torch.cat((mean_graph_embedding, max_graph_embedding, graph_size_features), dim=1)
+        return torch.cat((mean_graph_embedding, max_graph_embedding, sum_graph_embedding, graph_size_features), dim=1)
 
     def forward(self, data):
         """
@@ -223,8 +221,8 @@ class QoRNet(nn.Module):
             h = F.dropout(h, p=self.dropout, training=self.training)
 
         # Pool node embeddings to produce an embedding vector for the FC layers
-        # graph_embedding = self.build_graph_level_features(data, h)
-        graph_embedding = global_mean_pool(h, data.batch)
+        graph_embedding = self.build_graph_level_features(data, h)
+        # graph_embedding = global_mean_pool(h, data.batch)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
