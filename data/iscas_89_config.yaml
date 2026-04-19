@@ -90,21 +90,21 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s1196a
-    id: iscas89_0002
-    rtl_dir: iscas89-benchmarks/s1196a
-    top: s1196
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s1196a
+  #   id: iscas89_0002
+  #   rtl_dir: iscas89-benchmarks/s1196a
+  #   top: s1196
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
-  - name: s1196b
-    id: iscas89_0003
-    rtl_dir: iscas89-benchmarks/s1196b
-    top: s1196
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s1196b
+  #   id: iscas89_0003
+  #   rtl_dir: iscas89-benchmarks/s1196b
+  #   top: s1196
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s1238
     id: iscas89_0004
@@ -114,13 +114,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s1238a
-    id: iscas89_0005
-    rtl_dir: iscas89-benchmarks/s1238a
-    top: s1238
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s1238a
+  #   id: iscas89_0005
+  #   rtl_dir: iscas89-benchmarks/s1238a
+  #   top: s1238
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s13207
     id: iscas89_0006
@@ -130,13 +130,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s13207a
-    id: iscas89_0007
-    rtl_dir: iscas89-benchmarks/s13207a
-    top: s13207
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s13207a
+  #   id: iscas89_0007
+  #   rtl_dir: iscas89-benchmarks/s13207a
+  #   top: s13207
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s1423
     id: iscas89_0008
@@ -146,13 +146,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s1423a
-    id: iscas89_0009
-    rtl_dir: iscas89-benchmarks/s1423a
-    top: s1423
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s1423a
+  #   id: iscas89_0009
+  #   rtl_dir: iscas89-benchmarks/s1423a
+  #   top: s1423
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s1488
     id: iscas89_0010
@@ -170,13 +170,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s15850a
-    id: iscas89_0012
-    rtl_dir: iscas89-benchmarks/s15850a
-    top: s15850
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s15850a
+  #   id: iscas89_0012
+  #   rtl_dir: iscas89-benchmarks/s15850a
+  #   top: s15850
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s27
     id: iscas89_0013
@@ -242,13 +242,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s38584a
-    id: iscas89_0021
-    rtl_dir: iscas89-benchmarks/s38584a
-    top: s38584
-    clock_port: CK # No explict clock port
-    recursive: false
-    extensions: [".v"]
+  # - name: s38584a
+  #   id: iscas89_0021
+  #   rtl_dir: iscas89-benchmarks/s38584a
+  #   top: s38584
+  #   clock_port: CK # No explict clock port
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s386
     id: iscas89_0022
@@ -298,13 +298,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s526a
-    id: iscas89_0028
-    rtl_dir: iscas89-benchmarks/s526a
-    top: s526n
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s526a
+  #   id: iscas89_0028
+  #   rtl_dir: iscas89-benchmarks/s526a
+  #   top: s526n
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s5378
     id: iscas89_0029
@@ -346,13 +346,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s820a
-    id: iscas89_0034
-    rtl_dir: iscas89-benchmarks/s820a
-    top: s820
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s820a
+  #   id: iscas89_0034
+  #   rtl_dir: iscas89-benchmarks/s820a
+  #   top: s820
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s832
     id: iscas89_0035
@@ -362,13 +362,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s832a
-    id: iscas89_0036
-    rtl_dir: iscas89-benchmarks/s832a
-    top: s832
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s832a
+  #   id: iscas89_0036
+  #   rtl_dir: iscas89-benchmarks/s832a
+  #   top: s832
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s838
     id: iscas89_0037
@@ -386,13 +386,13 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s9234a
-    id: iscas89_0039
-    rtl_dir: iscas89-benchmarks/s9234a
-    top: s9234
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s9234a
+  #   id: iscas89_0039
+  #   rtl_dir: iscas89-benchmarks/s9234a
+  #   top: s9234
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]
 
   - name: s953
     id: iscas89_0040
@@ -402,10 +402,10 @@ designs:
     recursive: false
     extensions: [".v"]
 
-  - name: s953a
-    id: iscas89_0041
-    rtl_dir: iscas89-benchmarks/s953a
-    top: s953
-    clock_port: CK
-    recursive: false
-    extensions: [".v"]
+  # - name: s953a
+  #   id: iscas89_0041
+  #   rtl_dir: iscas89-benchmarks/s953a
+  #   top: s953
+  #   clock_port: CK
+  #   recursive: false
+  #   extensions: [".v"]

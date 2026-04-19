@@ -1,0 +1,36 @@
+GNN Planning
+
+GNN Architecture
+- Graph Attention Network with graph-level regression
+- The model predicts a scalar value for a given RTL design under a specific synthesis parameter setting
+- Input: one graph per RTL design
+- Output: one or a few continuous values per graph
+- Task type: graph-level regression
+- Separate graph-level regressor for WNS and TNS
+
+Graph Attention Network (GAT)
+- Subset of GNNs
+- Message passing network that adds attention weights between a node and its neighbors
+- Learns how important each neighbor is, then takes a weighted combination
+- GAT computes attention coefficients for each neighboring node and then aggregates
+
+Dataset requirements
+- Synthesis recipe parameters must be appended to the node features so the graph model can condition on the recipe
+
+First implementation plan
+1. Start with one graph-level regressor for WNS
+
+2. Keep recipe paramters as conditioning inputs
+
+3. Pool node embeddings into a single graph embeddings
+- After the GAT runs for a few layers, every node has learned a feature vector or "node embedding"
+- Each node has a d-dimensional representation capturing:
+    a. Node's local features
+    b. Information from neighboring nodes
+    c. Larger structural context from the graph
+- Our target is a graph-level target, so we must convert the N node vectors to one graph vector through a process called pooling or readout
+    - Mean pooling, sum pooling, max pooling produces a single vector, called the "graph embedding"
+    - Start with mean pooling. For WNS prediction, mean pooling could wash out the important features contributing to the critical path. We can try add pooling if this occurs
+
+4. Put an MLP head on top for scalar regression
+- After obtaining graph embedding, map it to the final prediction with a small MLP
