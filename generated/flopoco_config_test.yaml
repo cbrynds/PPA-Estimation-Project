@@ -1,0 +1,40 @@
+project_root: .
+synthesis_root: synthesis
+apptainer_image: Open-EDA-Flow/eda-flow.sif
+
+flow_mode: full
+die_area: 0 0 800 800
+core_area: 10 10 790 790
+default_clock_port: clk
+default_clock_period_ns: 3.0
+clock_period_ns: 3.0
+default_vhdl_std: 08
+
+recipes:
+- id: base
+  abc_fast: true
+ast:
+  proc: true
+  flatten: true
+  dump_ast: true
+
+output:
+  csv_path: synthesis/flopoco_results/flopoco_ground_truth_qor.csv
+  runs_dir: synthesis/flopoco_runs
+  ast_dir: synthesis/flopoco_results/ast
+  ast_log_dir: synthesis/flopoco_results/ast_logs
+  result_shards_dir: synthesis/flopoco_results/result_shards
+  yosys_logs_dir: synthesis/flopoco_results/yosys_logs
+  shared_failures_dir: synthesis/flopoco_results/shared_failures
+  
+designs:
+- name: flopoco_00000_ieeefpadd
+  id: flopoco_00000
+  rtl_dir: generated/flopoco_dataset/designs/flopoco_00000_ieeefpadd
+  top: flopoco_00000_ieeefpadd_top
+  clock_port: clk
+  clock_period_ns: 2.5
+  recursive: false
+  extensions:
+  - .vhdl
+  vhdl_std: 08
