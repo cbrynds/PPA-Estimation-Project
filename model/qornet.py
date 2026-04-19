@@ -51,7 +51,6 @@ class Hyperparameters:
 def embedding_dim_for_vocab(vocab_size):
     return min(16, max(4, int(math.ceil(math.sqrt(max(vocab_size, 1))))))
 
-
 class QoRNet(nn.Module):
     """
     Graph attention network model for predicting one QoR target per design graph.
@@ -83,11 +82,7 @@ class QoRNet(nn.Module):
         self.dropout = dropout
 
         if hidden_dim % num_heads != 0:
-            raise ValueError(
-                "hidden_dim ({}) must be divisible by num_heads ({}).".format(
-                    hidden_dim, num_heads
-                )
-            )
+            raise ValueError("hidden_dim ({}) must be divisible by num_heads ({}).".format(hidden_dim, num_heads))
 
         node_numeric_dim = len(feature_schema.node_numeric_indices)
         edge_numeric_dim = len(feature_schema.edge_numeric_indices)
@@ -143,9 +138,7 @@ class QoRNet(nn.Module):
     def encode_node_features(self, data, recipe_features):
         node_parts = []
         if self.feature_schema.node_numeric_indices:
-            node_parts.append(
-                data.x[:, list(self.feature_schema.node_numeric_indices)].float()
-            )
+            node_parts.append(data.x[:, list(self.feature_schema.node_numeric_indices)].float())
 
         for embedding_layer, column_index in zip(
             self.node_categorical_embeddings,
@@ -160,12 +153,7 @@ class QoRNet(nn.Module):
     def encode_edge_features(self, data, device, dtype):
         edge_parts = []
         if self.feature_schema.edge_numeric_indices:
-            edge_parts.append(
-                data.edge_attr[:, list(self.feature_schema.edge_numeric_indices)].to(
-                    device=device,
-                    dtype=dtype,
-                )
-            )
+            edge_parts.append(data.edge_attr[:, list(self.feature_schema.edge_numeric_indices)].to(device=device, dtype=dtype))
 
         for embedding_layer, column_index in zip(
             self.edge_categorical_embeddings,
@@ -201,21 +189,8 @@ class QoRNet(nn.Module):
 
         # Log scaling keeps graph-size features informative without letting
         # very large circuits dominate the regressor input magnitude.
-        graph_size_features = torch.cat(
-            (
-                torch.log1p(node_counts),
-                torch.log1p(edge_counts),
-            ),
-            dim=1,
-        )
-        return torch.cat(
-            (
-                mean_graph_embedding,
-                max_graph_embedding,
-                graph_size_features,
-            ),
-            dim=1,
-        )
+        graph_size_features = torch.cat((torch.log1p(node_counts), torch.log1p(edge_counts)), dim=1)
+        return torch.cat((mean_graph_embedding, max_graph_embedding, graph_size_features), dim=1)
 
     def forward(self, data):
         """
@@ -312,6 +287,11 @@ def parse_arguments():
         default="both",
         help="Dataset split to run during inference mode.",
     )
+    parser.add_argument(
+        "--disable_verbose",
+        action="store_true",
+        help="Disable dataset-loading and normalization summary prints.",
+    )
     return parser.parse_args()
 
 
@@ -333,12 +313,7 @@ def validate_arguments(args):
         if not value
     ]
     if missing:
-        raise ValueError(
-            "Missing required arguments for dataset-based {} mode: {}.".format(
-                args.mode,
-                ", ".join(missing),
-            )
-        )
+        raise ValueError("Missing required arguments for dataset-based {} mode: {}.".format(args.mode, ", ".join(missing)))
 
 
 def resolve_plot_dir(args):
@@ -353,16 +328,12 @@ def resolve_plot_dir(args):
 
 
 def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_context):
-    evaluation_loader = DataLoader(
-        evaluation_data,
-        batch_size=hyperparameters.batch_size,
-        shuffle=False,
-        exclude_keys=["node_to_idx"],
-    )
+    evaluation_loader = DataLoader(evaluation_data, batch_size=hyperparameters.batch_size, shuffle=False, exclude_keys=["node_to_idx"])
 
     qornet.eval()
     total_loss = 0.0
     total_error = 0.0
+    total_percentage_error = 0.0
     total_graphs = 0
     all_predictions = []
     all_targets = []
@@ -385,10 +356,12 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
 
             loss = loss_fn(predictions, targets)
             error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
+            percentage_error = eval_utils.mean_absolute_percentage_error(predictions_denormalized, targets_denormalized)
 
             batch_size = targets.size(0)
             total_loss += loss.item() * batch_size
             total_error += error.item() * batch_size
+            total_percentage_error += percentage_error.item() * batch_size
             total_graphs += batch_size
             all_predictions.append(predictions_denormalized.detach())
             all_targets.append(targets_denormalized.detach())
@@ -412,13 +385,14 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
 
     if total_graphs == 0:
         print("Evaluation skipped because no samples were provided.")
-        return {"loss": 0.0, "error": 0.0, "r2": 0.0, "epoch_predictions": []}
+        return {"loss": 0.0, "error": 0.0, "percentage_error": 0.0, "r2": 0.0, "epoch_predictions": []}
 
     r2 = eval_utils.r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0))
 
     return {
         "loss": total_loss / total_graphs,
         "error": total_error / total_graphs,
+        "percentage_error": total_percentage_error / total_graphs,
         "r2": float(r2.item()),
         "epoch_predictions": epoch_predictions,
     }
@@ -428,11 +402,13 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
     history = {
         "train_loss": [],
         "train_error": [],
+        "train_percentage_error": [],
         "train_r2": [],
         "test_loss": [],
         "test_error": [],
+        "test_percentage_error": [],
         "test_r2": [],
-        "test_epoch_predictions": [],
+        "best_epoch_predictions": [],
         "best_epoch": None,
         "best_test_loss": None,
         "best_test_mae": None,
@@ -440,12 +416,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
     } # Tracks training and testing metrics across epochs
 
     # Load training data with specified batch size and optional data shuffling per epoch
-    training_loader = DataLoader(
-        training_data,
-        batch_size=hyperparameters.batch_size,
-        shuffle=hyperparameters.shuffle_training,
-        exclude_keys=["node_to_idx"],
-    )
+    training_loader = DataLoader(training_data, batch_size=hyperparameters.batch_size, shuffle=hyperparameters.shuffle_training, exclude_keys=["node_to_idx"])
 
     qornet = qornet.to(hyperparameters.device)
 
@@ -467,6 +438,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         qornet.train()
         total_loss = 0.0
         total_error = 0.0
+        total_percentage_error = 0.0
         total_graphs = 0
         all_predictions = []
         all_targets = []
@@ -483,13 +455,11 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
             targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
             if predictions.shape != targets.shape:
-                raise ValueError(
-                    "Prediction shape {} does not match target shape {}.".format(
-                        tuple(predictions.shape), tuple(targets.shape)
-                    )
-                )
+                raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
+            
             loss = loss_fn(predictions, targets)
             error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
+            percentage_error = eval_utils.mean_absolute_percentage_error(predictions_denormalized, targets_denormalized)
 
             # Update parameters
             loss.backward()
@@ -498,12 +468,14 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             batch_size = targets.size(0)
             total_loss += loss.item() * batch_size
             total_error += error.item() * batch_size
+            total_percentage_error += percentage_error.item() * batch_size
             total_graphs += batch_size
             all_predictions.append(predictions_denormalized.detach())
             all_targets.append(targets_denormalized.detach())
 
         train_loss = total_loss / total_graphs if total_graphs else 0.0
         train_error = total_error / total_graphs if total_graphs else 0.0
+        train_percentage_error = total_percentage_error / total_graphs if total_graphs else 0.0
         train_r2 = (
             float(eval_utils.r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0)).item())
             if total_graphs
@@ -511,44 +483,21 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         )
         
         # Evaluate network on validation set
-        test_metrics = evaluate(
-            qornet,
-            testing_data,
-            hyperparameters,
-            loss_fn,
-            normalization_context,
-        )
+        test_metrics = evaluate(qornet, testing_data, hyperparameters, loss_fn, normalization_context)
 
         # Log historical training data
         history["train_loss"].append(train_loss)
         history["train_error"].append(train_error)
+        history["train_percentage_error"].append(train_percentage_error)
         history["train_r2"].append(train_r2)
         history["test_loss"].append(test_metrics["loss"])
         history["test_error"].append(test_metrics["error"])
+        history["test_percentage_error"].append(test_metrics["percentage_error"])
         history["test_r2"].append(test_metrics["r2"])
-        history["test_epoch_predictions"].extend(
-            {
-                "epoch": epoch_idx,
-                **sample_prediction,
-            }
-            for sample_prediction in test_metrics["epoch_predictions"]
-        )
+        log_utils.print_epoch_metrics(epoch_idx, hyperparameters.num_epochs, train_loss, train_error, train_percentage_error, train_r2, test_metrics)
 
-        log_utils.print_epoch_metrics(
-            epoch_idx,
-            hyperparameters.num_epochs,
-            train_loss,
-            train_error,
-            train_r2,
-            test_metrics,
-        )
-
-        error_improved = test_metrics["error"] < (
-            best_error - hyperparameters.early_stopping_min_delta
-        )
-        r2_improved = test_metrics["r2"] > (
-            best_r2 + hyperparameters.early_stopping_min_delta
-        )
+        error_improved = test_metrics["error"] < (best_error - hyperparameters.early_stopping_min_delta)
+        r2_improved = test_metrics["r2"] > (best_r2 + hyperparameters.early_stopping_min_delta)
 
         if error_improved:
             best_error = test_metrics["error"]
@@ -563,14 +512,13 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             history["best_test_loss"] = test_metrics["loss"]
             history["best_test_mae"] = test_metrics["error"]
             history["best_test_r2"] = test_metrics["r2"]
+            history["best_epoch_predictions"] = [{"epoch": epoch_idx, **sample_prediction} for sample_prediction in test_metrics["epoch_predictions"]]
             log_utils.print_key_value("best_epoch", epoch_idx, log_utils.ANSI_GREY)
 
         epochs_since_error_improvement = epoch_idx - last_error_improvement_epoch
         epochs_since_r2_improvement = epoch_idx - last_r2_improvement_epoch
-        if (
-            epochs_since_error_improvement >= hyperparameters.early_stopping_patience
-            and epochs_since_r2_improvement >= hyperparameters.early_stopping_patience
-        ):
+        
+        if (epochs_since_error_improvement >= hyperparameters.early_stopping_patience and epochs_since_r2_improvement >= hyperparameters.early_stopping_patience):
             log_utils.print_section("Early Stopping")
             log_utils.print_key_value("stopped_epoch", epoch_idx)
             log_utils.print_key_value("best_epoch", history["best_epoch"])
@@ -590,19 +538,10 @@ def run_inference(qornet, datasets_by_split, hyperparameters, normalization_cont
     loss_fn = hyperparameters.loss_fn
 
     for split_name, split_data in datasets_by_split.items():
-        metrics = evaluate(
-            qornet,
-            split_data,
-            hyperparameters,
-            loss_fn,
-            normalization_context,
-        )
+        metrics = evaluate(qornet, split_data, hyperparameters, loss_fn, normalization_context)
         log_utils.print_inference_metrics(split_name, metrics)
         output_path = output_dir / "{}_predictions.csv".format(split_name)
-        log_utils.write_predictions_csv(
-            [{**prediction, "split": split_name} for prediction in metrics["epoch_predictions"]],
-            output_path,
-        )
+        log_utils.write_predictions_csv([{**prediction, "split": split_name} for prediction in metrics["epoch_predictions"]], output_path)
         log_utils.print_key_value("predictions_csv", output_path, log_utils.ANSI_GREY)
 
 
@@ -628,11 +567,7 @@ def load_single_graph_sample(graph_path, normalization_context, recipe_dim):
     observed_recipe_dim = recipe_tensor.size(-1)
     if observed_recipe_dim != recipe_dim:
         raise ValueError(
-            "Single-graph recipe dimension {} does not match checkpoint recipe dimension {}.".format(
-                observed_recipe_dim,
-                recipe_dim,
-            )
-        )
+            "Single-graph recipe dimension {} does not match checkpoint recipe dimension {}.".format(observed_recipe_dim, recipe_dim))
 
     graph.recipe = recipe_tensor
     graph_proc.apply_feature_normalization_context([graph], normalization_context)
@@ -650,30 +585,11 @@ def run_single_graph_inference(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    single_graph = load_single_graph_sample(
-        args.single_graph,
-        normalization_context,
-        recipe_dim,
-    )
-    node_input_dim, edge_input_dim, _ = graph_proc.validate_input_dimensions(
-        [single_graph],
-        [],
-    )
-    log_utils.print_model_summary(
-        hyperparameters,
-        [single_graph],
-        [],
-        node_input_dim,
-        edge_input_dim,
-        recipe_dim,
-    )
+    single_graph = load_single_graph_sample(args.single_graph, normalization_context, recipe_dim)
+    node_input_dim, edge_input_dim, _ = graph_proc.validate_input_dimensions([single_graph], [])
+    log_utils.print_model_summary(hyperparameters, [single_graph], [], node_input_dim, edge_input_dim, recipe_dim)
 
-    inference_loader = DataLoader(
-        [single_graph],
-        batch_size=1,
-        shuffle=False,
-        exclude_keys=["node_to_idx"],
-    )
+    inference_loader = DataLoader([single_graph], batch_size=1, shuffle=False, exclude_keys=["node_to_idx"])
 
     qornet.eval()
     prediction_value = None
@@ -684,10 +600,7 @@ def run_single_graph_inference(
             start_time = time.perf_counter()
             predictions = qornet(batch)
             elapsed_s = time.perf_counter() - start_time
-            predictions_denormalized = eval_utils.denormalize_targets(
-                predictions,
-                normalization_context,
-            )
+            predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
             prediction_value = float(predictions_denormalized.view(-1)[0].item())
             break
 
@@ -705,10 +618,7 @@ def run_single_graph_inference(
         "prediction_runtime_s": elapsed_s,
     }
     summary_path = output_dir / "single_graph_prediction.json"
-    summary_path.write_text(
-        json.dumps(summary, indent=2),
-        encoding="utf-8",
-    )
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
     log_utils.print_section("Single-Design Prediction")
     log_utils.print_key_value("graph_path", args.single_graph, log_utils.ANSI_GREY)
@@ -790,22 +700,13 @@ def print_cross_validation_summary(fold_summaries):
 
 
 def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
-    log_utils.print_section("Dataset Loading")
-    training_data, testing_data, normalization_context = graph_proc.load_data(
-        args,
-        hyperparameters.target_name,
-    )
+    if not args.disable_verbose:
+        log_utils.print_section("Dataset Loading")
+    training_data, testing_data, normalization_context = graph_proc.load_data(args, hyperparameters.target_name)
 
     node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
 
-    log_utils.print_model_summary(
-        hyperparameters,
-        training_data,
-        testing_data,
-        node_input_dim,
-        edge_input_dim,
-        recipe_dim,
-    )
+    log_utils.print_model_summary(hyperparameters, training_data, testing_data, node_input_dim, edge_input_dim, recipe_dim)
 
     log_utils.print_section("Model Initialization")
     qornet = QoRNet(
@@ -819,22 +720,10 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
     print("Initialized QoRNet model")
 
     log_utils.print_section("Training")
-    history = train(
-        qornet,
-        training_data,
-        testing_data,
-        hyperparameters,
-        normalization_context,
-    )
+    history = train(qornet, training_data, testing_data, hyperparameters, normalization_context)
 
     log_utils.print_section("Checkpoint Save")
-    saved_checkpoint = ckpt_utils.save_checkpoint(
-        qornet,
-        hyperparameters,
-        normalization_context,
-        recipe_dim,
-        checkpoint_path,
-    )
+    saved_checkpoint = ckpt_utils.save_checkpoint(qornet, hyperparameters, normalization_context, recipe_dim, checkpoint_path)
     log_utils.print_key_value("checkpoint_path", saved_checkpoint, log_utils.ANSI_GREY)
 
     log_utils.print_section("Plot Generation")
@@ -866,18 +755,8 @@ def main():
                 fold_checkpoint_path = ckpt_utils.resolve_checkpoint_path(fold_args)
                 fold_plot_dir = resolve_plot_dir(fold_args)
 
-                log_utils.print_section(
-                    "Cross-Validation Fold {}/{}".format(
-                        fold_index + 1,
-                        args.cv_folds,
-                    )
-                )
-                history, _ = train_single_run(
-                    fold_args,
-                    fold_hyperparameters,
-                    fold_checkpoint_path,
-                    fold_plot_dir,
-                )
+                log_utils.print_section("Cross-Validation Fold {}/{}".format(fold_index + 1, args.cv_folds))
+                history, _ = train_single_run(fold_args, fold_hyperparameters, fold_checkpoint_path, fold_plot_dir)
                 unified_design_summary_rows.extend(
                     {
                         "fold_index": fold_index,
@@ -894,15 +773,8 @@ def main():
 
             print_cross_validation_summary(fold_summaries)
             unified_design_summary_path = Path(args.plot_dir) / "cross_validation_best_epoch_per_design_summary.csv"
-            log_utils.write_cross_validation_design_summary_csv(
-                unified_design_summary_rows,
-                unified_design_summary_path,
-            )
-            log_utils.print_key_value(
-                "cv_design_summary_csv",
-                unified_design_summary_path,
-                log_utils.ANSI_GREY,
-            )
+            log_utils.write_cross_validation_design_summary_csv(unified_design_summary_rows, unified_design_summary_path)
+            log_utils.print_key_value( "cv_design_summary_csv", unified_design_summary_path, log_utils.ANSI_GREY)
             log_utils.print_rule()
             return
 
@@ -912,29 +784,17 @@ def main():
         return
 
     if args.cv_folds > 1 and args.cv_fold_index is None:
-        raise ValueError(
-            "--cv_fold_index must be provided in inference mode when --cv_folds is greater than 1."
-        )
+        raise ValueError("--cv_fold_index must be provided in inference mode when --cv_folds is greater than 1.")
 
     checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
     plot_dir = resolve_plot_dir(args)
 
     if args.single_graph:
         checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
-        hyperparameters = ckpt_utils.update_hyperparameters_from_dict(
-            hyperparameters,
-            checkpoint["hyperparameters"],
-        )
-        hyperparameters.device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu"
-        )
-        normalization_context = ckpt_utils.normalization_context_from_dict(
-            checkpoint["normalization_context"]
-        )
+        hyperparameters = ckpt_utils.update_hyperparameters_from_dict(hyperparameters, checkpoint["hyperparameters"])
+        hyperparameters.device = ( "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+        
+        normalization_context = ckpt_utils.normalization_context_from_dict(checkpoint["normalization_context"])
         recipe_dim = int(checkpoint["recipe_dim"])
 
         log_utils.print_section("Model Initialization")
@@ -953,24 +813,15 @@ def main():
         qornet = qornet.to(hyperparameters.device)
         log_utils.print_key_value("checkpoint_path", checkpoint_path, log_utils.ANSI_GREY)
 
-        run_single_graph_inference(
-            args,
-            qornet,
-            hyperparameters,
-            normalization_context,
-            recipe_dim,
-            plot_dir,
-        )
+        run_single_graph_inference(args, qornet, hyperparameters, normalization_context, recipe_dim, plot_dir)
         return
 
-    log_utils.print_section("Dataset Loading")
+    if not args.disable_verbose:
+        log_utils.print_section("Dataset Loading")
     if args.mode != "train":
         training_data, testing_data = graph_proc.load_raw_data(args)
         checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
-        hyperparameters = ckpt_utils.update_hyperparameters_from_dict(
-            hyperparameters,
-            checkpoint["hyperparameters"],
-        )
+        hyperparameters = ckpt_utils.update_hyperparameters_from_dict(hyperparameters, checkpoint["hyperparameters"])
         hyperparameters.device = (
             "cuda"
             if torch.cuda.is_available()
@@ -978,42 +829,16 @@ def main():
             if torch.backends.mps.is_available()
             else "cpu"
         )
-        normalization_context = ckpt_utils.normalization_context_from_dict(
-            checkpoint["normalization_context"]
-        )
-        graph_proc.apply_normalization_context(
-            training_data,
-            normalization_context,
-            hyperparameters.target_name,
-        )
-        graph_proc.apply_normalization_context(
-            testing_data,
-            normalization_context,
-            hyperparameters.target_name,
-        )
-        print(
-            "Using checkpoint normalization for target '{}'.".format(
-                hyperparameters.target_name
-            )
-        )
+        normalization_context = ckpt_utils.normalization_context_from_dict(checkpoint["normalization_context"])
+        graph_proc.apply_normalization_context(training_data, normalization_context, hyperparameters.target_name)
+        graph_proc.apply_normalization_context(testing_data, normalization_context, hyperparameters.target_name)
+        print("Using checkpoint normalization for target '{}'.".format(hyperparameters.target_name))
 
     node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
     if args.mode == "inference" and recipe_dim != int(checkpoint["recipe_dim"]):
-        raise ValueError(
-            "Current dataset recipe dimension {} does not match checkpoint recipe dimension {}.".format(
-                recipe_dim,
-                checkpoint["recipe_dim"],
-            )
-        )
+        raise ValueError("Current dataset recipe dimension {} does not match checkpoint recipe dimension {}.".format(recipe_dim, checkpoint["recipe_dim"]))
 
-    log_utils.print_model_summary(
-        hyperparameters,
-        training_data,
-        testing_data,
-        node_input_dim,
-        edge_input_dim,
-        recipe_dim,
-    )
+    log_utils.print_model_summary(hyperparameters, training_data, testing_data, node_input_dim, edge_input_dim, recipe_dim)
     
     log_utils.print_section("Model Initialization")
     qornet = QoRNet(

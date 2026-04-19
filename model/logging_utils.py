@@ -73,13 +73,15 @@ def print_model_summary(hyperparameters, training_data, testing_data, node_input
     print_key_value("testing_samples", len(testing_data))
 
 
-def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_r2, test_metrics):
+def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_percentage_error, train_r2, test_metrics):
     print_section("Epoch {}/{}".format(epoch_idx, num_epochs))
     print_key_value("train_loss", "{:.6f}".format(train_loss))
     print_key_value("train_mae", "{:.6f}".format(train_error), ANSI_RED)
+    print_key_value("train_mape", "{:.6f}%".format(train_percentage_error), ANSI_RED)
     print_key_value("train_r2", "{:.6f}".format(train_r2))
     print_key_value("test_loss", "{:.6f}".format(test_metrics["loss"]))
     print_key_value("test_mae", "{:.6f}".format(test_metrics["error"]), ANSI_RED)
+    print_key_value("test_mape", "{:.6f}%".format(test_metrics["percentage_error"]), ANSI_RED)
     print_key_value("test_r2", "{:.6f}".format(test_metrics["r2"]))
     
     
@@ -106,9 +108,11 @@ def write_training_history_csv(history, hyperparameters, output_path):
         "epoch",
         "train_loss",
         "train_mae",
+        "train_mape",
         "train_r2",
         "test_loss",
         "test_mae",
+        "test_mape",
         "test_r2",
         "num_epochs",
         "learning_rate",
@@ -135,38 +139,18 @@ def write_training_history_csv(history, hyperparameters, output_path):
                     "epoch": epoch_idx + 1,
                     "train_loss": history["train_loss"][epoch_idx],
                     "train_mae": history["train_error"][epoch_idx],
+                    "train_mape": history["train_percentage_error"][epoch_idx],
                     "train_r2": history["train_r2"][epoch_idx],
                     "test_loss": history["test_loss"][epoch_idx],
                     "test_mae": history["test_error"][epoch_idx],
+                    "test_mape": history["test_percentage_error"][epoch_idx],
                     "test_r2": history["test_r2"][epoch_idx],
                     **hyperparameter_values,
                 }
             )
 
 
-def write_epoch_predictions_csv(epoch_predictions, output_path):
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fieldnames = (
-        "epoch",
-        "design_name",
-        "design_id",
-        "recipe_id",
-        "run_id",
-        "target_name",
-        "target",
-        "prediction",
-        "abs_error",
-    )
-
-    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(epoch_predictions)
-
-
-def _median(values):
+def median(values):
     if not values:
         return 0.0
     ordered = sorted(values)
@@ -176,7 +160,7 @@ def _median(values):
     return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
 
 
-def _safe_percentage_error(prediction, target):
+def safe_percentage_error(prediction, target):
     denominator = abs(target)
     if denominator <= 1e-8:
         return None
@@ -185,15 +169,13 @@ def _safe_percentage_error(prediction, target):
 
 def build_best_epoch_design_summary_rows(history):
     best_epoch = history.get("best_epoch")
-    all_predictions = history.get("test_epoch_predictions", [])
-    if best_epoch is None or not all_predictions:
+    best_epoch_predictions = history.get("best_epoch_predictions", [])
+    if best_epoch is None or not best_epoch_predictions:
         raise ValueError("Cannot write per-design summary because no best epoch predictions are available.")
 
     per_design = {}
     rows = []
-    for row in all_predictions:
-        if int(row.get("epoch", -1)) != int(best_epoch):
-            continue
+    for row in best_epoch_predictions:
         design_name = row.get("design_name")
         if not design_name:
             continue
@@ -214,7 +196,7 @@ def build_best_epoch_design_summary_rows(history):
         target = float(row["target"])
         prediction = float(row["prediction"])
         abs_error = float(row["abs_error"])
-        pct_error = _safe_percentage_error(prediction, target)
+        pct_error = safe_percentage_error(prediction, target)
         bucket["targets"].append(target)
         bucket["predictions"].append(prediction)
         bucket["abs_errors"].append(abs_error)
@@ -231,9 +213,9 @@ def build_best_epoch_design_summary_rows(history):
         target_mean = sum(targets) / len(targets) if targets else 0.0
         prediction_mean = sum(predictions) / len(predictions) if predictions else 0.0
         mae_mean = sum(abs_errors) / len(abs_errors) if abs_errors else 0.0
-        mae_median = _median(abs_errors)
+        maemedian = median(abs_errors)
         pct_mean = sum(pct_errors) / len(pct_errors) if pct_errors else 0.0
-        pct_median = _median(pct_errors)
+        pctmedian = median(pct_errors)
 
         total_sum_squares = sum((target - target_mean) ** 2 for target in targets)
         residual_sum_squares = sum(
@@ -255,9 +237,9 @@ def build_best_epoch_design_summary_rows(history):
                 "overall_best_test_mae": history.get("best_test_mae"),
                 "overall_best_test_r2": history.get("best_test_r2"),
                 "design_mae_mean": mae_mean,
-                "design_mae_median": mae_median,
+                "design_maemedian": maemedian,
                 "design_pct_error_mean": pct_mean,
-                "design_pct_error_median": pct_median,
+                "design_pct_errormedian": pctmedian,
                 "design_r2": design_r2,
                 "target_mean": target_mean,
                 "prediction_mean": prediction_mean,
@@ -281,9 +263,9 @@ def write_best_epoch_design_summary_csv(history, output_path):
         "overall_best_test_mae",
         "overall_best_test_r2",
         "design_mae_mean",
-        "design_mae_median",
+        "design_maemedian",
         "design_pct_error_mean",
-        "design_pct_error_median",
+        "design_pct_errormedian",
         "design_r2",
         "target_mean",
         "prediction_mean",
@@ -309,9 +291,9 @@ def write_cross_validation_design_summary_csv(rows, output_path):
         "overall_best_test_mae",
         "overall_best_test_r2",
         "design_mae_mean",
-        "design_mae_median",
+        "design_maemedian",
         "design_pct_error_mean",
-        "design_pct_error_median",
+        "design_pct_errormedian",
         "design_r2",
         "target_mean",
         "prediction_mean",
@@ -326,6 +308,7 @@ def print_inference_metrics(split_name, metrics):
     print_section("Inference Results ({})".format(split_name))
     print_key_value("loss", "{:.6f}".format(metrics["loss"]))
     print_key_value("mae", "{:.6f}".format(metrics["error"]), ANSI_GREY)
+    print_key_value("mape", "{:.6f}%".format(metrics["percentage_error"]), ANSI_GREY)
     print_key_value("r2", "{:.6f}".format(metrics["r2"]))
     print_key_value("samples", len(metrics["epoch_predictions"]))
     
