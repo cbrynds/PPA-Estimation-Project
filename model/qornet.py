@@ -6,6 +6,7 @@ Author: Cory Brynds
 
 import argparse
 import csv
+from copy import deepcopy
 from dataclasses import dataclass
 import math
 from pathlib import Path
@@ -266,8 +267,8 @@ def parse_arguments():
     parser.add_argument(
         "--cv_fold_index",
         type=int,
-        default=0,
-        help="Which validation fold to run when --cv_folds is greater than 1.",
+        default=None,
+        help="Which validation fold to run when --cv_folds is greater than 1. Leave unset to train every fold and report the average test MAE/R^2.",
     )
     parser.add_argument(
         "--cv_stratify_by_size",
@@ -568,20 +569,207 @@ def run_inference(qornet, datasets_by_split, hyperparameters, normalization_cont
         log_utils.print_key_value("predictions_csv", output_path, log_utils.ANSI_GREY)
 
 
+def clone_args_with_fold(args, fold_index):
+    fold_args = argparse.Namespace(**vars(args))
+    fold_args.cv_fold_index = fold_index
+
+    if args.plot_dir:
+        fold_args.plot_dir = str(Path(args.plot_dir) / "fold_{}".format(fold_index))
+
+    if args.checkpoint_path:
+        checkpoint_path = Path(args.checkpoint_path)
+        fold_args.checkpoint_path = str(
+            checkpoint_path.with_name(
+                "{}_fold_{}{}".format(
+                    checkpoint_path.stem,
+                    fold_index,
+                    checkpoint_path.suffix,
+                )
+            )
+        )
+
+    return fold_args
+
+
+def summarize_history_metrics(history):
+    if history["best_test_mae"] is not None and history["best_test_r2"] is not None:
+        return {
+            "test_mae": history["best_test_mae"],
+            "test_r2": history["best_test_r2"],
+            "epoch_source": "best",
+            "epoch": history["best_epoch"],
+        }
+
+    final_epoch = len(history["test_error"])
+    if final_epoch == 0:
+        return {
+            "test_mae": 0.0,
+            "test_r2": 0.0,
+            "epoch_source": "final",
+            "epoch": 0,
+        }
+
+    return {
+        "test_mae": history["test_error"][-1],
+        "test_r2": history["test_r2"][-1],
+        "epoch_source": "final",
+        "epoch": final_epoch,
+    }
+
+
+def print_cross_validation_summary(fold_summaries):
+    if not fold_summaries:
+        return
+
+    average_mae = sum(summary["test_mae"] for summary in fold_summaries) / len(fold_summaries)
+    average_r2 = sum(summary["test_r2"] for summary in fold_summaries) / len(fold_summaries)
+
+    log_utils.print_section("Cross-Validation Summary")
+    for summary in fold_summaries:
+        label = "fold_{}".format(summary["fold_index"])
+        value = "test_mae={:.6f} test_r2={:.6f} {}_epoch={}".format(
+            summary["test_mae"],
+            summary["test_r2"],
+            summary["epoch_source"],
+            summary["epoch"],
+        )
+        log_utils.print_key_value(label, value)
+
+    log_utils.print_key_value("average_test_mae", "{:.6f}".format(average_mae), log_utils.ANSI_RED)
+    log_utils.print_key_value("average_test_r2", "{:.6f}".format(average_r2))
+
+
+def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
+    log_utils.print_section("Dataset Loading")
+    training_data, testing_data, normalization_context = graph_proc.load_data(
+        args,
+        hyperparameters.target_name,
+    )
+
+    node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
+
+    log_utils.print_model_summary(
+        hyperparameters,
+        training_data,
+        testing_data,
+        node_input_dim,
+        edge_input_dim,
+        recipe_dim,
+    )
+
+    log_utils.print_section("Model Initialization")
+    qornet = QoRNet(
+        feature_schema=normalization_context.feature_schema,
+        recipe_dim=recipe_dim,
+        hidden_dim=hyperparameters.hidden_dim,
+        num_gat_layers=hyperparameters.num_gat_layers,
+        num_heads=hyperparameters.num_heads,
+        dropout=hyperparameters.dropout,
+    )
+    print("Initialized QoRNet model")
+
+    log_utils.print_section("Training")
+    history = train(
+        qornet,
+        training_data,
+        testing_data,
+        hyperparameters,
+        normalization_context,
+    )
+
+    log_utils.print_section("Checkpoint Save")
+    saved_checkpoint = ckpt_utils.save_checkpoint(
+        qornet,
+        hyperparameters,
+        normalization_context,
+        recipe_dim,
+        checkpoint_path,
+    )
+    log_utils.print_key_value("checkpoint_path", saved_checkpoint, log_utils.ANSI_GREY)
+
+    log_utils.print_section("Plot Generation")
+    plot_utils.plot_training_history(history, hyperparameters, plot_dir)
+    log_utils.print_key_value("plot_dir", plot_dir, log_utils.ANSI_GREY)
+    print(log_utils.colorize("Saved training plots to {}".format(plot_dir), log_utils.ANSI_GREY))
+
+    design_summary_path = plot_dir / "best_epoch_per_design_summary.csv"
+    log_utils.write_best_epoch_design_summary_csv(history, design_summary_path)
+    log_utils.print_key_value("design_summary_csv", design_summary_path, log_utils.ANSI_GREY)
+    log_utils.print_rule()
+
+    return history, design_summary_path
+
+
 def main():
     args = parse_arguments()
     log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
+
+    if args.mode == "train":
+        if args.cv_folds > 1 and args.cv_fold_index is None:
+            fold_summaries = []
+            unified_design_summary_rows = []
+            for fold_index in range(args.cv_folds):
+                fold_args = clone_args_with_fold(args, fold_index)
+                fold_hyperparameters = deepcopy(hyperparameters)
+                fold_checkpoint_path = ckpt_utils.resolve_checkpoint_path(fold_args)
+                fold_plot_dir = resolve_plot_dir(fold_args)
+
+                log_utils.print_section(
+                    "Cross-Validation Fold {}/{}".format(
+                        fold_index + 1,
+                        args.cv_folds,
+                    )
+                )
+                history, _ = train_single_run(
+                    fold_args,
+                    fold_hyperparameters,
+                    fold_checkpoint_path,
+                    fold_plot_dir,
+                )
+                unified_design_summary_rows.extend(
+                    {
+                        "fold_index": fold_index,
+                        **row,
+                    }
+                    for row in log_utils.build_best_epoch_design_summary_rows(history)
+                )
+                fold_summaries.append(
+                    {
+                        "fold_index": fold_index,
+                        **summarize_history_metrics(history),
+                    }
+                )
+
+            print_cross_validation_summary(fold_summaries)
+            unified_design_summary_path = Path(args.plot_dir) / "cross_validation_best_epoch_per_design_summary.csv"
+            log_utils.write_cross_validation_design_summary_csv(
+                unified_design_summary_rows,
+                unified_design_summary_path,
+            )
+            log_utils.print_key_value(
+                "cv_design_summary_csv",
+                unified_design_summary_path,
+                log_utils.ANSI_GREY,
+            )
+            log_utils.print_rule()
+            return
+
+        checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
+        plot_dir = resolve_plot_dir(args)
+        train_single_run(args, hyperparameters, checkpoint_path, plot_dir)
+        return
+
+    if args.cv_folds > 1 and args.cv_fold_index is None:
+        raise ValueError(
+            "--cv_fold_index must be provided in inference mode when --cv_folds is greater than 1."
+        )
+
     checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
     plot_dir = resolve_plot_dir(args)
 
     log_utils.print_section("Dataset Loading")
-    if args.mode == "train":
-        training_data, testing_data, normalization_context = graph_proc.load_data(
-            args,
-            hyperparameters.target_name,
-        )
-    else:
+    if args.mode != "train":
         training_data, testing_data = graph_proc.load_raw_data(args)
         checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
         hyperparameters = ckpt_utils.update_hyperparameters_from_dict(
@@ -642,37 +830,6 @@ def main():
         dropout=hyperparameters.dropout,
     )
     print("Initialized QoRNet model")
-
-    if args.mode == "train":
-        log_utils.print_section("Training")
-        history = train(
-            qornet,
-            training_data,
-            testing_data,
-            hyperparameters,
-            normalization_context,
-        )
-
-        log_utils.print_section("Checkpoint Save")
-        saved_checkpoint = ckpt_utils.save_checkpoint(
-            qornet,
-            hyperparameters,
-            normalization_context,
-            recipe_dim,
-            checkpoint_path,
-        )
-        log_utils.print_key_value("checkpoint_path", saved_checkpoint, log_utils.ANSI_GREY)
-
-        log_utils.print_section("Plot Generation")
-        plot_utils.plot_training_history(history, hyperparameters, plot_dir)
-        log_utils.print_key_value("plot_dir", plot_dir, log_utils.ANSI_GREY)
-        print(log_utils.colorize("Saved training plots to {}".format(plot_dir), log_utils.ANSI_GREY))
-
-        design_summary_path = plot_dir / "best_epoch_per_design_summary.csv"
-        log_utils.write_best_epoch_design_summary_csv(history, design_summary_path)
-        log_utils.print_key_value("design_summary_csv", design_summary_path, log_utils.ANSI_GREY)
-        log_utils.print_rule()
-        return
 
     log_utils.print_section("Checkpoint Load")
     qornet.load_state_dict(checkpoint["model_state_dict"])
