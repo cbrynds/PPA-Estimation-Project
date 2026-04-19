@@ -1,0 +1,22 @@
+{
+  "clock_period_ns": 2.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=500 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00086_fpadd_top.vhdl name=flopoco_00086_fpadd_top FPAdd wE=5 wF=10 sub=0 dualPath=0 onlyPositiveIO=0",
+  "design_id": "flopoco_00086",
+  "design_name": "flopoco_00086_fpadd",
+  "family": "FPAdd",
+  "frequency_mhz": 500,
+  "operator": "FPAdd",
+  "params": {
+    "dualPath": 0,
+    "onlyPositiveIO": 0,
+    "sub": 0,
+    "wE": 5,
+    "wF": 10
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00086_fpadd",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00086_fpadd_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 500 MHz\n|---Entity RightShifterSticky11_by_max_13_Freq500_uid4\n|      R: (c0, 1.574875ns)   Sticky: (c1, 0.379250ns)\n|---Entity IntAdder_14_Freq500_uid6\n|      R: (c1, 1.092250ns)\n|---Entity Normalizer_Z_15_15_15_Freq500_uid8\n|      Count: (c2, 0.756625ns)   R: (c2, 0.971625ns)\n|---Entity IntAdder_18_Freq500_uid11\n|      R: (c2, 1.767625ns)\nEntity flopoco_00086_fpadd_top\n   R: (c3, 0.347625ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00086_fpadd_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00086_fpadd/flopoco_00086_fpadd_top.vhdl"
+}

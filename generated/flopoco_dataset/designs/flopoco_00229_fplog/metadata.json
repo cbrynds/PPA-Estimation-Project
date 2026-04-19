@@ -1,0 +1,21 @@
+{
+  "clock_period_ns": 5.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=200 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00229_fplog_top.vhdl name=flopoco_00229_fplog_top FPLog wE=6 wF=11 method=0 inTableSize=14",
+  "design_id": "flopoco_00229",
+  "design_name": "flopoco_00229_fplog",
+  "family": "FPLog",
+  "frequency_mhz": 200,
+  "operator": "FPLog",
+  "params": {
+    "inTableSize": 14,
+    "method": 0,
+    "wE": 6,
+    "wF": 11
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00229_fplog",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00229_fplog_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 200 MHz\nEntity InvA0Table_Freq200_uid8\n   Y: (c0, 0.215000ns)\nEntity LogTable0_Freq200_uid14\n   Y: (c0, 0.215000ns)\nEntity FixRealKCM_Freq200_uid20_T0_Freq200_uid23\n   Y: (c0, 0.328000ns)\n|---Entity LZOC_11_Freq200_uid4\n|      O: (c0, 1.804000ns)\n|---Entity LeftShifter7_by_max_7_Freq200_uid6\n|      R: (c0, 2.644846ns)\n|---Entity InvA0Table_Freq200_uid8\n|      Y: (c0, 0.215000ns)\n|---Entity IntAdder_14_Freq200_uid12\n|      R: (c0, 3.572846ns)\n|---Entity LogTable0_Freq200_uid14\n|      Y: (c0, 0.215000ns)\n|---Entity IntAdder_21_Freq200_uid18\n|      R: (c0, 4.111846ns)\n|   |---Entity FixRealKCM_Freq200_uid20_T0_Freq200_uid23\n|   |      Y: (c0, 0.328000ns)\n|---Entity FixRealKCM_Freq200_uid20\n|      R: (c0, 1.015000ns)\n|---Entity IntAdder_27_Freq200_uid27\n|      R: (c0, 4.691846ns)\n|---Entity Normalizer_Z_27_21_11_Freq200_uid29\n|      Count: (c1, 1.356221ns)   R: (c1, 1.571221ns)\n|---Entity RightShifter11_by_max_9_Freq200_uid31\n|      R: (c0, 3.905231ns)\n|---Entity IntAdder_17_Freq200_uid33\n|      R: (c0, 4.444231ns)\n|---Entity IntAdder_17_Freq200_uid36\n|      R: (c1, 2.110221ns)\nEntity flopoco_00229_fplog_top\n   R: (c1, 2.110221ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00229_fplog_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00229_fplog/flopoco_00229_fplog_top.vhdl"
+}

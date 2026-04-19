@@ -24,14 +24,6 @@ from pathlib import Path
 DEFAULT_EXTENSIONS = [".v", ".sv"]
 DEFAULT_RECIPES = [{"id": "abc_fast", "abc_fast": True, "abc_extra": ""}]
 DEFAULT_SWEEP_MODE = "bounded_cartesian"
-DEFAULT_SWEEP = {
-    "abc_fast": [True],
-    "clock_period_ns": [2.5, 3.0, 3.5, 4.0, 5.0],
-    "max_fanout": [8, 16, 32],
-    "max_transition_ns": [0.10, 0.20, 0.40],
-    "max_capacitance_ff": [20.0, 60.0, 120.0],
-    "fanout_load": [1.0],
-}
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
 DEFAULT_YOSYS_LOGS_DIR = "synthesis/results/yosys_logs"
 DEFAULT_SHARED_FAILURES_DIR = "synthesis/results/shared_failures"
@@ -114,14 +106,18 @@ def build_recipe_id(
     max_capacitance_ff,
     fanout_load,
 ):
-    return "abc{}_clk{}_fo{}_tr{}_cap{}_fload{}".format(
-        "fast" if abc_fast else "full",
-        format_recipe_value(clock_period_ns),
-        format_recipe_value(max_fanout),
-        format_recipe_value(max_transition_ns),
-        format_recipe_value(max_capacitance_ff),
-        format_recipe_value(fanout_load),
-    )
+    parts = ["abc{}".format("fast" if abc_fast else "full")]
+    if clock_period_ns is not None:
+        parts.append("clk{}".format(format_recipe_value(clock_period_ns)))
+    if max_fanout is not None:
+        parts.append("fo{}".format(format_recipe_value(max_fanout)))
+    if max_transition_ns is not None:
+        parts.append("tr{}".format(format_recipe_value(max_transition_ns)))
+    if max_capacitance_ff is not None:
+        parts.append("cap{}".format(format_recipe_value(max_capacitance_ff)))
+    if fanout_load is not None:
+        parts.append("fload{}".format(format_recipe_value(fanout_load)))
+    return "_".join(parts)
 
 
 def validate_positive_list(name, values):
@@ -192,15 +188,27 @@ def expand_recipes(cfg):
             sweep_mode, DEFAULT_SWEEP_MODE
         ))
 
-    axes = dict(DEFAULT_SWEEP)
-    axes.update(sweep_cfg)
-
-    abc_fast_values = validate_bool_list("abc_fast", axes["abc_fast"])
-    clock_periods = validate_positive_list("clock_period_ns", axes["clock_period_ns"])
-    max_fanouts = validate_positive_list("max_fanout", axes["max_fanout"])
-    max_transitions = validate_positive_list("max_transition_ns", axes["max_transition_ns"])
-    max_caps = validate_positive_list("max_capacitance_ff", axes["max_capacitance_ff"])
-    fanout_loads = validate_positive_list("fanout_load", axes["fanout_load"])
+    abc_fast_values = validate_bool_list("abc_fast", sweep_cfg.get("abc_fast", [True]))
+    clock_periods = (
+        validate_positive_list("clock_period_ns", sweep_cfg["clock_period_ns"])
+        if "clock_period_ns" in sweep_cfg else [None]
+    )
+    max_fanouts = (
+        validate_positive_list("max_fanout", sweep_cfg["max_fanout"])
+        if "max_fanout" in sweep_cfg else [None]
+    )
+    max_transitions = (
+        validate_positive_list("max_transition_ns", sweep_cfg["max_transition_ns"])
+        if "max_transition_ns" in sweep_cfg else [None]
+    )
+    max_caps = (
+        validate_positive_list("max_capacitance_ff", sweep_cfg["max_capacitance_ff"])
+        if "max_capacitance_ff" in sweep_cfg else [None]
+    )
+    fanout_loads = (
+        validate_positive_list("fanout_load", sweep_cfg["fanout_load"])
+        if "fanout_load" in sweep_cfg else [None]
+    )
 
     recipes = []
     for (
@@ -606,7 +614,10 @@ def build_context(config_arg):
     )
     yosys_log_dir = resolve(
         project_root,
-        output_cfg.get("yosys_log_dir", DEFAULT_YOSYS_LOGS_DIR),
+        output_cfg.get(
+            "yosys_log_dir",
+            output_cfg.get("yosys_logs_dir", DEFAULT_YOSYS_LOGS_DIR),
+        ),
     )
     shared_failures_dir = resolve(
         project_root,

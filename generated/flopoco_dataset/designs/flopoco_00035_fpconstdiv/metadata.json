@@ -1,0 +1,23 @@
+{
+  "clock_period_ns": 2.5,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=400 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00035_fpconstdiv_top.vhdl name=flopoco_00035_fpconstdiv_top FPConstDiv wE=11 wF=52 d=7 dExp=0 arch=2 alpha=2",
+  "design_id": "flopoco_00035",
+  "design_name": "flopoco_00035_fpconstdiv",
+  "family": "FPConstDiv",
+  "frequency_mhz": 400,
+  "operator": "FPConstDiv",
+  "params": {
+    "alpha": 2,
+    "arch": 2,
+    "d": 7,
+    "dExp": 0,
+    "wE": 11,
+    "wF": 52
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00035_fpconstdiv",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00035_fpconstdiv_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 400 MHz\n|   |   |---Entity IntConstMultRPAG_Freq400_uid8\n|   |   |      R_c19173961: (c1, 1.256000ns)   R_c613566757: (c1, 1.256000ns)\n|   |---Entity IntConstMult_56_Freq400_uid5\n|   |      R: (c1, 1.256000ns)\n|   |   |---Entity IntConstMultShiftAddOpt_7_54\n|   |   |      R_c7: (c1, 2.000000ns)\n|   |---Entity IntConstMult_54_Freq400_uid10\n|   |      R: (c1, 2.000000ns)\n|---Entity IntConstDiv_QR_7_56_2_2_Freq400_uid3\n|      Q: (c1, 1.256000ns)   R: (c1, 2.000000ns)\nEntity flopoco_00035_fpconstdiv_top\n   R: (c1, 1.256000ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00035_fpconstdiv_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00035_fpconstdiv/flopoco_00035_fpconstdiv_top.vhdl"
+}

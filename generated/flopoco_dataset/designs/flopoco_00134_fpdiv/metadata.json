@@ -1,0 +1,20 @@
+{
+  "clock_period_ns": 5.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=200 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00134_fpdiv_top.vhdl name=flopoco_00134_fpdiv_top FPDiv wE=10 wF=35 srt=43",
+  "design_id": "flopoco_00134",
+  "design_name": "flopoco_00134_fpdiv",
+  "family": "FPDiv",
+  "frequency_mhz": 200,
+  "operator": "FPDiv",
+  "params": {
+    "srt": 43,
+    "wE": 10,
+    "wF": 35
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00134_fpdiv",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00134_fpdiv_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 200 MHz\nEntity selFunction_Freq200_uid4\n   Y: (c0, 0.215000ns)\n|---Entity selFunction_Freq200_uid4\n|      Y: (c0, 0.215000ns)\nEntity flopoco_00134_fpdiv_top\n   R: (c8, 1.913000ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00134_fpdiv_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00134_fpdiv/flopoco_00134_fpdiv_top.vhdl"
+}

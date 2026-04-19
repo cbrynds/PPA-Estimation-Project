@@ -1,0 +1,21 @@
+{
+  "clock_period_ns": 6.666667,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=150 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00422_fpcomparator_top.vhdl name=flopoco_00422_fpcomparator_top FPComparator wE=11 wF=52 flags=2 method=1",
+  "design_id": "flopoco_00422",
+  "design_name": "flopoco_00422_fpcomparator",
+  "family": "FPComparator",
+  "frequency_mhz": 150,
+  "operator": "FPComparator",
+  "params": {
+    "flags": 2,
+    "method": 1,
+    "wE": 11,
+    "wF": 52
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00422_fpcomparator",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00422_fpcomparator_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 150 MHz\n|---Entity IntComparator_63_010_Freq150_uid4\n|      XeqY: (c0, 0.539000ns)\nEntity flopoco_00422_fpcomparator_top\n   unordered: (c0, 0.000000ns)   XeqY: (c0, 0.754000ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00422_fpcomparator_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00422_fpcomparator/flopoco_00422_fpcomparator_top.vhdl"
+}

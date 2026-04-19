@@ -1,0 +1,23 @@
+{
+  "clock_period_ns": 5.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=200 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00028_fpconstdiv_top.vhdl name=flopoco_00028_fpconstdiv_top FPConstDiv wE=10 wF=35 d=7 dExp=2 arch=1 alpha=4",
+  "design_id": "flopoco_00028",
+  "design_name": "flopoco_00028_fpconstdiv",
+  "family": "FPConstDiv",
+  "frequency_mhz": 200,
+  "operator": "FPConstDiv",
+  "params": {
+    "alpha": 4,
+    "arch": 1,
+    "d": 7,
+    "dExp": 2,
+    "wE": 10,
+    "wF": 35
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00028_fpconstdiv",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00028_fpconstdiv_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 200 MHz\nEntity CBLKTable_l0_d7_alpha4_Freq200_uid7\n   Y: (c0, 0.215000ns)\nEntity CBLKTable_l1_d7_alpha4_Freq200_uid21\n   Y: (c0, 0.328000ns)\nEntity CBLKTable_l2_d7_alpha4_Freq200_uid30\n   Y: (c0, 0.328000ns)\nEntity CBLKTable_l3_d7_alpha4_Freq200_uid37\n   Y: (c0, 0.328000ns)\nEntity CBLKTable_l4_d7_alpha4_Freq200_uid43\n   Y: (c0, 0.328000ns)\n|   |---Entity CBLKTable_l0_d7_alpha4_Freq200_uid7\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity CBLKTable_l1_d7_alpha4_Freq200_uid21\n|   |      Y: (c0, 0.328000ns)\n|   |---Entity CBLKTable_l2_d7_alpha4_Freq200_uid30\n|   |      Y: (c0, 0.328000ns)\n|   |---Entity CBLKTable_l3_d7_alpha4_Freq200_uid37\n|   |      Y: (c0, 0.328000ns)\n|   |---Entity CBLKTable_l4_d7_alpha4_Freq200_uid43\n|   |      Y: (c0, 0.328000ns)\n|---Entity IntConstDiv_QR_7_39_1_4_Freq200_uid3\n|      Q: (c0, 3.221000ns)   R: (c0, 2.034000ns)\nEntity flopoco_00028_fpconstdiv_top\n   R: (c0, 3.221000ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00028_fpconstdiv_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00028_fpconstdiv/flopoco_00028_fpconstdiv_top.vhdl"
+}
