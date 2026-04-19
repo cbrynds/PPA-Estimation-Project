@@ -5,6 +5,7 @@ Author: Cory Brynds
 """
 
 import csv
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 import random
@@ -600,6 +601,42 @@ def _build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds):
     return folds
 
 
+def _infer_flopoco_operator_family(design_name):
+    parts = design_name.split("_", 2)
+    if len(parts) != 3 or parts[0] != "flopoco":
+        return None
+    return parts[2]
+
+
+def _build_operator_stratified_folds(shuffled_designs, design_operator_families, cv_folds, design_sizes=None):
+    grouped_designs = defaultdict(list)
+    for design_name in shuffled_designs:
+        operator_family = design_operator_families.get(design_name)
+        if not operator_family:
+            raise ValueError("Operator-stratified cross-validation requires an operator family for design '{}'.".format(design_name))
+        grouped_designs[operator_family].append(design_name)
+
+    randomized_designs = list(shuffled_designs)
+    random.Random(0).shuffle(randomized_designs)
+    randomized_rank = {design_name: rank for rank, design_name in enumerate(randomized_designs)}
+    folds = [[] for _ in range(cv_folds)]
+
+    for operator_family in sorted(grouped_designs):
+        family_designs = list(grouped_designs[operator_family])
+        if design_sizes:
+            family_designs = sorted(family_designs, key=lambda design_name: (-design_sizes.get(design_name, 0), randomized_rank[design_name]))
+        else:
+            family_designs = sorted(family_designs, key=lambda design_name: randomized_rank[design_name])
+
+        for design_index, design_name in enumerate(family_designs):
+            fold_index = design_index % cv_folds
+            if (design_index // cv_folds) % 2 == 1:
+                fold_index = (cv_folds - 1) - fold_index
+            folds[fold_index].append(design_name)
+
+    return folds
+
+
 def split_designs(
     shuffled_designs,
     training_split,
@@ -607,6 +644,8 @@ def split_designs(
     cv_fold_index=0,
     stratify_by_size=False,
     design_sizes=None,
+    stratify_by_operator=False,
+    design_operator_families=None,
 ):
     if cv_folds < 1:
         raise ValueError("--cv_folds must be at least 1.")
@@ -642,7 +681,11 @@ def split_designs(
             )
         )
 
-    if stratify_by_size:
+    if stratify_by_operator:
+        if not design_operator_families:
+            raise ValueError("Operator-stratified cross-validation requires per-design operator family metadata.")
+        folds = _build_operator_stratified_folds(shuffled_designs, design_operator_families, cv_folds, design_sizes=design_sizes if stratify_by_size else None)
+    elif stratify_by_size:
         if not design_sizes:
             raise ValueError("Size-stratified cross-validation requires per-design size metadata.")
         folds = _build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds)
@@ -708,6 +751,7 @@ def load_raw_data(args):
     graph_summaries = []
     graph_summary_by_design = {}
     design_sizes = {}
+    design_operator_families = {}
     for design_name in shuffled_designs:
         graph = load_graph_for_design(dataset_dir, design_name)
         graphs_by_design[design_name] = graph
@@ -715,8 +759,9 @@ def load_raw_data(args):
         graph_summaries.append(summary)
         graph_summary_by_design[design_name] = summary
         design_sizes[design_name] = summary["num_nodes"]
+        design_operator_families[design_name] = _infer_flopoco_operator_family(design_name)
 
-    training_designs, testing_designs = split_designs(shuffled_designs, args.training_split, cv_folds=args.cv_folds, cv_fold_index=args.cv_fold_index, stratify_by_size=getattr(args, "cv_stratify_by_size", False), design_sizes=design_sizes)
+    training_designs, testing_designs = split_designs(shuffled_designs, args.training_split, cv_folds=args.cv_folds, cv_fold_index=args.cv_fold_index, stratify_by_size=getattr(args, "cv_stratify_by_size", False), design_sizes=design_sizes, stratify_by_operator=getattr(args, "cv_stratify_by_operator", False), design_operator_families=design_operator_families)
 
     training_data = []
     testing_data = []
@@ -761,6 +806,8 @@ def load_raw_data(args):
             print("Cross-validation fold: {}/{}".format(args.cv_fold_index + 1, args.cv_folds))
             if getattr(args, "cv_stratify_by_size", False):
                 print("Cross-validation stratification: graph size (node count)")
+            if getattr(args, "cv_stratify_by_operator", False):
+                print("Cross-validation stratification: FloPoCo operator family")
         print("Training designs: {}".format(", ".join(design_name for design_name in shuffled_designs if design_name in training_designs)))
         print("Testing designs: {}".format(", ".join(design_name for design_name in shuffled_designs if design_name in testing_designs)))
         print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))

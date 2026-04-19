@@ -263,6 +263,11 @@ def parse_arguments():
         help="When using cross-validation, balance folds by graph size so very large designs are spread across folds.",
     )
     parser.add_argument(
+        "--cv_stratify_by_operator",
+        action="store_true",
+        help="When using cross-validation on FloPoCo-style datasets, balance folds by inferred operator family from design names.",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         choices=("train", "inference"),

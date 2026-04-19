@@ -77,11 +77,9 @@ def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_pe
     print_section("Epoch {}/{}".format(epoch_idx, num_epochs))
     print_key_value("train_loss", "{:.6f}".format(train_loss))
     print_key_value("train_mae", "{:.6f}".format(train_error), ANSI_RED)
-    print_key_value("train_mape", "{:.6f}%".format(train_percentage_error), ANSI_RED)
     print_key_value("train_r2", "{:.6f}".format(train_r2))
     print_key_value("test_loss", "{:.6f}".format(test_metrics["loss"]))
     print_key_value("test_mae", "{:.6f}".format(test_metrics["error"]), ANSI_RED)
-    print_key_value("test_mape", "{:.6f}%".format(test_metrics["percentage_error"]), ANSI_RED)
     print_key_value("test_r2", "{:.6f}".format(test_metrics["r2"]))
     
     
@@ -308,7 +306,6 @@ def print_inference_metrics(split_name, metrics):
     print_section("Inference Results ({})".format(split_name))
     print_key_value("loss", "{:.6f}".format(metrics["loss"]))
     print_key_value("mae", "{:.6f}".format(metrics["error"]), ANSI_GREY)
-    print_key_value("mape", "{:.6f}%".format(metrics["percentage_error"]), ANSI_GREY)
     print_key_value("r2", "{:.6f}".format(metrics["r2"]))
     print_key_value("samples", len(metrics["epoch_predictions"]))
     
