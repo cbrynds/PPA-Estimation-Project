@@ -5,6 +5,7 @@ Author: Cory Brynds
 """
 
 import torch
+import graph_processing as graph_proc
 
 
 def resolve_target(data, target_name):
@@ -33,7 +34,8 @@ def mean_absolute_percentage_error(predictions, targets, epsilon=1e-8):
 
 
 def denormalize_targets(values, normalization_context):
-    return (values * normalization_context.target_std) + normalization_context.target_mean
+    transformed_values = (values * normalization_context.target_std) + normalization_context.target_mean
+    return graph_proc.invert_target_transform(transformed_values, normalization_context.target_transform)
 
 
 def r2_score(predictions, targets, epsilon=1e-8):

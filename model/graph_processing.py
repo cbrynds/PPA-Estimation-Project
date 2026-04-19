@@ -39,6 +39,25 @@ class NormalizationContext:
     recipe_std: torch.Tensor
     target_mean: float
     target_std: float
+    target_transform: str = "none"
+
+
+def apply_target_transform(target_tensor, target_transform):
+    target_tensor = target_tensor.float()
+    if target_transform == "none":
+        return target_tensor
+    if target_transform == "signed_log1p_abs":
+        return torch.sign(target_tensor) * torch.log1p(torch.abs(target_tensor))
+    raise ValueError("Unsupported target transform '{}'.".format(target_transform))
+
+
+def invert_target_transform(transformed_target_tensor, target_transform):
+    transformed_target_tensor = transformed_target_tensor.float()
+    if target_transform == "none":
+        return transformed_target_tensor
+    if target_transform == "signed_log1p_abs":
+        return torch.sign(transformed_target_tensor) * torch.expm1(torch.abs(transformed_target_tensor))
+    raise ValueError("Unsupported target transform '{}'.".format(target_transform))
 
 
 def _default_categorical_indices(feature_width, kind):
@@ -140,8 +159,8 @@ def _compute_mean_std(samples, tensor_name, column_indices):
     return mean, std
 
 
-def _compute_target_stats(samples, target_name):
-    target_values = torch.cat([getattr(sample, target_name).view(-1).float() for sample in samples], dim=0)
+def _compute_target_stats(samples, target_name, target_transform):
+    target_values = torch.cat([apply_target_transform(getattr(sample, target_name).view(-1).float(), target_transform) for sample in samples], dim=0)
     mean = float(target_values.mean().item())
     std = float(target_values.std(unbiased=False).item())
     if std <= EPSILON:
@@ -149,12 +168,12 @@ def _compute_target_stats(samples, target_name):
     return mean, std
 
 
-def fit_normalization_context(training_data, testing_data, target_name):
+def fit_normalization_context(training_data, testing_data, target_name, target_transform="none"):
     feature_schema = build_feature_schema(training_data, testing_data)
     node_mean, node_std = _compute_mean_std(training_data, "x", feature_schema.node_numeric_indices)
     edge_mean, edge_std = _compute_mean_std(training_data, "edge_attr", feature_schema.edge_numeric_indices)
     recipe_mean, recipe_std = _compute_mean_std(training_data, "recipe", feature_schema.recipe_numeric_indices)
-    target_mean, target_std = _compute_target_stats(training_data, target_name)
+    target_mean, target_std = _compute_target_stats(training_data, target_name, target_transform)
 
     return NormalizationContext(
         feature_schema=feature_schema,
@@ -166,6 +185,7 @@ def fit_normalization_context(training_data, testing_data, target_name):
         recipe_std=recipe_std,
         target_mean=target_mean,
         target_std=target_std,
+        target_transform=target_transform,
     )
 
 
@@ -181,7 +201,8 @@ def _normalize_selected_columns(tensor, column_indices, mean, std):
 
 
 def _normalize_target_tensor(target_tensor, context):
-    return (target_tensor.float() - context.target_mean) / context.target_std
+    transformed_target_tensor = apply_target_transform(target_tensor.float(), context.target_transform)
+    return (transformed_target_tensor - context.target_mean) / context.target_std
 
 
 def apply_normalization_context(samples, context, target_name):
@@ -823,7 +844,7 @@ def load_data(args, target_name):
     verbose = not getattr(args, "disable_verbose", False)
     training_data, testing_data = load_raw_data(args)
 
-    normalization_context = fit_normalization_context(training_data, testing_data, target_name)
+    normalization_context = fit_normalization_context(training_data, testing_data, target_name, target_transform=getattr(args, "target_transform", "none"))
     apply_normalization_context(training_data, normalization_context, target_name)
     apply_normalization_context(testing_data, normalization_context, target_name)
 

@@ -9,6 +9,7 @@ def hyperparameters_to_dict(hyperparameters):
         "batch_size": hyperparameters.batch_size,
         "weight_decay": hyperparameters.weight_decay,
         "target_name": hyperparameters.target_name,
+        "target_transform": hyperparameters.target_transform,
         "device": hyperparameters.device,
         "shuffle_training": hyperparameters.shuffle_training,
         "hidden_dim": hyperparameters.hidden_dim,
@@ -50,6 +51,7 @@ def normalization_context_to_dict(normalization_context):
         "recipe_std": normalization_context.recipe_std.detach().cpu(),
         "target_mean": float(normalization_context.target_mean),
         "target_std": float(normalization_context.target_std),
+        "target_transform": normalization_context.target_transform,
     }
 
 
@@ -74,6 +76,7 @@ def normalization_context_from_dict(serialized_context):
         recipe_std=serialized_context["recipe_std"].float(),
         target_mean=float(serialized_context["target_mean"]),
         target_std=float(serialized_context["target_std"]),
+        target_transform=serialized_context.get("target_transform", "none"),
     )
     
 def resolve_checkpoint_path(args):

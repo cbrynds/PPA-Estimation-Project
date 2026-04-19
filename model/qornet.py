@@ -38,6 +38,7 @@ class Hyperparameters:
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
     loss_fn: nn.Module = nn.SmoothL1Loss() # Much less sensitive to outliers than MSELoss
     target_name: str = "wns"
+    target_transform: str = "none"
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     shuffle_training: bool = True
     hidden_dim: int = 32 # Reduced from 128 to mitigate overfitting
@@ -292,6 +293,13 @@ def parse_arguments():
         choices=("train", "test", "both"),
         default="both",
         help="Dataset split to run during inference mode.",
+    )
+    parser.add_argument(
+        "--target_transform",
+        type=str,
+        choices=("none", "signed_log1p_abs"),
+        default="none",
+        help="Optional transform applied to regression targets before normalization and training.",
     )
     parser.add_argument(
         "--disable_verbose",
@@ -750,6 +758,7 @@ def main():
     validate_arguments(args)
     log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
+    hyperparameters.target_transform = args.target_transform
 
     if args.mode == "train":
         if args.cv_folds > 1 and args.cv_fold_index is None:

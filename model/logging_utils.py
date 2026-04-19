@@ -62,6 +62,7 @@ def print_model_summary(hyperparameters, training_data, testing_data, node_input
     print_key_value("weight_decay", hyperparameters.weight_decay)
     print_key_value("device", hyperparameters.device)
     print_key_value("target_name", hyperparameters.target_name)
+    print_key_value("target_transform", hyperparameters.target_transform)
     print_key_value("hidden_dim", hyperparameters.hidden_dim)
     print_key_value("num_gnn_layers", hyperparameters.num_gat_layers)
     print_key_value("num_heads", hyperparameters.num_heads)
@@ -94,6 +95,7 @@ def write_training_history_csv(history, hyperparameters, output_path):
         "weight_decay": hyperparameters.weight_decay,
         "loss_fn": type(hyperparameters.loss_fn).__name__,
         "target_name": hyperparameters.target_name,
+        "target_transform": hyperparameters.target_transform,
         "device": hyperparameters.device,
         "shuffle_training": hyperparameters.shuffle_training,
         "hidden_dim": hyperparameters.hidden_dim,
@@ -118,6 +120,7 @@ def write_training_history_csv(history, hyperparameters, output_path):
         "weight_decay",
         "loss_fn",
         "target_name",
+        "target_transform",
         "device",
         "shuffle_training",
         "hidden_dim",
