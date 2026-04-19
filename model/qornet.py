@@ -20,6 +20,7 @@ import evaluation_utils as eval_utils
 import graph_processing as graph_proc
 import logging_utils as log_utils
 import plotting_utils as plot_utils
+import os
 
 """
 Hyperparameters for training
@@ -30,15 +31,15 @@ paper and based on recommendations from GNN literature.
 @dataclass
 class Hyperparameters:
     num_epochs: int = 200
-    learning_rate: float = 1e-4 # Changed from 1e-3
-    batch_size: int = 32
+    learning_rate: float = float( os.getenv("QORNET_LEARNING_RATE", 1e-4) ) # Changed from 1e-3
+    batch_size: int = int( os.getenv("QORNET_BATCH_SIZE", 32) )
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
     loss_fn: nn.Module = nn.SmoothL1Loss() # Much less sensitive to outliers than MSELoss
-    target_name: str = "wns"
+    target_name: str = os.getenv("QORNET_TARGET_NAME", "wns")
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     shuffle_training: bool = True
-    hidden_dim: int = 32 # Reduced from 128 to mitigate overfitting
-    num_gat_layers: int = 2 # Reduced to 2 for simplicity
+    hidden_dim: int = int( os.getenv("QORNET_HIDDEN_DIM", 32) ) # Reduced from 128 to mitigate overfitting
+    num_gat_layers: int = int( os.getenv("QORNET_NUM_GAT_LAYERS", 2) ) # Reduced to 2 for simplicity
     num_heads: int = 4
     dropout: float = 0.1
     early_stopping_patience: int = 30 # Number of epochs to wait for improvement before stopping
