@@ -1,0 +1,23 @@
+{
+  "clock_period_ns": 6.666667,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=150 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00049_fpconstdiv_top.vhdl name=flopoco_00049_fpconstdiv_top FPConstDiv wE=10 wF=35 d=3 dExp=0 arch=1 alpha=2",
+  "design_id": "flopoco_00049",
+  "design_name": "flopoco_00049_fpconstdiv",
+  "family": "FPConstDiv",
+  "frequency_mhz": 150,
+  "operator": "FPConstDiv",
+  "params": {
+    "alpha": 2,
+    "arch": 1,
+    "d": 3,
+    "dExp": 0,
+    "wE": 10,
+    "wF": 35
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00049_fpconstdiv",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00049_fpconstdiv_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 150 MHz\nEntity CBLKTable_l0_d3_alpha2_Freq150_uid7\n   Y: (c0, 0.215000ns)\nEntity CBLKTable_l1_d3_alpha2_Freq150_uid30\n   Y: (c0, 0.215000ns)\nEntity CBLKTable_l2_d3_alpha2_Freq150_uid44\n   Y: (c0, 0.215000ns)\nEntity CBLKTable_l3_d3_alpha2_Freq150_uid53\n   Y: (c0, 0.215000ns)\nEntity CBLKTable_l4_d3_alpha2_Freq150_uid60\n   Y: (c0, 0.215000ns)\nEntity CBLKTable_l5_d3_alpha2_Freq150_uid66\n   Y: (c0, 0.215000ns)\n|   |---Entity CBLKTable_l0_d3_alpha2_Freq150_uid7\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity CBLKTable_l1_d3_alpha2_Freq150_uid30\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity CBLKTable_l2_d3_alpha2_Freq150_uid44\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity CBLKTable_l3_d3_alpha2_Freq150_uid53\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity CBLKTable_l4_d3_alpha2_Freq150_uid60\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity CBLKTable_l5_d3_alpha2_Freq150_uid66\n|   |      Y: (c0, 0.215000ns)\n|---Entity IntConstDiv_QR_3_38_1_2_Freq150_uid3\n|      Q: (c0, 3.580000ns)   R: (c0, 1.797000ns)\nEntity flopoco_00049_fpconstdiv_top\n   R: (c0, 3.580000ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00049_fpconstdiv_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00049_fpconstdiv/flopoco_00049_fpconstdiv_top.vhdl"
+}
