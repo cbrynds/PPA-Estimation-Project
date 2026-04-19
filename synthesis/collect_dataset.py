@@ -288,25 +288,49 @@ def run_cmd(cmd, cwd, env=None, log_path=None):
     return proc.stdout
 
 
-def yosys_read_commands(files, include_dirs, dump_ast):
+def is_vhdl_file(file_path):
+    return file_path.suffix.lower() in (".vhd", ".vhdl")
+
+
+def yosys_read_commands(files, include_dirs, dump_ast, top, vhdl_std):
     lines = []
+    vhdl_files = [file_path for file_path in files if is_vhdl_file(file_path)]
+    verilog_files = [file_path for file_path in files if not is_vhdl_file(file_path)]
+
     for inc in include_dirs:
         lines.append("verilog_defaults -add -I{}".format(inc))
-    if dump_ast:
+    if dump_ast and verilog_files:
         lines.append("verilog_defaults -add -dump_ast2")
         lines.append("verilog_defaults -add -no_dump_ptr")
-    for file_path in files:
+    for file_path in verilog_files:
         if file_path.suffix.lower() == ".sv":
             lines.append("read_verilog -sv {}".format(file_path))
         else:
             lines.append("read_verilog {}".format(file_path))
-    if include_dirs or dump_ast:
+    if include_dirs or (dump_ast and verilog_files):
         lines.append("verilog_defaults -clear")
+    if vhdl_files:
+        lines.append(
+            "ghdl --std={} {} -e {}".format(
+                vhdl_std,
+                " ".join(str(file_path) for file_path in vhdl_files),
+                top,
+            )
+        )
     return lines
 
 
-def make_ast_yosys_script(files, top, json_out, include_dirs, use_proc, use_flatten, dump_ast):
-    lines = yosys_read_commands(files, include_dirs, dump_ast)
+def make_ast_yosys_script(
+    files,
+    top,
+    json_out,
+    include_dirs,
+    use_proc,
+    use_flatten,
+    dump_ast,
+    vhdl_std,
+):
+    lines = yosys_read_commands(files, include_dirs, dump_ast, top, vhdl_std)
     lines.append("hierarchy -top {}".format(top))
     if use_proc:
         lines.append("proc")
@@ -324,8 +348,9 @@ def make_synth_yosys_script(
     liberty_file,
     abc_fast,
     abc_extra,
+    vhdl_std,
 ):
-    lines = yosys_read_commands(files, include_dirs, dump_ast=False)
+    lines = yosys_read_commands(files, include_dirs, dump_ast=False, top=top, vhdl_std=vhdl_std)
     lines.append("hierarchy -check -top {}".format(top))
     lines.append("synth -top {}".format(top))
     lines.append("flatten")
@@ -468,6 +493,7 @@ def generate_ast_if_needed(
             use_proc=bool(spec.get("ast_proc", True)),
             use_flatten=bool(spec.get("ast_flatten", True)),
             dump_ast=bool(spec.get("ast_dump", False)),
+            vhdl_std=spec.get("vhdl_std", "08"),
         )
         with tempfile.NamedTemporaryFile(
             mode="w",
@@ -526,6 +552,7 @@ def synthesize_if_needed(
             liberty_file=(synthesis_root / "data" / "NangateOpenCellLibrary_typical.lib"),
             abc_fast=bool(spec["recipe"].get("abc_fast", True)),
             abc_extra=spec["recipe"].get("abc_extra", ""),
+            vhdl_std=spec.get("vhdl_std", "08"),
         )
         with tempfile.NamedTemporaryFile(
             mode="w",
@@ -681,6 +708,7 @@ def build_run_specs(ctx):
         top = design["top"]
         include_dirs = [resolve(ctx["project_root"], p) for p in design.get("include_dirs", [])]
         clock_port = design.get("clock_port", ctx["cfg"].get("default_clock_port", "clk"))
+        vhdl_std = str(design.get("vhdl_std", ctx["cfg"].get("default_vhdl_std", "08")))
         if global_clock_period_ns is not None:
             design_period_ns = float(global_clock_period_ns)
         else:
@@ -722,6 +750,7 @@ def build_run_specs(ctx):
                 "run_id": run_id,
                 "top_module": top,
                 "clock_port": clock_port,
+                "vhdl_std": vhdl_std,
                 "abc_fast_cfg": bool(recipe.get("abc_fast", True)),
                 "clock_period_ns_cfg": float(period_ns),
                 "max_fanout_cfg": "" if max_fanout is None else float(max_fanout),
