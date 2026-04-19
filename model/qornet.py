@@ -30,9 +30,9 @@ paper and based on recommendations from GNN literature.
 """
 @dataclass
 class Hyperparameters:
-    num_epochs: int = 200
-    learning_rate: float = 1e-4 # Changed from 1e-3
-    batch_size: int = 32
+    num_epochs: int = 500
+    learning_rate: float = 5e-4 # Changed from 1e-3
+    batch_size: int = 16
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
     loss_fn: nn.Module = nn.SmoothL1Loss() # Much less sensitive to outliers than MSELoss
     target_name: str = "wns"
@@ -42,7 +42,7 @@ class Hyperparameters:
     num_gat_layers: int = 2 # Reduced to 2 for simplicity
     num_heads: int = 4
     dropout: float = 0.1
-    early_stopping_patience: int = 30 # Number of epochs to wait for improvement before stopping
+    early_stopping_patience: int = 50 # Number of epochs to wait for improvement before stopping
     early_stopping_min_delta: float = 0.0 # Minimum improvement to reset early stopping counter
 
 
