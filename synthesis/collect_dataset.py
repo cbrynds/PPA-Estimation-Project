@@ -310,6 +310,7 @@ def yosys_read_commands(files, include_dirs, dump_ast, top, vhdl_std):
     if include_dirs or (dump_ast and verilog_files):
         lines.append("verilog_defaults -clear")
     if vhdl_files:
+        lines.append("plugin -i ghdl")
         lines.append(
             "ghdl --std={} {} -e {}".format(
                 vhdl_std,
