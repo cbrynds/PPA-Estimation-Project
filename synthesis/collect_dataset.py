@@ -675,15 +675,19 @@ def build_run_specs(ctx):
             )
         )
     specs = []
+    global_clock_period_ns = ctx["cfg"].get("clock_period_ns")
     for design in ctx["designs"]:
         design_name = design["name"]
         top = design["top"]
         include_dirs = [resolve(ctx["project_root"], p) for p in design.get("include_dirs", [])]
         clock_port = design.get("clock_port", ctx["cfg"].get("default_clock_port", "clk"))
-        design_period_ns = design.get(
-            "clock_period_ns",
-            ctx["cfg"].get("default_clock_period_ns", 3.0),
-        )
+        if global_clock_period_ns is not None:
+            design_period_ns = float(global_clock_period_ns)
+        else:
+            design_period_ns = design.get(
+                "clock_period_ns",
+                ctx["cfg"].get("default_clock_period_ns", 3.0),
+            )
         files = collect_rtl_files(design, ctx["project_root"])
         ast_json_out = ctx["ast_dir"] / "{}.json".format(design_name)
         ast_log_path = ctx["ast_log_dir"] / "{}.log".format(design_name)
