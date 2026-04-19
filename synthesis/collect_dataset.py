@@ -2,7 +2,6 @@
 YAML-driven RTL AST + synthesis + OpenROAD pipeline.
 
 Modes:
-  - Legacy serial run: emit one aggregate CSV for all design/recipe pairs.
   - build-manifest: expand the config into one JSONL row per design/recipe pair.
   - run-manifest-entry: execute exactly one manifest row and write one result shard.
   - merge-results: merge per-run result shards into a final aggregate CSV.
@@ -36,8 +35,6 @@ DEFAULT_SWEEP = {
 DEFAULT_RESULTS_SHARDS_DIR = "synthesis/results/result_shards"
 DEFAULT_YOSYS_LOGS_DIR = "synthesis/results/yosys_logs"
 DEFAULT_SHARED_FAILURES_DIR = "synthesis/results/shared_failures"
-SUBCOMMANDS = {"build-manifest", "run-manifest-entry", "merge-results", "run-serial"}
-
 CSV_FIELDNAMES = [
     "run_utc",
     "run_id",
@@ -616,7 +613,7 @@ def build_context(config_arg):
         output_cfg.get("shared_failures_dir", DEFAULT_SHARED_FAILURES_DIR),
     )
 
-    recipes, recipe_source = expand_recipes(cfg)
+    recipes, _ = expand_recipes(cfg)
     designs = load_designs(cfg, project_root)
     if not recipes:
         raise ValueError("No recipes specified.")
@@ -643,7 +640,6 @@ def build_context(config_arg):
         "yosys_log_dir": yosys_log_dir,
         "shared_failures_dir": shared_failures_dir,
         "recipes": recipes,
-        "recipe_source": recipe_source,
         "designs": designs,
     }
 
@@ -822,7 +818,7 @@ def write_result_shard(row, shard_path):
         f.write("\n")
 
 
-def run_single_spec(spec, write_shard=True):
+def run_single_spec(spec):
     project_root = Path(spec["project_root"])
     synthesis_root = Path(spec["synthesis_root"])
     apptainer_image = Path(spec["apptainer_image"])
@@ -932,8 +928,7 @@ def run_single_spec(spec, write_shard=True):
         })
         print("Failed {} at {}: {}".format(spec["run_id"], stage, exc))
     finally:
-        if write_shard:
-            write_result_shard(row, shard_path)
+        write_result_shard(row, shard_path)
 
     return row
 
@@ -1000,7 +995,7 @@ def cmd_run_manifest_entry(args):
             )
         spec = entries[args.index]
 
-    row = run_single_spec(spec, write_shard=True)
+    row = run_single_spec(spec)
     print("Completed {} with status {}".format(row["run_id"], row["status"]))
     if row["status"] != "success":
         raise SystemExit(1)
@@ -1014,29 +1009,11 @@ def cmd_merge_results(args):
     print("Merged {} result shards into {}".format(len(rows), output_csv))
 
 
-def cmd_run_serial(args):
-    ctx = build_context(args.config)
-    ensure_common_output_dirs(ctx)
-    run_specs = build_run_specs(ctx)
-    rows = []
-
-    if len(run_specs) > 100:
-        print("Recommendation: use the Slurm job-array workflow for this run size.")
-
-    for idx, spec in enumerate(run_specs, start=1):
-        print("[{}/{}] Running {}".format(idx, len(run_specs), spec["run_id"]))
-        row = run_single_spec(spec, write_shard=True)
-        rows.append(row)
-
-    write_csv_file(ctx["ground_truth_qor_dataset"], CSV_FIELDNAMES, rows)
-    print("Wrote {} rows to {}".format(len(rows), ctx["ground_truth_qor_dataset"]))
-
-
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="Run unified AST generation + synthesis/OpenROAD dataset flow from YAML"
+        description="Run the Slurm-oriented AST generation + synthesis/OpenROAD dataset flow from YAML"
     )
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
     manifest_parser = subparsers.add_parser(
         "build-manifest",
@@ -1081,27 +1058,13 @@ def build_parser():
     )
     merge_parser.set_defaults(func=cmd_merge_results)
 
-    serial_parser = subparsers.add_parser(
-        "run-serial",
-        help="Run the full serial pipeline and write the aggregate CSV",
-    )
-    serial_parser.add_argument("config", help="YAML config file")
-    serial_parser.set_defaults(func=cmd_run_serial)
-
     return parser
 
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-
-    if len(argv) == 1 and argv[0] not in SUBCOMMANDS and not argv[0].startswith("-"):
-        return cmd_run_serial(argparse.Namespace(config=argv[0]))
-
     parser = build_parser()
     args = parser.parse_args(argv)
-    if not hasattr(args, "func"):
-        parser.print_help()
-        return 2
     return args.func(args)
 
 

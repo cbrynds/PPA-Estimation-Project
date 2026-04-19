@@ -13,21 +13,6 @@ ASTs (Yosys) and ground truth timing values (OpenROAD) for an RTL dataset.
 
 ## Run
 
-### Local serial run
-
-1. Create a config or use the config in `synthesis/dataset_config.yaml`.
-2. Execute:
-
-```bash
-python3 synthesis/collect_dataset.py synthesis/dataset_config.yaml
-```
-
-This legacy form is equivalent to:
-
-```bash
-python3 synthesis/collect_dataset.py run-serial synthesis/dataset_config.yaml
-```
-
 ### Slurm job-array workflow
 
 Use the Slurm path when you want to synthesize many `design x recipe` runs in
@@ -218,4 +203,3 @@ Outputs:
 
 - `flow_mode: full` is slower but more accuracy to a physical design.
 - `flow_mode: fast` stops after placement step. Is faster but less accurate.
-- Result rows now include `status`, `error_stage`, and `error_message` so failed runs can be retained and filtered downstream.
