@@ -57,8 +57,12 @@ set_routing_layers -signal $global_routing_layers \
   -clock $global_routing_clock_layers
 set_macro_extension 2
 
-global_placement -routability_driven -density $global_place_density \
-  -pad_left $global_place_pad -pad_right $global_place_pad
+set global_placement_args [list \
+  -routability_driven \
+  -density $global_place_density \
+  -pad_left $global_place_pad \
+  -pad_right $global_place_pad]
+eval global_placement $global_placement_args
 
 # IO Placement
 place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
@@ -77,7 +81,7 @@ set_dont_use $dont_use
 
 estimate_parasitics -placement
 
-# repair_design -slew_margin $slew_margin -cap_margin $cap_margin
+repair_design -slew_margin $slew_margin -cap_margin $cap_margin
 
 repair_tie_fanout -separation $tie_separation $tielo_port
 repair_tie_fanout -separation $tie_separation $tiehi_port
@@ -205,8 +209,10 @@ pin_access -bottom_routing_layer $min_routing_layer \
            -top_routing_layer $max_routing_layer
 
 set route_guide [make_result_file ${design}_${platform}.route_guide]
-global_route -guide_file $route_guide \
-  -congestion_iterations 100
+set global_route_args [list \
+  -guide_file $route_guide \
+  -congestion_iterations 100]
+eval global_route $global_route_args
 
 set verilog_file [make_result_file ${design}_${platform}.v]
 write_verilog -remove_cells $filler_cells $verilog_file
