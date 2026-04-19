@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool, global_add_pool
+from torch_geometric.nn import GATConv, global_mean_pool, global_max_pool
 import checkpointing_utils as ckpt_utils
 import evaluation_utils as eval_utils
 import graph_processing as graph_proc
@@ -127,7 +127,7 @@ class QoRNet(nn.Module):
                     edge_dim=hidden_dim,
                 )
             )
-        regressor_input_dim = (3 * hidden_dim) + 2
+        regressor_input_dim = (2 * hidden_dim) + 2
         
         # FC layers to map from graph embedding to final QoR prediction
         self.regressor = nn.Sequential(
@@ -169,7 +169,6 @@ class QoRNet(nn.Module):
     def build_graph_level_features(self, data, node_embeddings):
         mean_graph_embedding = global_mean_pool(node_embeddings, data.batch)
         max_graph_embedding = global_max_pool(node_embeddings, data.batch)
-        sum_graph_embedding = global_add_pool(node_embeddings, data.batch)
         
         num_graphs = mean_graph_embedding.size(0)
         node_counts = torch.bincount(data.batch, minlength=num_graphs).to(device=node_embeddings.device, dtype=node_embeddings.dtype).view(-1, 1)
@@ -189,7 +188,7 @@ class QoRNet(nn.Module):
 
         # Log scaling keeps graph-size meaningful without letting very large circuits dominate input magnitude
         graph_size_features = torch.cat((torch.log1p(node_counts), torch.log1p(edge_counts)), dim=1)
-        return torch.cat((mean_graph_embedding, max_graph_embedding, sum_graph_embedding, graph_size_features), dim=1)
+        return torch.cat((mean_graph_embedding, max_graph_embedding, graph_size_features), dim=1)
 
     def forward(self, data):
         """
