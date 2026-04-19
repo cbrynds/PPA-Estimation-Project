@@ -8,8 +8,10 @@ import argparse
 import csv
 from copy import deepcopy
 from dataclasses import dataclass
+import json
 import math
 from pathlib import Path
+import time
 
 import torch
 import torch.nn as nn
@@ -249,9 +251,18 @@ class QoRNet(nn.Module):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="QoRNet: Edge-aware Graph Neural Network for RTL code")
-    parser.add_argument("--config", type=str, required=True, help="Path to the dataset config file")
-    parser.add_argument("--labels", type=str, required=True, help="Path to the dataset ground truth labels")
-    parser.add_argument("--dataset_dir", type=str, required=True, help="Path to the dataset directory")
+    parser.add_argument("--config", type=str, default=None, help="Path to the dataset config file")
+    parser.add_argument("--labels", type=str, default=None, help="Path to the dataset ground truth labels")
+    parser.add_argument("--dataset_dir", type=str, default=None, help="Path to the dataset directory")
+    parser.add_argument(
+        "--single_graph",
+        type=str,
+        default=None,
+        help=(
+            "Path to one serialized PyG graph (.pt) for single-design inference. "
+            "In this mode, QoRNet skips the config/labels/dataset_dir workflow."
+        ),
+    )
     parser.add_argument(
         "--training_split",
         type=float,
@@ -302,6 +313,32 @@ def parse_arguments():
         help="Dataset split to run during inference mode.",
     )
     return parser.parse_args()
+
+
+def validate_arguments(args):
+    if args.single_graph:
+        if args.mode != "inference":
+            raise ValueError("--single_graph is only supported in inference mode.")
+        if args.cv_folds != 1:
+            raise ValueError("--single_graph does not support cross-validation settings.")
+        return
+
+    missing = [
+        flag_name
+        for flag_name, value in (
+            ("--config", args.config),
+            ("--labels", args.labels),
+            ("--dataset_dir", args.dataset_dir),
+        )
+        if not value
+    ]
+    if missing:
+        raise ValueError(
+            "Missing required arguments for dataset-based {} mode: {}.".format(
+                args.mode,
+                ", ".join(missing),
+            )
+        )
 
 
 def resolve_plot_dir(args):
@@ -569,6 +606,119 @@ def run_inference(qornet, datasets_by_split, hyperparameters, normalization_cont
         log_utils.print_key_value("predictions_csv", output_path, log_utils.ANSI_GREY)
 
 
+def load_single_graph_sample(graph_path, normalization_context, recipe_dim):
+    graph = graph_proc.load_graph_from_file(graph_path)
+    graph.design_name = getattr(graph, "design_name", Path(graph_path).stem)
+    graph.design_id = getattr(graph, "design_id", graph.design_name)
+    graph.recipe_id = getattr(graph, "recipe_id", "single")
+    graph.run_id = getattr(graph, "run_id", None)
+
+    if hasattr(graph, "recipe"):
+        recipe_tensor = graph.recipe
+        if not isinstance(recipe_tensor, torch.Tensor):
+            recipe_tensor = torch.tensor(recipe_tensor, dtype=torch.float32)
+        recipe_tensor = recipe_tensor.float()
+        if recipe_tensor.dim() == 1:
+            recipe_tensor = recipe_tensor.view(1, -1)
+    else:
+        # Default to the checkpoint's mean recipe, which corresponds to the
+        # single fixed recipe used by many datasets.
+        recipe_tensor = normalization_context.recipe_mean.view(1, -1).clone()
+
+    observed_recipe_dim = recipe_tensor.size(-1)
+    if observed_recipe_dim != recipe_dim:
+        raise ValueError(
+            "Single-graph recipe dimension {} does not match checkpoint recipe dimension {}.".format(
+                observed_recipe_dim,
+                recipe_dim,
+            )
+        )
+
+    graph.recipe = recipe_tensor
+    graph_proc.apply_feature_normalization_context([graph], normalization_context)
+    return graph
+
+
+def run_single_graph_inference(
+    args,
+    qornet,
+    hyperparameters,
+    normalization_context,
+    recipe_dim,
+    output_dir,
+):
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    single_graph = load_single_graph_sample(
+        args.single_graph,
+        normalization_context,
+        recipe_dim,
+    )
+    node_input_dim, edge_input_dim, _ = graph_proc.validate_input_dimensions(
+        [single_graph],
+        [],
+    )
+    log_utils.print_model_summary(
+        hyperparameters,
+        [single_graph],
+        [],
+        node_input_dim,
+        edge_input_dim,
+        recipe_dim,
+    )
+
+    inference_loader = DataLoader(
+        [single_graph],
+        batch_size=1,
+        shuffle=False,
+        exclude_keys=["node_to_idx"],
+    )
+
+    qornet.eval()
+    prediction_value = None
+    elapsed_s = None
+    with torch.no_grad():
+        for batch in inference_loader:
+            batch = batch.to(hyperparameters.device)
+            start_time = time.perf_counter()
+            predictions = qornet(batch)
+            elapsed_s = time.perf_counter() - start_time
+            predictions_denormalized = eval_utils.denormalize_targets(
+                predictions,
+                normalization_context,
+            )
+            prediction_value = float(predictions_denormalized.view(-1)[0].item())
+            break
+
+    if prediction_value is None or elapsed_s is None:
+        raise RuntimeError("Single-graph inference did not produce a prediction.")
+
+    target_label = "predicted_{}_ns".format(hyperparameters.target_name)
+    summary = {
+        "graph_path": str(Path(args.single_graph)),
+        "design_name": single_graph.design_name,
+        "design_id": single_graph.design_id,
+        "target_name": hyperparameters.target_name,
+        target_label: prediction_value,
+        "prediction": prediction_value,
+        "prediction_runtime_s": elapsed_s,
+    }
+    summary_path = output_dir / "single_graph_prediction.json"
+    summary_path.write_text(
+        json.dumps(summary, indent=2),
+        encoding="utf-8",
+    )
+
+    log_utils.print_section("Single-Design Prediction")
+    log_utils.print_key_value("graph_path", args.single_graph, log_utils.ANSI_GREY)
+    log_utils.print_key_value("design_name", single_graph.design_name)
+    log_utils.print_key_value(target_label, "{:.6f}".format(prediction_value), log_utils.ANSI_RED)
+    log_utils.print_key_value("prediction_runtime_s", "{:.6f}".format(elapsed_s))
+    log_utils.print_key_value("summary_json", summary_path, log_utils.ANSI_GREY)
+    log_utils.print_rule()
+
+
 def clone_args_with_fold(args, fold_index):
     fold_args = argparse.Namespace(**vars(args))
     fold_args.cv_fold_index = fold_index
@@ -702,6 +852,7 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
 
 def main():
     args = parse_arguments()
+    validate_arguments(args)
     log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
 
@@ -767,6 +918,50 @@ def main():
 
     checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
     plot_dir = resolve_plot_dir(args)
+
+    if args.single_graph:
+        checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
+        hyperparameters = ckpt_utils.update_hyperparameters_from_dict(
+            hyperparameters,
+            checkpoint["hyperparameters"],
+        )
+        hyperparameters.device = (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"
+        )
+        normalization_context = ckpt_utils.normalization_context_from_dict(
+            checkpoint["normalization_context"]
+        )
+        recipe_dim = int(checkpoint["recipe_dim"])
+
+        log_utils.print_section("Model Initialization")
+        qornet = QoRNet(
+            feature_schema=normalization_context.feature_schema,
+            recipe_dim=recipe_dim,
+            hidden_dim=hyperparameters.hidden_dim,
+            num_gat_layers=hyperparameters.num_gat_layers,
+            num_heads=hyperparameters.num_heads,
+            dropout=hyperparameters.dropout,
+        )
+        print("Initialized QoRNet model")
+
+        log_utils.print_section("Checkpoint Load")
+        qornet.load_state_dict(checkpoint["model_state_dict"])
+        qornet = qornet.to(hyperparameters.device)
+        log_utils.print_key_value("checkpoint_path", checkpoint_path, log_utils.ANSI_GREY)
+
+        run_single_graph_inference(
+            args,
+            qornet,
+            hyperparameters,
+            normalization_context,
+            recipe_dim,
+            plot_dir,
+        )
+        return
 
     log_utils.print_section("Dataset Loading")
     if args.mode != "train":

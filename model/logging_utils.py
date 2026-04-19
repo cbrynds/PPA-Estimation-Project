@@ -46,7 +46,7 @@ def print_startup_banner(args):
     print_rule()
     print(ASCII_BANNER)
     print_rule()
-    print("{}QoRNet Training Run{}".format(ANSI_BOLD, ANSI_RESET))
+    print("{}QoRNet Run{}".format(ANSI_BOLD, ANSI_RESET))
     print_rule()
     print("Command-line arguments")
     print_rule()

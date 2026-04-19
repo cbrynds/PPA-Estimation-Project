@@ -223,6 +223,33 @@ def apply_normalization_context(samples, context, target_name):
     return samples
 
 
+def apply_feature_normalization_context(samples, context):
+    """
+    Normalize node, edge, and recipe features without requiring a target label.
+    """
+    for sample in samples:
+        sample.x = _normalize_selected_columns(
+            sample.x,
+            context.feature_schema.node_numeric_indices,
+            context.node_mean,
+            context.node_std,
+        )
+        sample.edge_attr = _normalize_selected_columns(
+            sample.edge_attr,
+            context.feature_schema.edge_numeric_indices,
+            context.edge_mean,
+            context.edge_std,
+        )
+        sample.recipe = _normalize_selected_columns(
+            sample.recipe,
+            context.feature_schema.recipe_numeric_indices,
+            context.recipe_mean,
+            context.recipe_std,
+        )
+
+    return samples
+
+
 def summarize_graph(graph, design_name):
     num_nodes = int(graph.num_nodes) if getattr(graph, "num_nodes", None) is not None else 0
     num_edges = int(graph.edge_index.size(1)) if hasattr(graph, "edge_index") else 0
@@ -400,6 +427,20 @@ def load_graph_for_design(dataset_dir, design_name):
             design_name, file_name
         )
     )
+
+
+def load_graph_from_file(graph_path):
+    """
+    Load a serialized PyG graph from an explicit `.pt` file path.
+    """
+    graph_path = Path(graph_path)
+    if not graph_path.is_file():
+        raise FileNotFoundError("Graph file does not exist: {}".format(graph_path))
+
+    graph = torch.load(graph_path, weights_only=False)
+    if isinstance(graph, dict):
+        return Data.from_dict(graph)
+    return graph
 
 
 def list_graph_design_names(dataset_dir):
