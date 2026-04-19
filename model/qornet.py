@@ -127,7 +127,9 @@ class QoRNet(nn.Module):
                     edge_dim=hidden_dim,
                 )
             )
-        regressor_input_dim = (2 * hidden_dim) + 2
+        regressor_input_dim = hidden_dim
+        
+        # FC layers to map from graph embedding to final QoR prediction
         self.regressor = nn.Sequential(
             nn.Linear(regressor_input_dim, hidden_dim),
             nn.ReLU(),
@@ -165,14 +167,13 @@ class QoRNet(nn.Module):
         return torch.cat(edge_parts, dim=1)
 
     def build_graph_level_features(self, data, node_embeddings):
+        # Legacy richer readout path kept in place for reference. The active
+        # model now uses a single global_mean_pool readout in forward().
         mean_graph_embedding = global_mean_pool(node_embeddings, data.batch)
         max_graph_embedding = global_max_pool(node_embeddings, data.batch)
 
         num_graphs = mean_graph_embedding.size(0)
-        node_counts = torch.bincount(data.batch, minlength=num_graphs).to(
-            device=node_embeddings.device,
-            dtype=node_embeddings.dtype,
-        ).view(-1, 1)
+        node_counts = torch.bincount(data.batch, minlength=num_graphs).to(device=node_embeddings.device, dtype=node_embeddings.dtype).view(-1, 1)
 
         if data.edge_index.numel() == 0:
             edge_counts = torch.zeros(
@@ -208,6 +209,8 @@ class QoRNet(nn.Module):
             recipe_tensor = recipe_tensor.repeat(num_graphs, 1)
 
         recipe_features = recipe_tensor[data.batch]
+        
+        # Node and edge encoders to learn projections of raw features into the hidden space for GAT layers
         h = self.encode_node_features(data, recipe_features)
         h = self.input_projection(h)
         h = F.relu(h)
@@ -219,7 +222,9 @@ class QoRNet(nn.Module):
             h = F.relu(h)
             h = F.dropout(h, p=self.dropout, training=self.training)
 
-        graph_embedding = self.build_graph_level_features(data, h)
+        # Pool node embeddings to produce an embedding vector for the FC layers
+        # graph_embedding = self.build_graph_level_features(data, h)
+        graph_embedding = global_mean_pool(h, data.batch)
         
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
