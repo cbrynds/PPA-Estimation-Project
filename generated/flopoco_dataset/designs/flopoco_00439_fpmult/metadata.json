@@ -1,0 +1,25 @@
+{
+  "clock_period_ns": 3.333333,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=300 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00439_fpmult_top.vhdl name=flopoco_00439_fpmult_top FPMult wE=8 wF=7 wEY=0 wFY=0 wEOut=0 wFOut=0 correctlyRounded=1 dspThreshold=0.75",
+  "design_id": "flopoco_00439",
+  "design_name": "flopoco_00439_fpmult",
+  "family": "FPMult",
+  "frequency_mhz": 300,
+  "operator": "FPMult",
+  "params": {
+    "correctlyRounded": 1,
+    "dspThreshold": 0.75,
+    "wE": 8,
+    "wEOut": 0,
+    "wEY": 0,
+    "wF": 7,
+    "wFOut": 0,
+    "wFY": 0
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00439_fpmult",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00439_fpmult_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 300 MHz\nEntity MultTable_Freq300_uid12\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq300_uid17\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq300_uid22\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq300_uid27\n   Y: (c0, 0.215000ns)\nEntity MultTable_Freq300_uid32\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq300_uid37\n   Y: (c0, 0.215000ns)\nEntity MultTable_Freq300_uid42\n   Y: (c0, 0.215000ns)\nEntity MultTable_Freq300_uid47\n   Y: (c0, 0.215000ns)\nEntity Compressor_23_3_Freq300_uid55\n   R: (c0, 0.215000ns)\nEntity Compressor_3_2_Freq300_uid61\n   R: (c0, 0.215000ns)\nEntity Compressor_14_3_Freq300_uid65\n   R: (c0, 0.215000ns)\n|   |   |---Entity MultTable_Freq300_uid12\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq300_uid10\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq300_uid17\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq300_uid15\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq300_uid22\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq300_uid20\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq300_uid27\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_3x2_Freq300_uid25\n|   |      R: (c0, 0.215000ns)\n|   |   |---Entity MultTable_Freq300_uid32\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq300_uid30\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq300_uid37\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_2x3_Freq300_uid35\n|   |      R: (c0, 0.215000ns)\n|   |   |---Entity MultTable_Freq300_uid42\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_3x2_Freq300_uid40\n|   |      R: (c0, 0.215000ns)\n|   |   |---Entity MultTable_Freq300_uid47\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_2x3_Freq300_uid45\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq300_uid50\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq300_uid52\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_23_3_Freq300_uid55\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_3_2_Freq300_uid61\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_14_3_Freq300_uid65\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntAdder_10_Freq300_uid103\n|   |      R: (c0, 1.358000ns)\n|---Entity IntMultiplier_8x8_16_Freq300_uid5\n|      R: (c0, 1.358000ns)\n|---Entity IntAdder_17_Freq300_uid106\n|      R: (c0, 2.545750ns)\nEntity flopoco_00439_fpmult_top\n   R: (c0, 2.545750ns)",
+  "stdout": "\u001b[1;37mInfo: \u001b[0m\u001b[0;34mIntMultiplier.cpp\u001b[0m: errorBudget=0 actualLSB=0  centerErrConstant=0",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00439_fpmult_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00439_fpmult/flopoco_00439_fpmult_top.vhdl"
+}

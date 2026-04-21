@@ -1,0 +1,25 @@
+{
+  "clock_period_ns": 2.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=500 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00103_fpmult_top.vhdl name=flopoco_00103_fpmult_top FPMult wE=8 wF=23 wEY=0 wFY=0 wEOut=0 wFOut=0 correctlyRounded=0 dspThreshold=0.0",
+  "design_id": "flopoco_00103",
+  "design_name": "flopoco_00103_fpmult",
+  "family": "FPMult",
+  "frequency_mhz": 500,
+  "operator": "FPMult",
+  "params": {
+    "correctlyRounded": 0,
+    "dspThreshold": 0.0,
+    "wE": 8,
+    "wEOut": 0,
+    "wEY": 0,
+    "wF": 23,
+    "wFOut": 0,
+    "wFY": 0
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00103_fpmult",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00103_fpmult_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 500 MHz\nEntity MultTable_Freq500_uid14\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq500_uid19\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq500_uid24\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq500_uid31\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq500_uid36\n   Y: (c0, 0.328000ns)\nEntity Compressor_23_3_Freq500_uid60\n   R: (c0, 0.215000ns)\nEntity Compressor_14_3_Freq500_uid66\n   R: (c0, 0.215000ns)\nEntity Compressor_6_3_Freq500_uid70\n   R: (c0, 0.328000ns)\nEntity Compressor_3_2_Freq500_uid82\n   R: (c0, 0.215000ns)\nEntity Compressor_5_3_Freq500_uid88\n   R: (c0, 0.215000ns)\n|   |---Entity DSPBlock_24x17_Freq500_uid10\n|   |      R: (c0, 0.000000ns)\n|   |   |---Entity MultTable_Freq500_uid14\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq500_uid12\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq500_uid19\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq500_uid17\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq500_uid24\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq500_uid22\n|   |      R: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_2x1_Freq500_uid27\n|   |      R: (c0, 0.215000ns)\n|   |   |---Entity MultTable_Freq500_uid31\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq500_uid29\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq500_uid36\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq500_uid34\n|   |      R: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_2x1_Freq500_uid39\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq500_uid41\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq500_uid43\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_2x1_Freq500_uid45\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq500_uid47\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq500_uid49\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x1_Freq500_uid51\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x1_Freq500_uid53\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x1_Freq500_uid55\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x1_Freq500_uid57\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_23_3_Freq500_uid60\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_14_3_Freq500_uid66\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_6_3_Freq500_uid70\n|   |      R: (c0, 0.328000ns)\n|   |---Entity Compressor_3_2_Freq500_uid82\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_5_3_Freq500_uid88\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntAdder_27_Freq500_uid124\n|   |      R: (c0, 1.666000ns)\n|---Entity IntMultiplier_24x24_26_Freq500_uid5\n|      R: (c0, 1.666000ns)\n|---Entity IntAdder_33_Freq500_uid127\n|      R: (c1, 0.652000ns)\nEntity flopoco_00103_fpmult_top\n   R: (c1, 0.652000ns)",
+  "stdout": "\u001b[1;37mInfo: \u001b[0m\u001b[0;34mIntMultiplier.cpp\u001b[0m: errorBudget=2097152 actualLSB=17  centerErrConstant=1966080",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00103_fpmult_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00103_fpmult/flopoco_00103_fpmult_top.vhdl"
+}

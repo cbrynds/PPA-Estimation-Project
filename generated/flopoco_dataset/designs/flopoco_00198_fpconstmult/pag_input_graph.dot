@@ -1,0 +1,50 @@
+// File generated:  Sat Apr 18 20:45:56 2026
+
+digraph DAG {
+I1_s0[label="1",fontsize=12,shape=ellipse];
+A9_s1[label="9",fontsize=12,shape=box];
+A15_s1[label="15",fontsize=12,shape=box];
+A17_s1[label="17",fontsize=12,shape=box];
+A63_s1[label="63",fontsize=12,shape=box];
+A65_s1[label="65",fontsize=12,shape=box];
+A511_s1[label="511",fontsize=12,shape=box];
+A201_s2[label="201",fontsize=12,shape=box];
+A2029_s2[label="2029",fontsize=12,shape=box];
+A2367_s2[label="2367",fontsize=12,shape=box];
+A70143_s2[label="70143",fontsize=12,shape=box];
+A6588397_s3[label="6588397",fontsize=12,shape=box];
+A1149220545_s3[label="1149220545",fontsize=12,shape=box];
+R6588397_s4[label="6588397",fontsize=12,shape=box];
+A1360049249_s4[label="1360049249",fontsize=12,shape=box];
+O6588397_s4[label="6588397",fontsize=12,shape=none];
+O1360049249_s4[label="1360049249",fontsize=12,shape=none];
+I1_s0 -> A9_s1 [label="",fontsize=12]
+I1_s0 -> A9_s1 [label="3",fontsize=12]
+I1_s0 -> A15_s1 [label="4",fontsize=12]
+I1_s0 -> A15_s1 [label="(-)",fontsize=12]
+I1_s0 -> A17_s1 [label="",fontsize=12]
+I1_s0 -> A17_s1 [label="4",fontsize=12]
+I1_s0 -> A63_s1 [label="6",fontsize=12]
+I1_s0 -> A63_s1 [label="(-)",fontsize=12]
+I1_s0 -> A65_s1 [label="",fontsize=12]
+I1_s0 -> A65_s1 [label="6",fontsize=12]
+I1_s0 -> A511_s1 [label="9",fontsize=12]
+I1_s0 -> A511_s1 [label="(-)",fontsize=12]
+A17_s1 -> A201_s2 [label="3",fontsize=12]
+A65_s1 -> A201_s2 [label="",fontsize=12]
+A511_s1 -> A2029_s2 [label="2",fontsize=12]
+A15_s1 -> A2029_s2 [label="(-)",fontsize=12]
+A9_s1 -> A2367_s2 [label="8",fontsize=12]
+A63_s1 -> A2367_s2 [label="",fontsize=12]
+A17_s1 -> A70143_s2 [label="12",fontsize=12]
+A511_s1 -> A70143_s2 [label="",fontsize=12]
+A201_s2 -> A6588397_s3 [label="15",fontsize=12]
+A2029_s2 -> A6588397_s3 [label="",fontsize=12]
+A70143_s2 -> A1149220545_s3 [label="14",fontsize=12]
+A2367_s2 -> A1149220545_s3 [label="(-)",fontsize=12]
+A6588397_s3 -> R6588397_s4
+A6588397_s3 -> A1360049249_s4 [label="5",fontsize=12]
+A1149220545_s3 -> A1360049249_s4 [label="",fontsize=12]
+R6588397_s4 -> O6588397_s4
+A1360049249_s4 -> O1360049249_s4
+}

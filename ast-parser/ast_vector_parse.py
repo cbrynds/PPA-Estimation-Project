@@ -4,16 +4,10 @@ import os
 from collections import defaultdict, deque
 from pathlib import Path
 import torch
+import argparse
 
-
-directory = "./iscas_asts"
-output_directory = "./ast_parser_results/"
-
-os.makedirs(output_directory, exist_ok=True)
-os.makedirs(os.path.join(output_directory, "dot"), exist_ok=True)
-os.makedirs(os.path.join(output_directory, "tensors"), exist_ok=True)
-
-ast_files = glob.glob(os.path.join(directory, "*.json"), recursive=True)
+directory = "./larger_designs"
+output_directory = "./larger_designs_result/"
 
 IGNORE_CELL_TYPES = {"$scopeinfo", "$meminit"}
 
@@ -643,12 +637,31 @@ def process_ast_file(ast):
     total_ast_vector.append(ast_vector)
 
 
-# Process only first file if needed
-# ast_files = [ast_files[0]]
+def main():
+    global directory, output_directory
+    
+    parser = argparse.ArgumentParser(description='AST Parser, Generates graph tensor and design metrics given a netlist')
+    parser.add_argument('-src_dir', type=str, help='Directory containing netlist(s)', required=True)
+    parser.add_argument('-out_dir', type=str, help='Directory to store results', required=True)
+    
+    args = parser.parse_args()
+    src_dir = args.src_dir
+    out_dir = args.out_dir
+    
+    directory = src_dir
+    output_directory = out_dir
+    
+    os.makedirs(output_directory, exist_ok=True)
+    os.makedirs(os.path.join(output_directory, "dot"), exist_ok=True)
+    os.makedirs(os.path.join(output_directory, "tensors"), exist_ok=True)
 
-for ast in ast_files:
-    process_ast_file(ast)
+    ast_files = glob.glob(os.path.join(directory, "*.json"), recursive=True)
+    for ast in ast_files:
+        process_ast_file(ast)
 
-ast_vector_file = os.path.join(output_directory, "ast_vector.json")
-print("Saving ast vector to " + ast_vector_file)
-Path(ast_vector_file).write_text(json.dumps(total_ast_vector, indent=4), encoding="utf-8")
+    ast_vector_file = os.path.join(output_directory, "ast_vector.json")
+    print("Saving ast vector to " + ast_vector_file)
+    Path(ast_vector_file).write_text(json.dumps(total_ast_vector, indent=4), encoding="utf-8")
+
+if __name__ == '__main__':
+    main()

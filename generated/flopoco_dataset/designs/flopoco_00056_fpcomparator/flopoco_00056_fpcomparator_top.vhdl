@@ -1,0 +1,166 @@
+--------------------------------------------------------------------------------
+--                     IntComparator_45_010_Freq500_uid4
+-- VHDL generated for VirtexUltrascalePlus @ 500MHz
+-- This operator is part of the Infinite Virtual Library FloPoCoLib
+-- All rights reserved 
+-- Authors: Florent de Dinechin (2021)
+--------------------------------------------------------------------------------
+-- Pipeline depth: 0 cycles
+-- Clock period (ns): 2
+-- Target frequency (MHz): 500
+-- Input signals: X Y
+-- Output signals: XeqY
+--  approx. input signal timings: X: (c0, 0.000000ns)Y: (c0, 0.000000ns)
+--  approx. output signal timings: XeqY: (c0, 0.498000ns)
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
+library std;
+use std.textio.all;
+library work;
+
+entity IntComparator_45_010_Freq500_uid4 is
+    port (clk : in std_logic;
+          X : in  std_logic_vector(44 downto 0);
+          Y : in  std_logic_vector(44 downto 0);
+          XeqY : out  std_logic   );
+end entity;
+
+architecture arch of IntComparator_45_010_Freq500_uid4 is
+signal XeqYi :  std_logic;
+   -- timing of XeqYi: (c0, 0.498000ns)
+begin
+   XeqYi <= '1' when X=Y else '0';
+   XeqY <= XeqYi;
+end architecture;
+
+--------------------------------------------------------------------------------
+--                       flopoco_00056_fpcomparator_top
+--                     (FPComparator_10_35_Freq500_uid2)
+-- VHDL generated for VirtexUltrascalePlus @ 500MHz
+-- This operator is part of the Infinite Virtual Library FloPoCoLib
+-- All rights reserved 
+-- Authors: Florent de Dinechin (2021)
+--------------------------------------------------------------------------------
+-- Pipeline depth: 0 cycles
+-- Clock period (ns): 2
+-- Target frequency (MHz): 500
+-- Input signals: X Y
+-- Output signals: unordered XeqY
+--  approx. input signal timings: X: (c0, 0.000000ns)Y: (c0, 0.000000ns)
+--  approx. output signal timings: unordered: (c0, 0.000000ns)XeqY: (c0, 0.713000ns)
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
+library std;
+use std.textio.all;
+library work;
+
+entity flopoco_00056_fpcomparator_top is
+    port (clk : in std_logic;
+          X : in  std_logic_vector(10+35+2 downto 0);
+          Y : in  std_logic_vector(10+35+2 downto 0);
+          unordered : out  std_logic;
+          XeqY : out  std_logic   );
+end entity;
+
+architecture arch of flopoco_00056_fpcomparator_top is
+   component IntComparator_45_010_Freq500_uid4 is
+      port ( clk : in std_logic;
+             X : in  std_logic_vector(44 downto 0);
+             Y : in  std_logic_vector(44 downto 0);
+             XeqY : out  std_logic   );
+   end component;
+
+signal excX :  std_logic_vector(1 downto 0);
+   -- timing of excX: (c0, 0.000000ns)
+signal excY :  std_logic_vector(1 downto 0);
+   -- timing of excY: (c0, 0.000000ns)
+signal signX :  std_logic;
+   -- timing of signX: (c0, 0.000000ns)
+signal signY :  std_logic;
+   -- timing of signY: (c0, 0.000000ns)
+signal ExpFracX :  std_logic_vector(44 downto 0);
+   -- timing of ExpFracX: (c0, 0.000000ns)
+signal ExpFracY :  std_logic_vector(44 downto 0);
+   -- timing of ExpFracY: (c0, 0.000000ns)
+signal isZeroX :  std_logic;
+   -- timing of isZeroX: (c0, 0.000000ns)
+signal isZeroY :  std_logic;
+   -- timing of isZeroY: (c0, 0.000000ns)
+signal isNormalX :  std_logic;
+   -- timing of isNormalX: (c0, 0.000000ns)
+signal isNormalY :  std_logic;
+   -- timing of isNormalY: (c0, 0.000000ns)
+signal isInfX :  std_logic;
+   -- timing of isInfX: (c0, 0.000000ns)
+signal isInfY :  std_logic;
+   -- timing of isInfY: (c0, 0.000000ns)
+signal isNaNX :  std_logic;
+   -- timing of isNaNX: (c0, 0.000000ns)
+signal isNaNY :  std_logic;
+   -- timing of isNaNY: (c0, 0.000000ns)
+signal negativeX :  std_logic;
+   -- timing of negativeX: (c0, 0.000000ns)
+signal positiveX :  std_logic;
+   -- timing of positiveX: (c0, 0.000000ns)
+signal negativeY :  std_logic;
+   -- timing of negativeY: (c0, 0.000000ns)
+signal positiveY :  std_logic;
+   -- timing of positiveY: (c0, 0.000000ns)
+signal ExpFracXeqExpFracY :  std_logic;
+   -- timing of ExpFracXeqExpFracY: (c0, 0.498000ns)
+signal sameSign :  std_logic;
+   -- timing of sameSign: (c0, 0.000000ns)
+signal XeqYNum :  std_logic;
+   -- timing of XeqYNum: (c0, 0.713000ns)
+signal unorderedR :  std_logic;
+   -- timing of unorderedR: (c0, 0.000000ns)
+signal XeqYR :  std_logic;
+   -- timing of XeqYR: (c0, 0.713000ns)
+begin
+   excX <= X(47 downto 46);
+   excY <= Y(47 downto 46);
+   signX <= X(45);
+   signY <= Y(45);
+   ExpFracX <= X(44 downto 0);
+   ExpFracY <= Y(44 downto 0);
+   -- Comparing (as integers) excX & ExpFracX with excY & ExpFracY would almost work 
+   --  since indeed inf>normal>0	
+   -- However we wouldn't capture infinity equality in cases when the infinities have different ExpFracs (who knows)...	 
+   -- Besides, expliciting the isXXX bits will help factoring code with a comparator for IEEE format (some day)
+   isZeroX <= '1' when excX="00" else '0' ;
+   isZeroY <= '1' when excY="00" else '0' ;
+   isNormalX <= '1' when excX="01" else '0' ;
+   isNormalY <= '1' when excY="01" else '0' ;
+   isInfX <= '1' when excX="10" else '0' ;
+   isInfY <= '1' when excY="10" else '0' ;
+   isNaNX <= '1' when excX="11" else '0' ;
+   isNaNY <= '1' when excY="11" else '0' ;
+   -- Just for readability of the formulae below
+   negativeX <= signX ;
+   positiveX <= not signX ;
+   negativeY <= signY ;
+   positiveY <= not signY ;
+   -- expfrac comparisons 
+   ExpFracCmp: IntComparator_45_010_Freq500_uid4
+      port map ( clk  => clk,
+                 X => ExpFracX,
+                 Y => ExpFracY,
+                 XeqY => ExpFracXeqExpFracY);
+   -- -- and now the logic
+   sameSign <= not (signX xor signY) ;
+   XeqYNum <= 
+         (isZeroX and isZeroY) -- explicitely stated by IEEE 754
+      or (isInfX and isInfY and sameSign)  -- bizarre but also explicitely stated by IEEE 754
+      or (isNormalX and isNormalY and sameSign and ExpFracXeqExpFracY)   ;
+   unorderedR <=  isNaNX or isNaNY;
+   XeqYR <= XeqYNum and not unorderedR;
+   unordered <= unorderedR;
+   XeqY <= XeqYR;
+end architecture;
+

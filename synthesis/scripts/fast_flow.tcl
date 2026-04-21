@@ -48,8 +48,12 @@ set_routing_layers -signal $global_routing_layers \
   -clock $global_routing_clock_layers
 set_macro_extension 2
 
-global_placement -routability_driven -density $global_place_density \
-  -pad_left $global_place_pad -pad_right $global_place_pad
+set global_placement_args [list \
+  -routability_driven \
+  -density $global_place_density \
+  -pad_left $global_place_pad \
+  -pad_right $global_place_pad]
+eval global_placement $global_placement_args
 
 # IO Placement
 place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
@@ -67,6 +71,8 @@ set_wire_rc -clock  -layer $wire_rc_layer_clk
 set_dont_use $dont_use
 
 estimate_parasitics -placement
+
+repair_design -slew_margin $slew_margin -cap_margin $cap_margin
 
 detailed_placement
 

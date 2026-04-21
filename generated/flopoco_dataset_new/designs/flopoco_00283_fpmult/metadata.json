@@ -1,0 +1,25 @@
+{
+  "clock_period_ns": 4.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=250 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00283_fpmult_top.vhdl name=flopoco_00283_fpmult_top FPMult wE=5 wF=10 wEY=0 wFY=0 wEOut=0 wFOut=0 correctlyRounded=0 dspThreshold=0.25",
+  "design_id": "flopoco_00283",
+  "design_name": "flopoco_00283_fpmult",
+  "family": "FPMult",
+  "frequency_mhz": 250,
+  "operator": "FPMult",
+  "params": {
+    "correctlyRounded": 0,
+    "dspThreshold": 0.25,
+    "wE": 5,
+    "wEOut": 0,
+    "wEY": 0,
+    "wF": 10,
+    "wFOut": 0,
+    "wFY": 0
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00283_fpmult",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00283_fpmult_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 250 MHz\nEntity MultTable_Freq250_uid12\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid17\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid22\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid27\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid32\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid37\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid42\n   Y: (c0, 0.215000ns)\nEntity MultTable_Freq250_uid47\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid52\n   Y: (c0, 0.328000ns)\nEntity MultTable_Freq250_uid57\n   Y: (c0, 0.215000ns)\nEntity Compressor_6_3_Freq250_uid79\n   R: (c0, 0.328000ns)\nEntity Compressor_23_3_Freq250_uid85\n   R: (c0, 0.215000ns)\nEntity Compressor_14_3_Freq250_uid91\n   R: (c0, 0.215000ns)\nEntity Compressor_3_2_Freq250_uid107\n   R: (c0, 0.215000ns)\n|   |   |---Entity MultTable_Freq250_uid12\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid10\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid17\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid15\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid22\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid20\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid27\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid25\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid32\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid30\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid37\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid35\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid42\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_3x2_Freq250_uid40\n|   |      R: (c0, 0.215000ns)\n|   |   |---Entity MultTable_Freq250_uid47\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid45\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid52\n|   |   |      Y: (c0, 0.328000ns)\n|   |---Entity IntMultiplierLUT_3x3_Freq250_uid50\n|   |      R: (c0, 0.328000ns)\n|   |   |---Entity MultTable_Freq250_uid57\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_2x3_Freq250_uid55\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq250_uid60\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq250_uid62\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq250_uid64\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_2x1_Freq250_uid66\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq250_uid68\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x2_Freq250_uid70\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x1_Freq250_uid72\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x1_Freq250_uid74\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntMultiplierLUT_1x1_Freq250_uid76\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_6_3_Freq250_uid79\n|   |      R: (c0, 0.328000ns)\n|   |---Entity Compressor_23_3_Freq250_uid85\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_14_3_Freq250_uid91\n|   |      R: (c0, 0.215000ns)\n|   |---Entity Compressor_3_2_Freq250_uid107\n|   |      R: (c0, 0.215000ns)\n|   |---Entity IntAdder_13_Freq250_uid153\n|   |      R: (c0, 1.584000ns)\n|---Entity IntMultiplier_11x11_13_Freq250_uid5\n|      R: (c0, 1.584000ns)\n|---Entity IntAdder_17_Freq250_uid156\n|      R: (c0, 2.338000ns)\nEntity flopoco_00283_fpmult_top\n   R: (c0, 2.338000ns)",
+  "stdout": "\u001b[1;37mInfo: \u001b[0m\u001b[0;34mIntMultiplier.cpp\u001b[0m: errorBudget=256 actualLSB=6  centerErrConstant=192",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00283_fpmult_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00283_fpmult/flopoco_00283_fpmult_top.vhdl"
+}

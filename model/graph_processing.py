@@ -5,6 +5,7 @@ Author: Cory Brynds
 """
 
 import csv
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 import random
@@ -38,6 +39,25 @@ class NormalizationContext:
     recipe_std: torch.Tensor
     target_mean: float
     target_std: float
+    target_transform: str = "none"
+
+
+def apply_target_transform(target_tensor, target_transform):
+    target_tensor = target_tensor.float()
+    if target_transform == "none":
+        return target_tensor
+    if target_transform == "signed_log1p_abs":
+        return torch.sign(target_tensor) * torch.log1p(torch.abs(target_tensor))
+    raise ValueError("Unsupported target transform '{}'.".format(target_transform))
+
+
+def invert_target_transform(transformed_target_tensor, target_transform):
+    transformed_target_tensor = transformed_target_tensor.float()
+    if target_transform == "none":
+        return transformed_target_tensor
+    if target_transform == "signed_log1p_abs":
+        return torch.sign(transformed_target_tensor) * torch.expm1(torch.abs(transformed_target_tensor))
+    raise ValueError("Unsupported target transform '{}'.".format(target_transform))
 
 
 def _default_categorical_indices(feature_width, kind):
@@ -95,12 +115,8 @@ def build_feature_schema(training_data, testing_data):
     edge_feature_width = reference_sample.edge_attr.size(1)
     recipe_width = reference_sample.recipe.numel() if reference_sample.recipe.dim() == 1 else reference_sample.recipe.size(-1)
 
-    node_categorical_indices = _resolve_categorical_indices(
-        reference_sample, "x", node_feature_width, "node"
-    )
-    edge_categorical_indices = _resolve_categorical_indices(
-        reference_sample, "edge_attr", edge_feature_width, "edge"
-    )
+    node_categorical_indices = _resolve_categorical_indices(reference_sample, "x", node_feature_width, "node")
+    edge_categorical_indices = _resolve_categorical_indices(reference_sample, "edge_attr", edge_feature_width, "edge")
 
     return FeatureSchema(
         node_numeric_indices=_invert_indices(node_feature_width, node_categorical_indices),
@@ -143,10 +159,8 @@ def _compute_mean_std(samples, tensor_name, column_indices):
     return mean, std
 
 
-def _compute_target_stats(samples, target_name):
-    target_values = torch.cat(
-        [getattr(sample, target_name).view(-1).float() for sample in samples], dim=0
-    )
+def _compute_target_stats(samples, target_name, target_transform):
+    target_values = torch.cat([apply_target_transform(getattr(sample, target_name).view(-1).float(), target_transform) for sample in samples], dim=0)
     mean = float(target_values.mean().item())
     std = float(target_values.std(unbiased=False).item())
     if std <= EPSILON:
@@ -154,18 +168,12 @@ def _compute_target_stats(samples, target_name):
     return mean, std
 
 
-def fit_normalization_context(training_data, testing_data, target_name):
+def fit_normalization_context(training_data, testing_data, target_name, target_transform="none"):
     feature_schema = build_feature_schema(training_data, testing_data)
-    node_mean, node_std = _compute_mean_std(
-        training_data, "x", feature_schema.node_numeric_indices
-    )
-    edge_mean, edge_std = _compute_mean_std(
-        training_data, "edge_attr", feature_schema.edge_numeric_indices
-    )
-    recipe_mean, recipe_std = _compute_mean_std(
-        training_data, "recipe", feature_schema.recipe_numeric_indices
-    )
-    target_mean, target_std = _compute_target_stats(training_data, target_name)
+    node_mean, node_std = _compute_mean_std(training_data, "x", feature_schema.node_numeric_indices)
+    edge_mean, edge_std = _compute_mean_std(training_data, "edge_attr", feature_schema.edge_numeric_indices)
+    recipe_mean, recipe_std = _compute_mean_std(training_data, "recipe", feature_schema.recipe_numeric_indices)
+    target_mean, target_std = _compute_target_stats(training_data, target_name, target_transform)
 
     return NormalizationContext(
         feature_schema=feature_schema,
@@ -177,12 +185,15 @@ def fit_normalization_context(training_data, testing_data, target_name):
         recipe_std=recipe_std,
         target_mean=target_mean,
         target_std=target_std,
+        target_transform=target_transform,
     )
 
 
 def _normalize_selected_columns(tensor, column_indices, mean, std):
     normalized = tensor.clone().float()
     if column_indices:
+        mean = mean.to(device=normalized.device, dtype=normalized.dtype)
+        std = std.to(device=normalized.device, dtype=normalized.dtype)
         normalized[:, list(column_indices)] = (
             normalized[:, list(column_indices)] - mean
         ) / std
@@ -190,33 +201,31 @@ def _normalize_selected_columns(tensor, column_indices, mean, std):
 
 
 def _normalize_target_tensor(target_tensor, context):
-    return (target_tensor.float() - context.target_mean) / context.target_std
+    transformed_target_tensor = apply_target_transform(target_tensor.float(), context.target_transform)
+    return (transformed_target_tensor - context.target_mean) / context.target_std
 
 
 def apply_normalization_context(samples, context, target_name):
     for sample in samples:
-        sample.x = _normalize_selected_columns(
-            sample.x,
-            context.feature_schema.node_numeric_indices,
-            context.node_mean,
-            context.node_std,
-        )
-        sample.edge_attr = _normalize_selected_columns(
-            sample.edge_attr,
-            context.feature_schema.edge_numeric_indices,
-            context.edge_mean,
-            context.edge_std,
-        )
-        sample.recipe = _normalize_selected_columns(
-            sample.recipe,
-            context.feature_schema.recipe_numeric_indices,
-            context.recipe_mean,
-            context.recipe_std,
-        )
+        sample.x = _normalize_selected_columns(sample.x, context.feature_schema.node_numeric_indices, context.node_mean, context.node_std)
+        sample.edge_attr = _normalize_selected_columns(sample.edge_attr, context.feature_schema.edge_numeric_indices, context.edge_mean, context.edge_std)
+        sample.recipe = _normalize_selected_columns(sample.recipe, context.feature_schema.recipe_numeric_indices, context.recipe_mean, context.recipe_std)
 
         target_tensor = getattr(sample, target_name).view(-1, 1).float()
         setattr(sample, "raw_{}".format(target_name), target_tensor.clone())
         setattr(sample, target_name, _normalize_target_tensor(target_tensor, context))
+
+    return samples
+
+
+def apply_feature_normalization_context(samples, context):
+    """
+    Normalize node, edge, and recipe features without requiring a target label.
+    """
+    for sample in samples:
+        sample.x = _normalize_selected_columns(sample.x, context.feature_schema.node_numeric_indices, context.node_mean, context.node_std)
+        sample.edge_attr = _normalize_selected_columns(sample.edge_attr, context.feature_schema.edge_numeric_indices, context.edge_mean, context.edge_std)
+        sample.recipe = _normalize_selected_columns(sample.recipe, context.feature_schema.recipe_numeric_indices, context.recipe_mean, context.recipe_std)
 
     return samples
 
@@ -398,6 +407,20 @@ def load_graph_for_design(dataset_dir, design_name):
             design_name, file_name
         )
     )
+
+
+def load_graph_from_file(graph_path):
+    """
+    Load a serialized PyG graph from an explicit `.pt` file path.
+    """
+    graph_path = Path(graph_path)
+    if not graph_path.is_file():
+        raise FileNotFoundError("Graph file does not exist: {}".format(graph_path))
+
+    graph = torch.load(graph_path, weights_only=False)
+    if isinstance(graph, dict):
+        return Data.from_dict(graph)
+    return graph
 
 
 def list_graph_design_names(dataset_dir):
@@ -599,6 +622,42 @@ def _build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds):
     return folds
 
 
+def _infer_flopoco_operator_family(design_name):
+    parts = design_name.split("_", 2)
+    if len(parts) != 3 or parts[0] != "flopoco":
+        return None
+    return parts[2]
+
+
+def _build_operator_stratified_folds(shuffled_designs, design_operator_families, cv_folds, design_sizes=None):
+    grouped_designs = defaultdict(list)
+    for design_name in shuffled_designs:
+        operator_family = design_operator_families.get(design_name)
+        if not operator_family:
+            raise ValueError("Operator-stratified cross-validation requires an operator family for design '{}'.".format(design_name))
+        grouped_designs[operator_family].append(design_name)
+
+    randomized_designs = list(shuffled_designs)
+    random.Random(0).shuffle(randomized_designs)
+    randomized_rank = {design_name: rank for rank, design_name in enumerate(randomized_designs)}
+    folds = [[] for _ in range(cv_folds)]
+
+    for operator_family in sorted(grouped_designs):
+        family_designs = list(grouped_designs[operator_family])
+        if design_sizes:
+            family_designs = sorted(family_designs, key=lambda design_name: (-design_sizes.get(design_name, 0), randomized_rank[design_name]))
+        else:
+            family_designs = sorted(family_designs, key=lambda design_name: randomized_rank[design_name])
+
+        for design_index, design_name in enumerate(family_designs):
+            fold_index = design_index % cv_folds
+            if (design_index // cv_folds) % 2 == 1:
+                fold_index = (cv_folds - 1) - fold_index
+            folds[fold_index].append(design_name)
+
+    return folds
+
+
 def split_designs(
     shuffled_designs,
     training_split,
@@ -606,6 +665,8 @@ def split_designs(
     cv_fold_index=0,
     stratify_by_size=False,
     design_sizes=None,
+    stratify_by_operator=False,
+    design_operator_families=None,
 ):
     if cv_folds < 1:
         raise ValueError("--cv_folds must be at least 1.")
@@ -641,7 +702,11 @@ def split_designs(
             )
         )
 
-    if stratify_by_size:
+    if stratify_by_operator:
+        if not design_operator_families:
+            raise ValueError("Operator-stratified cross-validation requires per-design operator family metadata.")
+        folds = _build_operator_stratified_folds(shuffled_designs, design_operator_families, cv_folds, design_sizes=design_sizes if stratify_by_size else None)
+    elif stratify_by_size:
         if not design_sizes:
             raise ValueError("Size-stratified cross-validation requires per-design size metadata.")
         folds = _build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds)
@@ -671,6 +736,7 @@ def load_raw_data(args):
     Build the training and testing sample lists from the config, labels CSV,
     and serialized design graphs without applying normalization.
     """
+    verbose = not getattr(args, "disable_verbose", False)
     dataset_dir = Path(args.dataset_dir)
     
     if not dataset_dir.exists():
@@ -681,8 +747,9 @@ def load_raw_data(args):
     design_names = load_config_design_names(args.config)
     available_graph_designs = list_graph_design_names(dataset_dir)
     
-    print("Designs declared in config: {}".format(", ".join(design_names)))
-    print("Available graph designs: {}".format(", ".join(available_graph_designs)))
+    if verbose:
+        print("Designs declared in config: {}".format(", ".join(design_names)))
+        print("Available graph designs: {}".format(", ".join(available_graph_designs)))
     
     allowed_design_names = [design_name for design_name in design_names if design_name in available_graph_designs]
     missing_graph_designs = [design_name for design_name in design_names if design_name not in available_graph_designs]
@@ -692,11 +759,7 @@ def load_raw_data(args):
 
     recipe_feature_keys = load_recipe_feature_keys(args.config)
     allowed_recipe_values = load_allowed_recipe_values(args.config)
-    labels_by_design = load_label_rows(
-        args.labels,
-        set(allowed_design_names),
-        allowed_recipe_values=allowed_recipe_values,
-    )
+    labels_by_design = load_label_rows(args.labels, set(allowed_design_names), allowed_recipe_values=allowed_recipe_values)
 
     designs_with_labels = [design_name for design_name in allowed_design_names if labels_by_design.get(design_name)]
     
@@ -709,6 +772,7 @@ def load_raw_data(args):
     graph_summaries = []
     graph_summary_by_design = {}
     design_sizes = {}
+    design_operator_families = {}
     for design_name in shuffled_designs:
         graph = load_graph_for_design(dataset_dir, design_name)
         graphs_by_design[design_name] = graph
@@ -716,15 +780,9 @@ def load_raw_data(args):
         graph_summaries.append(summary)
         graph_summary_by_design[design_name] = summary
         design_sizes[design_name] = summary["num_nodes"]
+        design_operator_families[design_name] = _infer_flopoco_operator_family(design_name)
 
-    training_designs, testing_designs = split_designs(
-        shuffled_designs,
-        args.training_split,
-        cv_folds=args.cv_folds,
-        cv_fold_index=args.cv_fold_index,
-        stratify_by_size=getattr(args, "cv_stratify_by_size", False),
-        design_sizes=design_sizes,
-    )
+    training_designs, testing_designs = split_designs(shuffled_designs, args.training_split, cv_folds=args.cv_folds, cv_fold_index=args.cv_fold_index, stratify_by_size=getattr(args, "cv_stratify_by_size", False), design_sizes=design_sizes, stratify_by_operator=getattr(args, "cv_stratify_by_operator", False), design_operator_families=design_operator_families)
 
     training_data = []
     testing_data = []
@@ -732,27 +790,19 @@ def load_raw_data(args):
     for design_name in shuffled_designs:
         graph = graphs_by_design[design_name]
         summary = graph_summary_by_design[design_name]
-        print(summary)
-        design_samples = [
-            attach_label_metadata(graph, label_row, recipe_feature_keys)
-            for label_row in labels_by_design[design_name]
-        ]
+        if verbose:
+            print(summary)
+        design_samples = [attach_label_metadata(graph, label_row, recipe_feature_keys) for label_row in labels_by_design[design_name]]
 
         if design_name in training_designs:
             training_data.extend(design_samples)
         else:
             testing_data.extend(design_samples)
 
-    if missing_graph_designs:
-        print(
-            "Skipped {} config designs with no graph file in {}: {}".format(
-                len(missing_graph_designs),
-                dataset_dir,
-                ", ".join(missing_graph_designs),
-            )
-        )
+    if verbose and missing_graph_designs:
+        print("Skipped {} config designs with no graph file in {}: {}".format(len(missing_graph_designs), dataset_dir, ", ".join(missing_graph_designs)))
 
-    if graph_summaries:
+    if verbose and graph_summaries:
         print("Graph statistics:")
         for summary in graph_summaries:
             print(
@@ -767,40 +817,22 @@ def load_raw_data(args):
 
         total_nodes = sum(summary["num_nodes"] for summary in graph_summaries)
         total_edges = sum(summary["num_edges"] for summary in graph_summaries)
-        print(
-            "Graph totals: designs={} total_nodes={} total_edges={} avg_nodes_per_graph={:.2f} avg_edges_per_graph={:.2f}".format(
-                len(graph_summaries),
-                total_nodes,
-                total_edges,
-                total_nodes / len(graph_summaries),
-                total_edges / len(graph_summaries),
-            )
-        )
+        print("Graph totals: designs={} total_nodes={} total_edges={} avg_nodes_per_graph={:.2f} avg_edges_per_graph={:.2f}".format(len(graph_summaries), total_nodes, total_edges, total_nodes / len(graph_summaries), total_edges / len(graph_summaries)))
 
-    print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
-    print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
-    print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
-    if args.cv_folds > 1:
-        print(
-            "Cross-validation fold: {}/{}".format(
-                args.cv_fold_index + 1,
-                args.cv_folds,
-            )
-        )
-        if getattr(args, "cv_stratify_by_size", False):
-            print("Cross-validation stratification: graph size (node count)")
-    print(
-        "Training designs: {}".format(
-            ", ".join(design_name for design_name in shuffled_designs if design_name in training_designs)
-        )
-    )
-    print(
-        "Testing designs: {}".format(
-            ", ".join(design_name for design_name in shuffled_designs if design_name in testing_designs)
-        )
-    )
-    print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
-    print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
+    if verbose:
+        print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
+        print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
+        print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
+        if args.cv_folds > 1:
+            print("Cross-validation fold: {}/{}".format(args.cv_fold_index + 1, args.cv_folds))
+            if getattr(args, "cv_stratify_by_size", False):
+                print("Cross-validation stratification: graph size (node count)")
+            if getattr(args, "cv_stratify_by_operator", False):
+                print("Cross-validation stratification: FloPoCo operator family")
+        print("Training designs: {}".format(", ".join(design_name for design_name in shuffled_designs if design_name in training_designs)))
+        print("Testing designs: {}".format(", ".join(design_name for design_name in shuffled_designs if design_name in testing_designs)))
+        print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
+        print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
     return training_data, testing_data
 
 
@@ -809,31 +841,29 @@ def load_data(args, target_name):
     Build the training and testing sample lists from the config, labels CSV,
     and serialized design graphs, then fit and apply normalization.
     """
+    verbose = not getattr(args, "disable_verbose", False)
     training_data, testing_data = load_raw_data(args)
 
-    normalization_context = fit_normalization_context(
-        training_data,
-        testing_data,
-        target_name,
-    )
+    normalization_context = fit_normalization_context(training_data, testing_data, target_name, target_transform=getattr(args, "target_transform", "none"))
     apply_normalization_context(training_data, normalization_context, target_name)
     apply_normalization_context(testing_data, normalization_context, target_name)
 
-    print(
-        "Normalization summary: node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
-            normalization_context.feature_schema.node_numeric_indices,
-            normalization_context.feature_schema.node_categorical_indices,
-            normalization_context.feature_schema.edge_numeric_indices,
-            normalization_context.feature_schema.edge_categorical_indices,
-            normalization_context.feature_schema.recipe_numeric_indices,
+    if verbose:
+        print(
+            "Normalization summary: node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
+                normalization_context.feature_schema.node_numeric_indices,
+                normalization_context.feature_schema.node_categorical_indices,
+                normalization_context.feature_schema.edge_numeric_indices,
+                normalization_context.feature_schema.edge_categorical_indices,
+                normalization_context.feature_schema.recipe_numeric_indices,
+            )
         )
-    )
-    print(
-        "Target normalization ({}): mean={:.6f} std={:.6f}".format(
-            target_name,
-            normalization_context.target_mean,
-            normalization_context.target_std,
+        print(
+            "Target normalization ({}): mean={:.6f} std={:.6f}".format(
+                target_name,
+                normalization_context.target_mean,
+                normalization_context.target_std,
+            )
         )
-    )
 
     return training_data, testing_data, normalization_context

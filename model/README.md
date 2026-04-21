@@ -52,7 +52,7 @@ Arguments accepted by `qornet.py`:
 - `--cv_folds`
   Number of design-level folds for cross-validation.
 - `--cv_fold_index`
-  Which fold to use as the held-out split.
+  Which fold to use as the held-out split. In training mode, leaving this unset runs every fold and reports the average test MAE and R² at the end.
 - `--cv_stratify_by_size`
   Spread designs across folds by graph size instead of plain random splitting.
 - `--inference_split`
@@ -82,6 +82,21 @@ python3 model/qornet.py \
   --cv_fold_index 0 \
   --cv_stratify_by_size
 ```
+
+If you want to train across every fold and print the average test MAE/R² summary at the end, omit `--cv_fold_index`:
+
+```bash
+python3 model/qornet.py \
+  --config data/iscas_89_config.yaml \
+  --labels data/iscas_ground_truth_qor.csv \
+  --dataset_dir ast-parser/ast_parser_results/tensors \
+  --plot_dir qornet-cv \
+  --checkpoint_path qornet-cv/qornet_checkpoint.pt \
+  --cv_folds 5 \
+  --cv_stratify_by_size
+```
+
+That all-fold run also writes a unified CSV at `plot_dir/cross_validation_best_epoch_per_design_summary.csv` containing the best-epoch per-design summary for every testing design across all folds.
 
 ## Inference example (assumes pre-trained model)
 

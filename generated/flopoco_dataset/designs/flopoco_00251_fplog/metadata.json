@@ -1,0 +1,21 @@
+{
+  "clock_period_ns": 6.666667,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=150 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00251_fplog_top.vhdl name=flopoco_00251_fplog_top FPLog wE=10 wF=35 method=0 inTableSize=12",
+  "design_id": "flopoco_00251",
+  "design_name": "flopoco_00251_fplog",
+  "family": "FPLog",
+  "frequency_mhz": 150,
+  "operator": "FPLog",
+  "params": {
+    "inTableSize": 12,
+    "method": 0,
+    "wE": 10,
+    "wF": 35
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00251_fplog",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00251_fplog_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 150 MHz\nEntity InvA0Table_Freq150_uid8\n   Y: (c0, 0.215000ns)\nEntity LogTable0_Freq150_uid26\n   Y: (c0, 0.215000ns)\nEntity LogTable1_Freq150_uid29\n   Y: (c0, 0.328000ns)\nEntity LogTable2_Freq150_uid35\n   Y: (c0, 0.215000ns)\nEntity FixRealKCM_Freq150_uid44_T0_Freq150_uid47\n   Y: (c0, 0.328000ns)\nEntity FixRealKCM_Freq150_uid44_T1_Freq150_uid50\n   Y: (c0, 0.215000ns)\n|---Entity LZOC_35_Freq150_uid4\n|      O: (c0, 3.204000ns)\n|---Entity LeftShifter19_by_max_19_Freq150_uid6\n|      R: (c0, 4.967538ns)\n|---Entity InvA0Table_Freq150_uid8\n|      Y: (c0, 0.215000ns)\n|---Entity IntAdder_46_Freq150_uid12\n|      R: (c0, 1.969000ns)\n|---Entity IntAdder_46_Freq150_uid15\n|      R: (c0, 2.846000ns)\n|---Entity IntAdder_39_Freq150_uid18\n|      R: (c0, 3.467000ns)\n|---Entity IntAdder_39_Freq150_uid21\n|      R: (c0, 4.559000ns)\n|---Entity IntAdder_39_Freq150_uid24\n|      R: (c0, 6.018538ns)\n|---Entity LogTable0_Freq150_uid26\n|      Y: (c0, 0.215000ns)\n|---Entity LogTable1_Freq150_uid29\n|      Y: (c0, 0.328000ns)\n|---Entity IntAdder_57_Freq150_uid33\n|      R: (c0, 2.164000ns)\n|---Entity LogTable2_Freq150_uid35\n|      Y: (c0, 0.215000ns)\n|---Entity IntAdder_57_Freq150_uid39\n|      R: (c0, 3.805000ns)\n|---Entity IntAdder_57_Freq150_uid42\n|      R: (c1, 0.702872ns)\n|   |---Entity FixRealKCM_Freq150_uid44_T0_Freq150_uid47\n|   |      Y: (c0, 0.328000ns)\n|   |---Entity FixRealKCM_Freq150_uid44_T1_Freq150_uid50\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity IntAdder_49_Freq150_uid54\n|   |      R: (c0, 1.744000ns)\n|---Entity FixRealKCM_Freq150_uid44\n|      R: (c0, 1.744000ns)\n|---Entity IntAdder_67_Freq150_uid56\n|      R: (c1, 1.487872ns)\n|---Entity Normalizer_Z_67_57_27_Freq150_uid58\n|      Count: (c1, 3.437872ns)   R: (c1, 3.652872ns)\n|---Entity RightShifter23_by_max_22_Freq150_uid60\n|      R: (c1, 0.080487ns)\n|---Entity IntAdder_41_Freq150_uid62\n|      R: (c1, 0.742487ns)\n|---Entity IntAdder_45_Freq150_uid65\n|      R: (c1, 4.314872ns)\nEntity flopoco_00251_fplog_top\n   R: (c1, 4.314872ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00251_fplog_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00251_fplog/flopoco_00251_fplog_top.vhdl"
+}

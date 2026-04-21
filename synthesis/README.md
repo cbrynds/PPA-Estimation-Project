@@ -13,21 +13,6 @@ ASTs (Yosys) and ground truth timing values (OpenROAD) for an RTL dataset.
 
 ## Run
 
-### Local serial run
-
-1. Create a config or use the config in `synthesis/dataset_config.yaml`.
-2. Execute:
-
-```bash
-python3 synthesis/collect_dataset.py synthesis/dataset_config.yaml
-```
-
-This legacy form is equivalent to:
-
-```bash
-python3 synthesis/collect_dataset.py run-serial synthesis/dataset_config.yaml
-```
-
 ### Slurm job-array workflow
 
 Use the Slurm path when you want to synthesize many `design x recipe` runs in
@@ -56,6 +41,13 @@ The simplest submission command is:
 synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
 ```
 
+If you use the helper setup script, make sure to source it so the module load and
+exports affect your current shell:
+
+```bash
+source synthesis/slurm_setup.sh
+```
+
 This will:
 
 - expand the YAML into a JSONL manifest
@@ -79,6 +71,7 @@ Example:
 
 ```bash
 export ARRAY_MAX_CONCURRENT=50
+export ARRAY_MAX_SIZE=1001
 export SLURM_PARTITION=compute
 export SLURM_TIME=04:00:00
 export SLURM_MEM=8G
@@ -97,6 +90,7 @@ synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
 Supported variables:
 
 - `ARRAY_MAX_CONCURRENT`: max number of array tasks running at once
+- `ARRAY_MAX_SIZE`: max number of tasks in any one submitted Slurm array job
 - `SLURM_LOG_DIR`: directory for `slurm-%A_%a.out` and `slurm-%A_%a.err`
 - `SLURM_PARTITION`: passed to `sbatch --partition`
 - `SLURM_EXCLUDE`: passed to `sbatch --exclude`
@@ -118,6 +112,10 @@ cd "$(readlink -f .)"
 export APPTAINER_BINDPATH="$PWD:$PWD"
 ```
 
+The batch wrapper now runs `module load apptainer` inside each Slurm array task
+as well, so compute nodes do not depend on the submit shell still having the
+Apptainer module in its `PATH`.
+
 If your site has a misconfigured node, you can exclude it without editing the
 submission script:
 
@@ -132,6 +130,11 @@ Or pin the run to a known-good node:
 export SLURM_NODELIST=ec25
 synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
 ```
+
+If your cluster limits array size, the submit wrapper will automatically split
+the manifest into multiple chunk manifests when the total number of runs exceeds
+`ARRAY_MAX_SIZE` (default `1001`). Each chunk is submitted as its own Slurm
+array job, while still sharing the same result-shard directory for merging later.
 
 #### 4. What each task runs
 
@@ -200,4 +203,3 @@ Outputs:
 
 - `flow_mode: full` is slower but more accuracy to a physical design.
 - `flow_mode: fast` stops after placement step. Is faster but less accurate.
-- Result rows now include `status`, `error_stage`, and `error_message` so failed runs can be retained and filtered downstream.

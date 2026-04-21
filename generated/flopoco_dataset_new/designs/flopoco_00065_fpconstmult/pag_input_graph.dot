@@ -1,0 +1,19 @@
+// File generated:  Sat Apr 18 23:04:44 2026
+
+digraph DAG {
+I1_s0[label="1",fontsize=12,shape=ellipse];
+A2731_s1[label="2731",fontsize=12,shape=box];
+A1365_s1[label="1365",fontsize=12,shape=box];
+A455_s1[label="455",fontsize=12,shape=box];
+A65_s1[label="65",fontsize=12,shape=box];
+O2731_s1[label="2731",fontsize=12,shape=none];
+I1_s0 -> A2731_s1 [label="",fontsize=12]
+A1365_s1 -> A2731_s1 [label="1",fontsize=12]
+A455_s1 -> A1365_s1 [label="",fontsize=12]
+A455_s1 -> A1365_s1 [label="1",fontsize=12]
+A65_s1 -> A455_s1 [label="3",fontsize=12]
+A65_s1 -> A455_s1 [label="(-)",fontsize=12]
+I1_s0 -> A65_s1 [label="",fontsize=12]
+I1_s0 -> A65_s1 [label="6",fontsize=12]
+A2731_s1 -> O2731_s1
+}

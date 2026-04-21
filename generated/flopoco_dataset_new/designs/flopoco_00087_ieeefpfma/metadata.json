@@ -1,0 +1,19 @@
+{
+  "clock_period_ns": 3.333333,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=300 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00087_ieeefpfma_top.vhdl name=flopoco_00087_ieeefpfma_top IEEEFPFMA wE=11 wF=52",
+  "design_id": "flopoco_00087",
+  "design_name": "flopoco_00087_ieeefpfma",
+  "family": "IEEEFPFMA",
+  "frequency_mhz": 300,
+  "operator": "IEEEFPFMA",
+  "params": {
+    "wE": 11,
+    "wF": 52
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00087_ieeefpfma",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00087_ieeefpfma_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 300 MHz\n|---Entity RightShifter53_by_max_163_Freq300_uid4\n|      R: (c2, 2.924103ns)\n|---Entity LZC_110_Freq300_uid6\n|      O: (c3, 2.148894ns)\n|---Entity LeftShifter163_by_max_162_Freq300_uid8\n|      R: (c8, 2.292228ns)\nEntity flopoco_00087_ieeefpfma_top\n   R: (c8, 2.292228ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00087_ieeefpfma_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00087_ieeefpfma/flopoco_00087_ieeefpfma_top.vhdl"
+}

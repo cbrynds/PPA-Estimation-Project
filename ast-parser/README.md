@@ -1,5 +1,4 @@
-To generate your own dataset update these two variables inside ast_vector_parse.py
+To generate your own dataset use script as follows,
 ```
-directory = "./iscas_asts"
-output_directory = "./ast_parser_results/"
+python .\ast_vector_parse.py -src_dir .\iscas_asts\ -out_dir .\iscas_asts\
 ```

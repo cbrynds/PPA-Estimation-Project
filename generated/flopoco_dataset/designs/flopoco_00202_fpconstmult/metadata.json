@@ -1,0 +1,23 @@
+{
+  "clock_period_ns": 4.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=250 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00202_fpconstmult_top.vhdl name=flopoco_00202_fpconstmult_top FPConstMult wE=6 wF=11 constant=2 wEout=7 wFout=11 cst_width=12",
+  "design_id": "flopoco_00202",
+  "design_name": "flopoco_00202_fpconstmult",
+  "family": "FPConstMult",
+  "frequency_mhz": 250,
+  "operator": "FPConstMult",
+  "params": {
+    "constant": "2",
+    "cst_width": 12,
+    "wE": 6,
+    "wEout": 7,
+    "wF": 11,
+    "wFout": 11
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00202_fpconstmult",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00202_fpconstmult_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 250 MHz\nEntity flopoco_00202_fpconstmult_top\n   R: (c0, 0.000000ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00202_fpconstmult_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00202_fpconstmult/flopoco_00202_fpconstmult_top.vhdl"
+}

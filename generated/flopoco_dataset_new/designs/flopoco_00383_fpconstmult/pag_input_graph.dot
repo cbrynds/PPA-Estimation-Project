@@ -1,0 +1,48 @@
+// File generated:  Sat Apr 18 23:05:05 2026
+
+digraph DAG {
+I1_s0[label="1",fontsize=12,shape=ellipse];
+A3_s1[label="3",fontsize=12,shape=box];
+A5_s1[label="5",fontsize=12,shape=box];
+A7_s1[label="7",fontsize=12,shape=box];
+A31_s1[label="31",fontsize=12,shape=box];
+A41_s2[label="41",fontsize=12,shape=box];
+A49_s2[label="49",fontsize=12,shape=box];
+A103_s2[label="103",fontsize=12,shape=box];
+A671_s2[label="671",fontsize=12,shape=box];
+A205_s3[label="205",fontsize=12,shape=box];
+A11407_s3[label="11407",fontsize=12,shape=box];
+A100455_s3[label="100455",fontsize=12,shape=box];
+A741455_s4[label="741455",fontsize=12,shape=box];
+A3439228825_s4[label="3439228825",fontsize=12,shape=box];
+O2965820_s4[label="2965820",fontsize=12,shape=none];
+O3439228825_s4[label="3439228825",fontsize=12,shape=none];
+I1_s0 -> A3_s1 [label="",fontsize=12]
+I1_s0 -> A3_s1 [label="1",fontsize=12]
+I1_s0 -> A5_s1 [label="",fontsize=12]
+I1_s0 -> A5_s1 [label="2",fontsize=12]
+I1_s0 -> A7_s1 [label="3",fontsize=12]
+I1_s0 -> A7_s1 [label="(-)",fontsize=12]
+I1_s0 -> A31_s1 [label="5",fontsize=12]
+I1_s0 -> A31_s1 [label="(-)",fontsize=12]
+A3_s1 -> A41_s2 [label="4",fontsize=12]
+A7_s1 -> A41_s2 [label="(-)",fontsize=12]
+A5_s1 -> A49_s2 [label="4",fontsize=12]
+A31_s1 -> A49_s2 [label="(-)",fontsize=12]
+A3_s1 -> A103_s2 [label="5",fontsize=12]
+A7_s1 -> A103_s2 [label="",fontsize=12]
+A5_s1 -> A671_s2 [label="7",fontsize=12]
+A31_s1 -> A671_s2 [label="",fontsize=12]
+A41_s2 -> A205_s3 [label="",fontsize=12]
+A41_s2 -> A205_s3 [label="2",fontsize=12]
+A671_s2 -> A11407_s3 [label="",fontsize=12]
+A671_s2 -> A11407_s3 [label="4",fontsize=12]
+A49_s2 -> A100455_s3 [label="11",fontsize=12]
+A103_s2 -> A100455_s3 [label="",fontsize=12]
+A11407_s3 -> A741455_s4 [label="",fontsize=12]
+A11407_s3 -> A741455_s4 [label="6",fontsize=12]
+A205_s3 -> A3439228825_s4 [label="24",fontsize=12]
+A100455_s3 -> A3439228825_s4 [label="(-)",fontsize=12]
+A741455_s4 -> O2965820_s4[label="2",fontsize=12]
+A3439228825_s4 -> O3439228825_s4
+}

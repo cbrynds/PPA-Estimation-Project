@@ -1,0 +1,23 @@
+{
+  "clock_period_ns": 2.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=500 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00168_fpexp_top.vhdl name=flopoco_00168_fpexp_top FPExp wE=5 wF=10 d=2 k=0 g=0 fullInput=1",
+  "design_id": "flopoco_00168",
+  "design_name": "flopoco_00168_fpexp",
+  "family": "FPExp",
+  "frequency_mhz": 500,
+  "operator": "FPExp",
+  "params": {
+    "d": 2,
+    "fullInput": 1,
+    "g": 0,
+    "k": 0,
+    "wE": 5,
+    "wF": 10
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00168_fpexp",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00168_fpexp_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 500 MHz\nEntity FixRealKCM_Freq500_uid8_T0_Freq500_uid11\n   Y: (c0, 0.215000ns)\nEntity FixRealKCM_Freq500_uid15_T0_Freq500_uid18\n   Y: (c0, 0.215000ns)\nEntity FixFunctionByTable_Freq500_uid25\n   Y: (c0, 0.215000ns)\n|---Entity LeftShifter16_by_max_13_Freq500_uid4\n|      R: (c0, 1.671231ns)\n|   |   |---Entity FixRealKCM_Freq500_uid8_T0_Freq500_uid11\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity FixRealKCM_Freq500_uid8\n|   |      R: (c1, 0.036231ns)\n|   |   |---Entity FixRealKCM_Freq500_uid15_T0_Freq500_uid18\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity FixRealKCM_Freq500_uid15\n|   |      R: (c1, 0.251231ns)\n|   |---Entity IntAdder_10_Freq500_uid23\n|   |      R: (c1, 0.749231ns)\n|   |---Entity FixFunctionByTable_Freq500_uid25\n|   |      Y: (c0, 0.215000ns)\n|---Entity Exp_5_10_Freq500_uid6\n|      expY: (c0, 0.000000ns)   K: (c1, 0.508231ns)\n|---Entity IntAdder_17_Freq500_uid28\n|      R: (c0, 0.000000ns)\nEntity flopoco_00168_fpexp_top\n   R: (c0, 0.000000ns)",
+  "stdout": "wE=5 wF=10 d=2 k=0 g=0",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00168_fpexp_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00168_fpexp/flopoco_00168_fpexp_top.vhdl"
+}

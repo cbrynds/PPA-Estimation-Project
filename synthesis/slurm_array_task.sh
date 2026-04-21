@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Load Apptainer inside the batch job so compute nodes inherit the runtime too.
+module load apptainer
+
 if [[ $# -lt 2 ]]; then
   echo "Usage: $0 <repo_root> <config_path> [manifest_path]" >&2
   exit 1

@@ -1,0 +1,20 @@
+{
+  "clock_period_ns": 5.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=200 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00426_fpsqrt_top.vhdl name=flopoco_00426_fpsqrt_top FPSqrt wE=8 wF=7 method=1",
+  "design_id": "flopoco_00426",
+  "design_name": "flopoco_00426_fpsqrt",
+  "family": "FPSqrt",
+  "frequency_mhz": 200,
+  "operator": "FPSqrt",
+  "params": {
+    "method": 1,
+    "wE": 8,
+    "wF": 7
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00426_fpsqrt",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00426_fpsqrt_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 200 MHz\nEntity flopoco_00426_fpsqrt_top\n   R: (c0, 4.309000ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00426_fpsqrt_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset_new/designs/flopoco_00426_fpsqrt/flopoco_00426_fpsqrt_top.vhdl"
+}

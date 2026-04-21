@@ -1,0 +1,10 @@
+// File generated:  Sat Apr 18 23:05:09 2026
+
+digraph DAG {
+I1_s0[label="1",fontsize=12,shape=ellipse];
+A3_s1[label="3",fontsize=12,shape=box];
+O3_s1[label="3",fontsize=12,shape=none];
+I1_s0 -> A3_s1 [label="",fontsize=12]
+I1_s0 -> A3_s1 [label="1",fontsize=12]
+A3_s1 -> O3_s1
+}

@@ -5,12 +5,21 @@ apptainer_image: Open-EDA-Flow/eda-flow.sif
 
 # full: includes routing + extraction (slower, closer to routed metrics)
 # fast: stops post-placement, faster but less accurate
-flow_mode: fast
+flow_mode: full
 die_area: "0 0 800 800"
 core_area: "10 10 790 790"
 
 default_clock_port: clk
 default_clock_period_ns: 3.0
+
+sweep_mode: bounded_cartesian
+sweep:
+  abc_fast: [true]
+  clock_period_ns: [0.5, 1.0, 2.0, 3.0, 4.0]
+  max_fanout: [8, 16, 32, 64]
+  max_transition_ns: [0.16, 0.20, 0.24]
+  max_capacitance_ff: [40.0, 60.0, 80.0]
+  fanout_load: [1.0, 2.0, 4.0]
 
 ast:
   proc: true
@@ -23,11 +32,6 @@ output:
   ast_dir: synthesis/results/ast
   ast_log_dir: synthesis/results/ast_logs
   result_shards_dir: synthesis/results/result_shards
-
-recipes:
-  - id: abc_fast
-    abc_fast: true
-    abc_extra: ""
 
 designs:
   # Paper-motivated training subset derived from overlap/near-overlap analysis.

@@ -1,0 +1,23 @@
+{
+  "clock_period_ns": 4.0,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=250 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00072_fpexp_top.vhdl name=flopoco_00072_fpexp_top FPExp wE=5 wF=10 d=4 k=8 g=2 fullInput=0",
+  "design_id": "flopoco_00072",
+  "design_name": "flopoco_00072_fpexp",
+  "family": "FPExp",
+  "frequency_mhz": 250,
+  "operator": "FPExp",
+  "params": {
+    "d": 4,
+    "fullInput": 0,
+    "g": 2,
+    "k": 8,
+    "wE": 5,
+    "wF": 10
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00072_fpexp",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00072_fpexp_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 250 MHz\nEntity FixRealKCM_Freq250_uid8_T0_Freq250_uid11\n   Y: (c0, 0.215000ns)\nEntity FixRealKCM_Freq250_uid15_T0_Freq250_uid18\n   Y: (c0, 0.215000ns)\nEntity FixFunctionByTable_Freq250_uid25\n   Y: (c0, 0.215000ns)\nEntity FixFunctionByTable_Freq250_uid28\n   Y: (c0, 0.215000ns)\nEntity MultTable_Freq250_uid42\n   Y: (c0, 0.215000ns)\n|---Entity LeftShifter11_by_max_15_Freq250_uid4\n|      R: (c0, 1.517385ns)\n|   |   |---Entity FixRealKCM_Freq250_uid8_T0_Freq250_uid11\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity FixRealKCM_Freq250_uid8\n|   |      R: (c0, 1.732385ns)\n|   |   |---Entity FixRealKCM_Freq250_uid15_T0_Freq250_uid18\n|   |   |      Y: (c0, 0.215000ns)\n|   |---Entity FixRealKCM_Freq250_uid15\n|   |      R: (c0, 1.947385ns)\n|   |---Entity IntAdder_12_Freq250_uid23\n|   |      R: (c0, 2.445385ns)\n|   |---Entity FixFunctionByTable_Freq250_uid25\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity FixFunctionByTable_Freq250_uid28\n|   |      Y: (c0, 0.215000ns)\n|   |---Entity IntAdder_3_Freq250_uid33\n|   |      R: (c0, 3.132385ns)\n|   |   |   |---Entity MultTable_Freq250_uid42\n|   |   |   |      Y: (c0, 0.215000ns)\n|   |   |---Entity IntMultiplierLUT_2x3_Freq250_uid40\n|   |   |      R: (c0, 3.347385ns)\n|   |   |---Entity IntAdder_5_Freq250_uid46\n|   |   |      R: (c0, 3.819385ns)\n|   |---Entity IntMultiplier_2x3_4_Freq250_uid35\n|   |      R: (c0, 3.819385ns)\n|   |---Entity IntAdder_13_Freq250_uid49\n|   |      R: (c1, 0.467385ns)\n|---Entity Exp_5_10_Freq250_uid6\n|      expY: (c1, 0.467385ns)   K: (c0, 2.204385ns)\n|---Entity IntAdder_17_Freq250_uid52\n|      R: (c1, 1.221385ns)\nEntity flopoco_00072_fpexp_top\n   R: (c1, 1.436385ns)",
+  "stdout": "wE=5 wF=10 d=4 k=10 g=2\n\u001b[1;37mInfo: \u001b[0m\u001b[0;34mIntMultiplier.cpp\u001b[0m: errorBudget=1 actualLSB=0  centerErrConstant=0",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00072_fpexp_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00072_fpexp/flopoco_00072_fpexp_top.vhdl"
+}

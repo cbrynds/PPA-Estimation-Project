@@ -1,0 +1,19 @@
+{
+  "clock_period_ns": 3.333333,
+  "command": "flopoco target=VirtexUltrascalePlus frequency=300 plainVHDL=1 useTargetOpt=0 outputFile=flopoco_00097_ieeefpadd_top.vhdl name=flopoco_00097_ieeefpadd_top IEEEFPAdd wE=5 wF=10",
+  "design_id": "flopoco_00097",
+  "design_name": "flopoco_00097_ieeefpadd",
+  "family": "IEEEFPAdd",
+  "frequency_mhz": 300,
+  "operator": "IEEEFPAdd",
+  "params": {
+    "wE": 5,
+    "wF": 10
+  },
+  "rtl_dir": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00097_ieeefpadd",
+  "stderr": "*** Final report ***\nOutput file: flopoco_00097_ieeefpadd_top.vhdl\nPipeline constructed using approximate timings for target VirtexUltrascalePlus @ 300 MHz\n|---Entity RightShifterSticky13_by_max_12_Freq300_uid4\n|      R: (c0, 2.276000ns)   Sticky: (c0, 2.930375ns)\n|---Entity IntAdder_14_Freq300_uid6\n|      R: (c1, 0.245042ns)\n|---Entity LZC_13_Freq300_uid8\n|      O: (c1, 1.325667ns)\n|---Entity LeftShifter14_by_max_13_Freq300_uid10\n|      R: (c1, 3.150359ns)\n|---Entity IntAdder_15_Freq300_uid13\n|      R: (c2, 1.152026ns)\nEntity flopoco_00097_ieeefpadd_top\n   R: (c2, 1.839026ns)",
+  "stdout": "",
+  "target": "VirtexUltrascalePlus",
+  "top": "flopoco_00097_ieeefpadd_top",
+  "vhdl_file": "/Users/cbrynds/GitHub/PPA-Estimation-Project/generated/flopoco_dataset/designs/flopoco_00097_ieeefpadd/flopoco_00097_ieeefpadd_top.vhdl"
+}

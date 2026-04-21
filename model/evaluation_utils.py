@@ -5,6 +5,7 @@ Author: Cory Brynds
 """
 
 import torch
+import graph_processing as graph_proc
 
 
 def resolve_target(data, target_name):
@@ -23,8 +24,18 @@ def mean_absolute_error(predictions, targets):
     return torch.mean(torch.abs(predictions - targets))
 
 
+def mean_absolute_percentage_error(predictions, targets, epsilon=1e-8):
+    safe_denominator = torch.abs(targets)
+    valid_mask = safe_denominator > epsilon
+    if not torch.any(valid_mask):
+        return torch.tensor(0.0, device=predictions.device, dtype=predictions.dtype)
+    percentage_errors = torch.abs((predictions[valid_mask] - targets[valid_mask]) / safe_denominator[valid_mask]) * 100.0
+    return torch.mean(percentage_errors)
+
+
 def denormalize_targets(values, normalization_context):
-    return (values * normalization_context.target_std) + normalization_context.target_mean
+    transformed_values = (values * normalization_context.target_std) + normalization_context.target_mean
+    return graph_proc.invert_target_transform(transformed_values, normalization_context.target_transform)
 
 
 def r2_score(predictions, targets, epsilon=1e-8):
