@@ -62,7 +62,9 @@ def invert_target_transform(transformed_target_tensor, target_transform):
 
 def _default_categorical_indices(feature_width, kind):
     if kind == "node" and feature_width == 5:
-        return (2, 3)
+        # Node layout from ast_vector_parse.py:
+        # [cell_group, cell_type, input_bits, output_bits, neighbor_cells]
+        return (0, 1)
     if kind == "edge" and feature_width == 3:
         return (1, 2)
     return ()
