@@ -32,9 +32,9 @@ paper and based on recommendations from GNN literature.
 """
 @dataclass
 class Hyperparameters:
-    num_epochs: int = 500
-    learning_rate: float = 5e-4 # Changed from 1e-3
-    batch_size: int = 16
+    num_epochs: int = 300
+    learning_rate: float = 1e-4 # Changed from 1e-3
+    batch_size: int = 32
     weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
     loss_fn: nn.Module = nn.SmoothL1Loss() # Much less sensitive to outliers than MSELoss
     target_name: str = "wns"
