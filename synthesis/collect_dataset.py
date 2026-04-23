@@ -37,6 +37,8 @@ CSV_FIELDNAMES = [
     "top_module",
     "clock_port",
     "abc_fast_cfg",
+    "default_clock_period_ns_cfg",
+    "clock_period_offset_ns_cfg",
     "clock_period_ns_cfg",
     "max_fanout_cfg",
     "max_transition_ns_cfg",
@@ -130,6 +132,17 @@ def validate_positive_list(name, values):
             raise ValueError("Sweep axis '{}' values must be > 0.".format(name))
         normalized.append(value)
     return normalized
+
+
+def resolve_design_clock_period_ns(cfg, design):
+    global_clock_period_ns = cfg.get("clock_period_ns")
+    if global_clock_period_ns is not None:
+        return float(global_clock_period_ns)
+    if "default_clock_period_ns" in design:
+        return float(design["default_clock_period_ns"])
+    if "clock_period_ns" in design:
+        return float(design["clock_period_ns"])
+    return float(cfg.get("default_clock_period_ns", 3.0))
 
 
 def validate_bool_list(name, values):
@@ -312,7 +325,7 @@ def yosys_read_commands(files, include_dirs, dump_ast, top, vhdl_std):
     if vhdl_files:
         lines.append("plugin -i ghdl")
         lines.append(
-            "ghdl --std={} {} -e {}".format(
+            "ghdl --std={} --ieee=synopsys {} -e {}".format(
                 vhdl_std,
                 " ".join(str(file_path) for file_path in vhdl_files),
                 top,
@@ -703,20 +716,13 @@ def build_run_specs(ctx):
             )
         )
     specs = []
-    global_clock_period_ns = ctx["cfg"].get("clock_period_ns")
     for design in ctx["designs"]:
         design_name = design["name"]
         top = design["top"]
         include_dirs = [resolve(ctx["project_root"], p) for p in design.get("include_dirs", [])]
         clock_port = design.get("clock_port", ctx["cfg"].get("default_clock_port", "clk"))
         vhdl_std = str(design.get("vhdl_std", ctx["cfg"].get("default_vhdl_std", "08")))
-        if global_clock_period_ns is not None:
-            design_period_ns = float(global_clock_period_ns)
-        else:
-            design_period_ns = design.get(
-                "clock_period_ns",
-                ctx["cfg"].get("default_clock_period_ns", 3.0),
-            )
+        design_period_ns = resolve_design_clock_period_ns(ctx["cfg"], design)
         files = collect_rtl_files(design, ctx["project_root"])
         ast_json_out = ctx["ast_dir"] / "{}.json".format(design_name)
         ast_log_path = ctx["ast_log_dir"] / "{}.log".format(design_name)
@@ -729,7 +735,19 @@ def build_run_specs(ctx):
             abc_extra = recipe.get("abc_extra", "")
             if abc_extra:
                 synth_variant = "{}__{}".format(synth_variant, format_token(abc_extra))
-            period_ns = float(recipe.get("clock_period_ns", design_period_ns))
+            clock_period_offset_ns = recipe.get("clock_period_ns")
+            period_ns = float(design_period_ns)
+            if clock_period_offset_ns is not None:
+                period_ns -= float(clock_period_offset_ns)
+            if period_ns <= 0:
+                raise ValueError(
+                    "Effective clock period for design '{}' recipe '{}' is <= 0 (default {} ns minus offset {}).".format(
+                        design_name,
+                        recipe_id,
+                        design_period_ns,
+                        clock_period_offset_ns,
+                    )
+                )
             max_fanout = recipe.get("max_fanout")
             max_transition_ns = recipe.get("max_transition_ns")
             max_capacitance_ff = recipe.get("max_capacitance_ff")
@@ -753,6 +771,10 @@ def build_run_specs(ctx):
                 "clock_port": clock_port,
                 "vhdl_std": vhdl_std,
                 "abc_fast_cfg": bool(recipe.get("abc_fast", True)),
+                "default_clock_period_ns_cfg": float(design_period_ns),
+                "clock_period_offset_ns_cfg": (
+                    "" if clock_period_offset_ns is None else float(clock_period_offset_ns)
+                ),
                 "clock_period_ns_cfg": float(period_ns),
                 "max_fanout_cfg": "" if max_fanout is None else float(max_fanout),
                 "max_transition_ns_cfg": "" if max_transition_ns is None else float(max_transition_ns),
@@ -765,6 +787,7 @@ def build_run_specs(ctx):
                     "id": recipe_id,
                     "abc_fast": bool(recipe.get("abc_fast", True)),
                     "abc_extra": recipe.get("abc_extra", ""),
+                    "clock_period_ns": clock_period_offset_ns,
                     "max_fanout": max_fanout,
                     "max_transition_ns": max_transition_ns,
                     "max_capacitance_ff": max_capacitance_ff,
@@ -832,6 +855,8 @@ def make_base_row(spec):
         "top_module": spec["top_module"],
         "clock_port": spec["clock_port"],
         "abc_fast_cfg": spec.get("abc_fast_cfg", ""),
+        "default_clock_period_ns_cfg": spec.get("default_clock_period_ns_cfg", ""),
+        "clock_period_offset_ns_cfg": spec.get("clock_period_offset_ns_cfg", ""),
         "clock_period_ns_cfg": spec["clock_period_ns_cfg"],
         "max_fanout_cfg": spec.get("max_fanout_cfg", ""),
         "max_transition_ns_cfg": spec.get("max_transition_ns_cfg", ""),

@@ -14,7 +14,9 @@ default_clock_period_ns: 3.0
 
 sweep_mode: bounded_cartesian
 sweep:
-  clock_period_ns: [0.25, 0.5, 0.75, 1.0, 1.5]
+  # `clock_period_ns` is treated as a subtraction offset from each design's
+  # `default_clock_period_ns`, so 0.01 means "default minus 0.01 ns".
+  clock_period_ns: [0.01, 0.02, 0.05, 0.10]
   max_fanout: [8, 16, 32, 64]
   max_transition_ns: [0.16, 0.20, 0.24]
   max_capacitance_ff: [40.0, 60.0, 80.0, 100.0]
@@ -39,6 +41,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1196
     top: s1196
     clock_port: CK # No explict clock port
+    default_clock_period_ns: 0.75
     recursive: false
     extensions: [".v"]
 
@@ -47,6 +50,7 @@ designs:
     rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/ss_pcm
     top: pcm_slv_top
     clock_port: clk
+    default_clock_period_ns: 0.3
     recursive: true
     extensions: [".v"]
 
@@ -55,6 +59,7 @@ designs:
     rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/usb_phy
     top: usb_phy
     clock_port: clk
+    default_clock_period_ns: 0.33
     recursive: true
     extensions: [".v"]
 
@@ -63,6 +68,7 @@ designs:
     rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/sasc
     top: sasc_top
     clock_port: clk
+    default_clock_period_ns: 0.52
     recursive: true
     extensions: [".v"]
 
@@ -71,6 +77,7 @@ designs:
     rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/simple_spi
     top: simple_spi_top
     clock_port: clk_i
+    default_clock_period_ns: 0.4
     recursive: true
     extensions: [".v"]
 
@@ -79,6 +86,7 @@ designs:
     rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/i2c
     top: i2c_master_top
     clock_port: wb_clk_i
+    default_clock_period_ns: 0.46
     recursive: true
     extensions: [".v"]
 
@@ -87,6 +95,7 @@ designs:
     rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/systemcdes
     top: des
     clock_port: clk
+    default_clock_period_ns: 0.78
     recursive: true
     extensions: [".v"]
 
@@ -95,6 +104,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1196a
     top: s1196
     clock_port: CK
+    default_clock_period_ns: 0.75
     recursive: false
     extensions: [".v"]
 
@@ -103,6 +113,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1196b
     top: s1196
     clock_port: CK
+    default_clock_period_ns: 0.75
     recursive: false
     extensions: [".v"]
 
@@ -111,6 +122,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1238
     top: s1238
     clock_port: CK
+    default_clock_period_ns: 0.77
     recursive: false
     extensions: [".v"]
 
@@ -119,6 +131,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1238a
     top: s1238
     clock_port: CK
+    default_clock_period_ns: 0.77
     recursive: false
     extensions: [".v"]
 
@@ -127,6 +140,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s13207
     top: s13207
     clock_port: CK
+    default_clock_period_ns: 1.2
     recursive: false
     extensions: [".v"]
 
@@ -135,6 +149,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s13207a
     top: s13207
     clock_port: CK
+    default_clock_period_ns: 1.1
     recursive: false
     extensions: [".v"]
 
@@ -143,6 +158,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1423
     top: s1423
     clock_port: CK
+    default_clock_period_ns: 1.2
     recursive: false
     extensions: [".v"]
 
@@ -151,6 +167,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1423a
     top: s1423
     clock_port: CK
+    default_clock_period_ns: 1.15
     recursive: false
     extensions: [".v"]
 
@@ -159,6 +176,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s1488
     top: s1488
     clock_port: CK
+    default_clock_period_ns: 0.5
     recursive: false
     extensions: [".v"]
 
@@ -167,6 +185,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s15850
     top: s15850
     clock_port: CK
+    default_clock_period_ns: 1.2
     recursive: false
     extensions: [".v"]
 
@@ -175,6 +194,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s15850a
     top: s15850
     clock_port: CK
+    default_clock_period_ns: 1.2
     recursive: false
     extensions: [".v"]
 
@@ -183,6 +203,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s27
     top: s27
     clock_port: CK
+    default_clock_period_ns: 0.28
     recursive: false
     extensions: [".v"]
 
@@ -191,6 +212,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s298
     top: s298
     clock_port: CK
+    default_clock_period_ns: 0.3
     recursive: false
     extensions: [".v"]
 
@@ -199,6 +221,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s344
     top: s344
     clock_port: CK
+    default_clock_period_ns: 0.35
     recursive: false
     extensions: [".v"]
 
@@ -207,6 +230,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s349
     top: s349
     clock_port: CK
+    default_clock_period_ns: 0.39
     recursive: false
     extensions: [".v"]
 
@@ -215,6 +239,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s35932
     top: s35932
     clock_port: CK
+    default_clock_period_ns: 0.80
     recursive: false
     extensions: [".v"]
 
@@ -223,6 +248,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s382
     top: s382
     clock_port: CK
+    default_clock_period_ns: 0.34
     recursive: false
     extensions: [".v"]
 
@@ -231,6 +257,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s38417
     top: s38417
     clock_port: CK
+    default_clock_period_ns: 0.77
     recursive: false
     extensions: [".v"]
 
@@ -239,6 +266,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s38584
     top: s38584
     clock_port: CK
+    default_clock_period_ns: 1.0
     recursive: false
     extensions: [".v"]
 
@@ -247,6 +275,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s38584a
     top: s38584
     clock_port: CK # No explict clock port
+    default_clock_period_ns: 1.0
     recursive: false
     extensions: [".v"]
 
@@ -255,6 +284,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s386
     top: s386
     clock_port: CK
+    default_clock_period_ns: 0.4
     recursive: false
     extensions: [".v"]
 
@@ -263,6 +293,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s400
     top: s400
     clock_port: CK
+    default_clock_period_ns: 0.33
     recursive: false
     extensions: [".v"]
 
@@ -271,6 +302,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s420
     top: s420
     clock_port: CK
+    default_clock_period_ns: 0.42
     recursive: false
     extensions: [".v"]
 
@@ -279,6 +311,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s444
     top: s444
     clock_port: CK
+    default_clock_period_ns: 0.32
     recursive: false
     extensions: [".v"]
 
@@ -287,6 +320,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s510
     top: s510
     clock_port: CK
+    default_clock_period_ns: 0.41
     recursive: false
     extensions: [".v"]
 
@@ -295,6 +329,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s526
     top: s526
     clock_port: CK
+    default_clock_period_ns: 0.31
     recursive: false
     extensions: [".v"]
 
@@ -303,6 +338,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s526a
     top: s526n
     clock_port: CK
+    default_clock_period_ns: 0.31
     recursive: false
     extensions: [".v"]
 
@@ -311,6 +347,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s5378
     top: s5378
     clock_port: CK
+    default_clock_period_ns: 0.77
     recursive: false
     extensions: [".v"]
 
@@ -319,6 +356,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s5378a
     top: s5378
     clock_port: CK
+    default_clock_period_ns: 0.66
     recursive: false
     extensions: [".v"]
 
@@ -327,6 +365,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s641
     top: s641
     clock_port: CK
+    default_clock_period_ns: 0.78
     recursive: false
     extensions: [".v"]
 
@@ -335,6 +374,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s713
     top: s713
     clock_port: CK
+    default_clock_period_ns: 0.75
     recursive: false
     extensions: [".v"]
 
@@ -343,6 +383,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s820
     top: s820
     clock_port: CK
+    default_clock_period_ns: 0.52
     recursive: false
     extensions: [".v"]
 
@@ -351,6 +392,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s820a
     top: s820
     clock_port: CK
+    default_clock_period_ns: 0.52
     recursive: false
     extensions: [".v"]
 
@@ -359,6 +401,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s832
     top: s832
     clock_port: CK
+    default_clock_period_ns: 0.51
     recursive: false
     extensions: [".v"]
 
@@ -367,6 +410,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s832a
     top: s832
     clock_port: CK
+    default_clock_period_ns: 0.51
     recursive: false
     extensions: [".v"]
 
@@ -375,6 +419,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s838
     top: s838
     clock_port: CK
+    default_clock_period_ns: 0.59
     recursive: false
     extensions: [".v"]
 
@@ -383,6 +428,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s9234
     top: s9234
     clock_port: CK
+    default_clock_period_ns: 0.64
     recursive: false
     extensions: [".v"]
 
@@ -391,6 +437,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s9234a
     top: s9234
     clock_port: CK
+    default_clock_period_ns: 0.66
     recursive: false
     extensions: [".v"]
 
@@ -399,6 +446,7 @@ designs:
     rtl_dir: iscas89-benchmarks/s953
     top: s953
     clock_port: CK
+    default_clock_period_ns: 0.39
     recursive: false
     extensions: [".v"]
 
@@ -407,5 +455,6 @@ designs:
     rtl_dir: iscas89-benchmarks/s953a
     top: s953
     clock_port: CK
+    default_clock_period_ns: 0.40
     recursive: false
     extensions: [".v"]
