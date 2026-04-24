@@ -1,0 +1,5 @@
+split,target,r2
+train,worst_slack_ns,0.9299
+train,total_negative_slack_ns,0.9914
+test,worst_slack_ns,0.4821
+test,total_negative_slack_ns,0.332

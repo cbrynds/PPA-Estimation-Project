@@ -1,0 +1,3 @@
+target,design_count,mean_r2,std_r2,min_r2,median_r2,max_r2,mean_mae,median_mae,max_mae,worst_design_r2,best_design_r2
+worst_slack_ns,47,0.7502,0.4319,-1.0232,0.9183,0.9844,0.1173,0.0815,0.4609,s1423,usb_phy
+total_negative_slack_ns,47,-3.8667,25.3427,-173.3233,0.5123,0.9954,8.0088,2.2451,102.3287,s27,s38584a

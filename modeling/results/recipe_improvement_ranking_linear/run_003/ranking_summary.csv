@@ -1,0 +1,3 @@
+target,source_states,exact_match_rate,improvement_rate,mean_chosen_true_delta,mean_oracle_true_delta,mean_regret,median_regret,near_oracle_threshold_ns,near_oracle_rate
+delta_worst_slack_ns,13536,0.0213,0.905,0.5714,0.5918,0.0203,0.0066,0.06,0.8936
+delta_total_negative_slack_ns,13536,0.0,0.5499,18.2348,18.237,0.0022,0.0,5.0,1.0

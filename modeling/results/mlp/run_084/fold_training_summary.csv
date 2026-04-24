@@ -1,0 +1,11 @@
+fold,target,best_epoch,best_test_r2,completed_epoch
+1,worst_slack_ns,400,0.9360665678977966,400
+1,total_negative_slack_ns,395,0.9950562715530396,400
+2,worst_slack_ns,54,0.853751540184021,400
+2,total_negative_slack_ns,387,0.9866538047790527,400
+3,worst_slack_ns,394,0.7835367918014526,400
+3,total_negative_slack_ns,381,0.9149184226989746,400
+4,worst_slack_ns,116,0.7352355718612671,400
+4,total_negative_slack_ns,291,0.6817118525505066,400
+5,worst_slack_ns,278,0.9231924414634705,400
+5,total_negative_slack_ns,395,0.9735069870948792,400

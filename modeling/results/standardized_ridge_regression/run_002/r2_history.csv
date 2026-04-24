@@ -1,0 +1,2 @@
+epoch,mean_train_r2_worst_slack_ns,mean_test_r2_worst_slack_ns,mean_train_r2_total_negative_slack_ns,mean_test_r2_total_negative_slack_ns
+1,0.8753400000000001,0.56818,0.3649,-0.5206799999999999
