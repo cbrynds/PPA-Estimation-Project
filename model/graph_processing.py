@@ -300,7 +300,7 @@ def load_recipe_feature_keys(config_path):
 
     sweep = config.get("sweep")
     if isinstance(sweep, dict) and sweep:
-        return tuple("{}_cfg".format(key) for key in sweep.keys())
+        return tuple(_recipe_key_to_label_column(key) for key in sweep.keys())
 
     recipes = config.get("recipes", [])
     recipe_feature_keys = []
@@ -311,7 +311,7 @@ def load_recipe_feature_keys(config_path):
             for key in recipe.keys():
                 if key in {"id", "abc_extra"}:
                     continue
-                cfg_key = "{}_cfg".format(key)
+                cfg_key = _recipe_key_to_label_column(key)
                 if cfg_key not in recipe_feature_keys:
                     recipe_feature_keys.append(cfg_key)
 
@@ -340,6 +340,12 @@ def _normalize_recipe_value(value):
     return value
 
 
+def _recipe_key_to_label_column(key):
+    if key == "clock_period_ns":
+        return "clock_period_ns_sta"
+    return "{}_cfg".format(key)
+
+
 def load_allowed_recipe_values(config_path):
     with open(config_path, "r", encoding="utf-8") as config_file:
         config = yaml.safe_load(config_file) or {}
@@ -350,7 +356,12 @@ def load_allowed_recipe_values(config_path):
 
     allowed_values = {}
     for key, values in sweep.items():
-        cfg_key = "{}_cfg".format(key)
+        # Clock period is modeled from the effective STA period recorded in the
+        # CSV, not from the swept YAML offset values, so it should not be used
+        # for row filtering.
+        if key == "clock_period_ns":
+            continue
+        cfg_key = _recipe_key_to_label_column(key)
         if isinstance(values, (list, tuple, set)):
             allowed_values[cfg_key] = {_normalize_recipe_value(value) for value in values}
         else:
