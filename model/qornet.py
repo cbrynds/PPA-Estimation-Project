@@ -47,6 +47,8 @@ class Hyperparameters:
     dropout: float = 0.1
     early_stopping_patience: int = 50 # Number of epochs to wait for improvement before stopping
     early_stopping_min_delta: float = 0.0 # Minimum improvement to reset early stopping counter
+    verbose: bool = True
+    recipe_feature_keys: tuple[str, ...] = ()
 
 
 def embedding_dim_for_vocab(vocab_size):
@@ -226,6 +228,85 @@ class QoRNet(nn.Module):
         # Forward pass through two fully-connect layers to produce QoR prediction
         return self.regressor(graph_embedding)
 
+
+def _denormalize_recipe_tensor(recipe_tensor, normalization_context):
+    recipe_mean = normalization_context.recipe_mean.to(
+        device=recipe_tensor.device,
+        dtype=recipe_tensor.dtype,
+    )
+    recipe_std = normalization_context.recipe_std.to(
+        device=recipe_tensor.device,
+        dtype=recipe_tensor.dtype,
+    )
+    return (recipe_tensor * recipe_std) + recipe_mean
+
+
+def debug_print_batch_alignment(
+    batch,
+    hyperparameters,
+    normalization_context,
+    predictions=None,
+    max_graphs_to_print=3,
+    prefix="Batch Alignment Debug",
+):
+    if not hyperparameters.verbose:
+        return
+
+    num_graphs = getattr(batch, "num_graphs", 0)
+    if num_graphs == 0:
+        return
+
+    recipe_tensor = batch.recipe
+    if recipe_tensor.dim() == 1:
+        recipe_tensor = recipe_tensor.view(1, -1)
+
+    if recipe_tensor.size(0) != num_graphs:
+        raise ValueError(
+            "Expected one recipe vector per graph, but got recipe shape {} for {} graphs.".format(
+                tuple(recipe_tensor.shape),
+                num_graphs,
+            )
+        )
+
+    recipe_denormalized = _denormalize_recipe_tensor(recipe_tensor.float(), normalization_context)
+    targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
+    targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
+    predictions_denormalized = None
+    if predictions is not None:
+        predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+
+    design_names = eval_utils.resolve_batch_metadata(batch, "design_name", num_graphs)
+    run_ids = eval_utils.resolve_batch_metadata(batch, "run_id", num_graphs)
+    recipe_feature_keys = hyperparameters.recipe_feature_keys or tuple(
+        "feature_{}".format(index) for index in range(recipe_denormalized.size(1))
+    )
+
+    log_utils.print_section(prefix)
+    for sample_idx in range(min(num_graphs, max_graphs_to_print)):
+        log_utils.print_key_value("sample_index", sample_idx, log_utils.ANSI_GREY)
+        log_utils.print_key_value("design_name", design_names[sample_idx], log_utils.ANSI_GREY)
+        log_utils.print_key_value("run_id", run_ids[sample_idx], log_utils.ANSI_GREY)
+        recipe_values = {
+            key: float(value)
+            for key, value in zip(
+                recipe_feature_keys,
+                recipe_denormalized[sample_idx].detach().cpu().tolist(),
+            )
+        }
+        log_utils.print_key_value("recipe", recipe_values, log_utils.ANSI_GREY)
+        log_utils.print_key_value(
+            "target_{}".format(hyperparameters.target_name),
+            "{:.6f}".format(float(targets_denormalized[sample_idx].item())),
+            log_utils.ANSI_GREY,
+        )
+        if predictions_denormalized is not None:
+            log_utils.print_key_value(
+                "prediction_{}".format(hyperparameters.target_name),
+                "{:.6f}".format(float(predictions_denormalized[sample_idx].item())),
+                log_utils.ANSI_GREY,
+            )
+        log_utils.print_rule()
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="QoRNet: Edge-aware Graph Neural Network for RTL code")
     parser.add_argument("--config", type=str, default=None, help="Path to the dataset config file")
@@ -352,6 +433,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
     all_predictions = []
     all_targets = []
     epoch_predictions = []
+    debug_printed = False
 
     with torch.no_grad():
         for batch in evaluation_loader:
@@ -362,6 +444,15 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
 
             batch = batch.to(hyperparameters.device)
             predictions = qornet(batch)
+            if hyperparameters.verbose and not debug_printed:
+                debug_print_batch_alignment(
+                    batch,
+                    hyperparameters,
+                    normalization_context,
+                    predictions=predictions,
+                    prefix="Eval Batch Alignment Debug",
+                )
+                debug_printed = True
             targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
             predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
             targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
@@ -456,6 +547,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         total_graphs = 0
         all_predictions = []
         all_targets = []
+        debug_printed = False
 
         # Loop across batches in the training loader
         for batch in training_loader:
@@ -466,6 +558,15 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
 
             optimizer.zero_grad()
             predictions = qornet(batch)
+            if hyperparameters.verbose and not debug_printed:
+                debug_print_batch_alignment(
+                    batch,
+                    hyperparameters,
+                    normalization_context,
+                    predictions=predictions.detach(),
+                    prefix="Train Batch Alignment Debug",
+                )
+                debug_printed = True
             predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
             targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
             if predictions.shape != targets.shape:
@@ -717,6 +818,7 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
     if not args.disable_verbose:
         log_utils.print_section("Dataset Loading")
     training_data, testing_data, normalization_context = graph_proc.load_data(args, hyperparameters.target_name)
+    hyperparameters.recipe_feature_keys = graph_proc.load_recipe_feature_keys(args.config)
 
     node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
 
@@ -759,6 +861,7 @@ def main():
     log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
     hyperparameters.target_transform = args.target_transform
+    hyperparameters.verbose = not args.disable_verbose
 
     if args.mode == "train":
         if args.cv_folds > 1 and args.cv_fold_index is None:
@@ -811,6 +914,7 @@ def main():
         
         normalization_context = ckpt_utils.normalization_context_from_dict(checkpoint["normalization_context"])
         recipe_dim = int(checkpoint["recipe_dim"])
+        hyperparameters.recipe_feature_keys = graph_proc.load_recipe_feature_keys(args.config)
 
         log_utils.print_section("Model Initialization")
         qornet = QoRNet(
@@ -848,6 +952,7 @@ def main():
         graph_proc.apply_normalization_context(training_data, normalization_context, hyperparameters.target_name)
         graph_proc.apply_normalization_context(testing_data, normalization_context, hyperparameters.target_name)
         print("Using checkpoint normalization for target '{}'.".format(hyperparameters.target_name))
+        hyperparameters.recipe_feature_keys = graph_proc.load_recipe_feature_keys(args.config)
 
     node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
     if args.mode == "inference" and recipe_dim != int(checkpoint["recipe_dim"]):
