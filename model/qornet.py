@@ -325,7 +325,7 @@ def parse_arguments():
     parser.add_argument(
         "--target_name",
         type=str,
-        choices=("wns", "tns", "area"),
+        choices=("wns", "tns", "area", "crit_path"),
         default="wns",
         help="Regression target to train or evaluate.",
     )
@@ -712,7 +712,7 @@ def run_inference(qornet, datasets_by_split, hyperparameters, normalization_cont
         log_utils.print_key_value("predictions_csv", output_path, log_utils.ANSI_GREY)
 
 
-def load_single_graph_sample(graph_path, normalization_context, recipe_dim, target_name, recipe_feature_keys):
+def load_single_graph_sample(graph_path, normalization_context, recipe_dim):
     graph = graph_proc.load_graph_from_file(graph_path)
     graph.design_name = getattr(graph, "design_name", Path(graph_path).stem)
     graph.design_id = getattr(graph, "design_id", graph.design_name)
@@ -736,16 +736,6 @@ def load_single_graph_sample(graph_path, normalization_context, recipe_dim, targ
         raise ValueError(
             "Single-graph recipe dimension {} does not match checkpoint recipe dimension {}.".format(observed_recipe_dim, recipe_dim))
 
-    if target_name == "wns":
-        clock_period = None
-        for clock_key in ("clock_period_ns_sta", "clock_period_ns_cfg"):
-            if clock_key in recipe_feature_keys:
-                clock_period = float(recipe_tensor.view(-1)[recipe_feature_keys.index(clock_key)].item())
-                break
-        if clock_period is None:
-            raise ValueError("Single-graph WNS inference requires a clock period recipe feature.")
-        graph.clock_period_ns = torch.tensor([clock_period], dtype=torch.float32)
-
     graph.recipe = recipe_tensor
     graph_proc.apply_feature_normalization_context([graph], normalization_context)
     return graph
@@ -766,8 +756,6 @@ def run_single_graph_inference(
         args.single_graph,
         normalization_context,
         recipe_dim,
-        hyperparameters.target_name,
-        hyperparameters.recipe_feature_keys,
     )
     node_input_dim, edge_input_dim, _ = graph_proc.validate_input_dimensions([single_graph], [])
     log_utils.print_model_summary(hyperparameters, [single_graph], [], node_input_dim, edge_input_dim, recipe_dim)

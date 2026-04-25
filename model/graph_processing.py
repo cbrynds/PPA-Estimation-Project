@@ -225,11 +225,6 @@ def _normalize_selected_columns(tensor, column_indices, mean, std):
 
 def get_learning_target_tensor(sample, target_name):
     target_tensor = getattr(sample, target_name).view(-1, 1).float()
-    if target_name == "wns":
-        if not hasattr(sample, "clock_period_ns"):
-            raise AttributeError("Sample is missing required 'clock_period_ns' for WNS delay target.")
-        clock_period = sample.clock_period_ns.view(-1, 1).float()
-        return clock_period - target_tensor
     if target_name == "tns":
         return -target_tensor
     return target_tensor
@@ -525,6 +520,9 @@ def attach_label_metadata(graph, label_row, recipe_feature_keys):
     if clock_period_value not in (None, ""):
         graph_copy.clock_period_ns = torch.tensor(
             [float(clock_period_value)], dtype=torch.float32
+        )
+        graph_copy.crit_path = torch.tensor(
+            [float(clock_period_value) - float(label_row["worst_slack_ns"])], dtype=torch.float32
         )
 
     recipe_features = []

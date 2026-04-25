@@ -46,23 +46,11 @@ def convert_learning_target_to_report_target(values, batch, target_name):
     """
     Convert denormalized model-space targets back to the user-facing metric.
 
-    For WNS, the model learns critical path delay:
-        delay = clock_period - wns
     For TNS, the model learns positive violation magnitude:
         magnitude = -tns
+
+    WNS and critical path delay are learned and reported directly.
     """
-    if target_name == "wns":
-        if not hasattr(batch, "clock_period_ns"):
-            raise AttributeError("Batch data does not contain required 'clock_period_ns' for WNS delay conversion.")
-        clock_period = batch.clock_period_ns.to(device=values.device, dtype=values.dtype).view(-1, 1)
-        if clock_period.numel() != values.numel():
-            raise ValueError(
-                "Expected one clock_period_ns value per WNS prediction, but got {} clock values for {} predictions.".format(
-                    clock_period.numel(),
-                    values.numel(),
-                )
-            )
-        return clock_period - values
     if target_name == "tns":
         return -values
     return values

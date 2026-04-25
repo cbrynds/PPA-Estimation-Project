@@ -41,6 +41,10 @@ Arguments accepted by `qornet.py`:
   Ground-truth labels CSV from the synthesis flow.
 - `--dataset_dir`
   Directory containing one `<design_name>.pt` graph file per design.
+- `--single_graph`
+  Path to one serialized graph file for single-design inference. This skips the
+  config / labels / dataset directory workflow and uses the checkpoint's mean
+  recipe if the graph does not already contain recipe features.
 - `--plot_dir`
   Output directory for plots and CSV summaries in training mode.
 - `--checkpoint_path`
@@ -129,6 +133,25 @@ Inference mode writes:
 - `test_predictions.csv`
 
 depending on `--inference_split`.
+
+## Single-design inference example
+
+If you already have one serialized graph and a compatible checkpoint, you can
+predict just that one design without a config file or labels CSV:
+
+```bash
+python3 model/qornet.py \
+  --mode inference \
+  --checkpoint_path qornet-plots/qornet_checkpoint.pt \
+  --single_graph ast-parser/flopoco-graphs/tensors/flopoco_00021_fpadd.pt
+```
+
+This prints a compact summary including:
+
+- the predicted target value (`wns` or `tns`, depending on the checkpoint)
+- the prediction runtime in seconds
+
+and writes `single_graph_prediction.json` under the inference output directory.
 
 ## Current assumptions and limitations
 
