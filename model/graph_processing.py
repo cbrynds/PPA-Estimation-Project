@@ -48,6 +48,10 @@ def apply_target_transform(target_tensor, target_transform):
         return target_tensor
     if target_transform == "signed_log1p_abs":
         return torch.sign(target_tensor) * torch.log1p(torch.abs(target_tensor))
+    if target_transform == "log1p":
+        if torch.any(target_tensor < 0):
+            raise ValueError("target_transform='log1p' requires nonnegative targets.")
+        return torch.log1p(target_tensor)
     raise ValueError("Unsupported target transform '{}'.".format(target_transform))
 
 
@@ -57,6 +61,8 @@ def invert_target_transform(transformed_target_tensor, target_transform):
         return transformed_target_tensor
     if target_transform == "signed_log1p_abs":
         return torch.sign(transformed_target_tensor) * torch.expm1(torch.abs(transformed_target_tensor))
+    if target_transform == "log1p":
+        return torch.expm1(transformed_target_tensor)
     raise ValueError("Unsupported target transform '{}'.".format(target_transform))
 
 
@@ -177,7 +183,7 @@ def _compute_mean_std(samples, tensor_name, column_indices):
 
 
 def _compute_target_stats(samples, target_name, target_transform):
-    target_values = torch.cat([apply_target_transform(getattr(sample, target_name).view(-1).float(), target_transform) for sample in samples], dim=0)
+    target_values = torch.cat([apply_target_transform(get_learning_target_tensor(sample, target_name), target_transform) for sample in samples], dim=0)
     mean = float(target_values.mean().item())
     std = float(target_values.std(unbiased=False).item())
     if std <= EPSILON:
@@ -217,6 +223,18 @@ def _normalize_selected_columns(tensor, column_indices, mean, std):
     return normalized
 
 
+def get_learning_target_tensor(sample, target_name):
+    target_tensor = getattr(sample, target_name).view(-1, 1).float()
+    if target_name == "wns":
+        if not hasattr(sample, "clock_period_ns"):
+            raise AttributeError("Sample is missing required 'clock_period_ns' for WNS delay target.")
+        clock_period = sample.clock_period_ns.view(-1, 1).float()
+        return clock_period - target_tensor
+    if target_name == "tns":
+        return -target_tensor
+    return target_tensor
+
+
 def _normalize_target_tensor(target_tensor, context):
     transformed_target_tensor = apply_target_transform(target_tensor.float(), context.target_transform)
     return (transformed_target_tensor - context.target_mean) / context.target_std
@@ -228,9 +246,11 @@ def apply_normalization_context(samples, context, target_name):
         sample.edge_attr = _normalize_selected_columns(sample.edge_attr, context.feature_schema.edge_numeric_indices, context.edge_mean, context.edge_std)
         sample.recipe = _normalize_selected_columns(sample.recipe, context.feature_schema.recipe_numeric_indices, context.recipe_mean, context.recipe_std)
 
-        target_tensor = getattr(sample, target_name).view(-1, 1).float()
-        setattr(sample, "raw_{}".format(target_name), target_tensor.clone())
-        setattr(sample, target_name, _normalize_target_tensor(target_tensor, context))
+        raw_target_tensor = getattr(sample, target_name).view(-1, 1).float()
+        learning_target_tensor = get_learning_target_tensor(sample, target_name)
+        setattr(sample, "raw_{}".format(target_name), raw_target_tensor.clone())
+        setattr(sample, "learning_target_{}".format(target_name), learning_target_tensor.clone())
+        setattr(sample, target_name, _normalize_target_tensor(learning_target_tensor, context))
 
     return samples
 
@@ -501,6 +521,11 @@ def attach_label_metadata(graph, label_row, recipe_feature_keys):
     graph_copy.area = torch.tensor(
         [float(label_row["area_um2"])], dtype=torch.float32
     )
+    clock_period_value = label_row.get("clock_period_ns_sta") or label_row.get("clock_period_ns_cfg")
+    if clock_period_value not in (None, ""):
+        graph_copy.clock_period_ns = torch.tensor(
+            [float(clock_period_value)], dtype=torch.float32
+        )
 
     recipe_features = []
     for key in recipe_feature_keys:

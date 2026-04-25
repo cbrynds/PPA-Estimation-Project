@@ -24,6 +24,10 @@ def mean_absolute_error(predictions, targets):
     return torch.mean(torch.abs(predictions - targets))
 
 
+def root_mean_squared_error(predictions, targets):
+    return torch.sqrt(torch.mean((predictions - targets) ** 2))
+
+
 def mean_absolute_percentage_error(predictions, targets, epsilon=1e-8):
     safe_denominator = torch.abs(targets)
     valid_mask = safe_denominator > epsilon
@@ -36,6 +40,32 @@ def mean_absolute_percentage_error(predictions, targets, epsilon=1e-8):
 def denormalize_targets(values, normalization_context):
     transformed_values = (values * normalization_context.target_std) + normalization_context.target_mean
     return graph_proc.invert_target_transform(transformed_values, normalization_context.target_transform)
+
+
+def convert_learning_target_to_report_target(values, batch, target_name):
+    """
+    Convert denormalized model-space targets back to the user-facing metric.
+
+    For WNS, the model learns critical path delay:
+        delay = clock_period - wns
+    For TNS, the model learns positive violation magnitude:
+        magnitude = -tns
+    """
+    if target_name == "wns":
+        if not hasattr(batch, "clock_period_ns"):
+            raise AttributeError("Batch data does not contain required 'clock_period_ns' for WNS delay conversion.")
+        clock_period = batch.clock_period_ns.to(device=values.device, dtype=values.dtype).view(-1, 1)
+        if clock_period.numel() != values.numel():
+            raise ValueError(
+                "Expected one clock_period_ns value per WNS prediction, but got {} clock values for {} predictions.".format(
+                    clock_period.numel(),
+                    values.numel(),
+                )
+            )
+        return clock_period - values
+    if target_name == "tns":
+        return -values
+    return values
 
 
 def r2_score(predictions, targets, epsilon=1e-8):

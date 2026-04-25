@@ -270,10 +270,20 @@ def debug_print_batch_alignment(
 
     recipe_denormalized = _denormalize_recipe_tensor(recipe_tensor.float(), normalization_context)
     targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
-    targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
+    targets_learning_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
+    targets_denormalized = eval_utils.convert_learning_target_to_report_target(
+        targets_learning_denormalized,
+        batch,
+        hyperparameters.target_name,
+    )
     predictions_denormalized = None
     if predictions is not None:
-        predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+        predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+        predictions_denormalized = eval_utils.convert_learning_target_to_report_target(
+            predictions_learning_denormalized,
+            batch,
+            hyperparameters.target_name,
+        )
 
     design_names = eval_utils.resolve_batch_metadata(batch, "design_name", num_graphs)
     run_ids = eval_utils.resolve_batch_metadata(batch, "run_id", num_graphs)
@@ -312,6 +322,13 @@ def parse_arguments():
     parser.add_argument("--config", type=str, default=None, help="Path to the dataset config file")
     parser.add_argument("--labels", type=str, default=None, help="Path to the dataset ground truth labels")
     parser.add_argument("--dataset_dir", type=str, default=None, help="Path to the dataset directory")
+    parser.add_argument(
+        "--target_name",
+        type=str,
+        choices=("wns", "tns", "area"),
+        default="wns",
+        help="Regression target to train or evaluate.",
+    )
     parser.add_argument(
         "--single_graph",
         type=str,
@@ -378,9 +395,9 @@ def parse_arguments():
     parser.add_argument(
         "--target_transform",
         type=str,
-        choices=("none", "signed_log1p_abs"),
+        choices=("none", "signed_log1p_abs", "log1p"),
         default="none",
-        help="Optional transform applied to regression targets before normalization and training.",
+        help="Optional transform applied to model-space regression targets before normalization and training. Use log1p for TNS violation magnitude.",
     )
     parser.add_argument(
         "--disable_verbose",
@@ -428,6 +445,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
     qornet.eval()
     total_loss = 0.0
     total_error = 0.0
+    total_rmse = 0.0
     total_percentage_error = 0.0
     total_graphs = 0
     all_predictions = []
@@ -454,18 +472,30 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
                 )
                 debug_printed = True
             targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
-            predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
-            targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
+            predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+            targets_learning_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
+            predictions_denormalized = eval_utils.convert_learning_target_to_report_target(
+                predictions_learning_denormalized,
+                batch,
+                hyperparameters.target_name,
+            )
+            targets_denormalized = eval_utils.convert_learning_target_to_report_target(
+                targets_learning_denormalized,
+                batch,
+                hyperparameters.target_name,
+            )
             if predictions.shape != targets.shape:
                 raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
 
             loss = loss_fn(predictions, targets)
             error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
+            rmse = eval_utils.root_mean_squared_error(predictions_denormalized, targets_denormalized)
             percentage_error = eval_utils.mean_absolute_percentage_error(predictions_denormalized, targets_denormalized)
 
             batch_size = targets.size(0)
             total_loss += loss.item() * batch_size
             total_error += error.item() * batch_size
+            total_rmse += (rmse.item() ** 2) * batch_size
             total_percentage_error += percentage_error.item() * batch_size
             total_graphs += batch_size
             all_predictions.append(predictions_denormalized.detach())
@@ -490,13 +520,14 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
 
     if total_graphs == 0:
         print("Evaluation skipped because no samples were provided.")
-        return {"loss": 0.0, "error": 0.0, "percentage_error": 0.0, "r2": 0.0, "epoch_predictions": []}
+        return {"loss": 0.0, "error": 0.0, "rmse": 0.0, "percentage_error": 0.0, "r2": 0.0, "epoch_predictions": []}
 
     r2 = eval_utils.r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0))
 
     return {
         "loss": total_loss / total_graphs,
         "error": total_error / total_graphs,
+        "rmse": math.sqrt(total_rmse / total_graphs),
         "percentage_error": total_percentage_error / total_graphs,
         "r2": float(r2.item()),
         "epoch_predictions": epoch_predictions,
@@ -507,16 +538,19 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
     history = {
         "train_loss": [],
         "train_error": [],
+        "train_rmse": [],
         "train_percentage_error": [],
         "train_r2": [],
         "test_loss": [],
         "test_error": [],
+        "test_rmse": [],
         "test_percentage_error": [],
         "test_r2": [],
         "best_epoch_predictions": [],
         "best_epoch": None,
         "best_test_loss": None,
         "best_test_mae": None,
+        "best_test_rmse": None,
         "best_test_r2": None,
     } # Tracks training and testing metrics across epochs
 
@@ -543,6 +577,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         qornet.train()
         total_loss = 0.0
         total_error = 0.0
+        total_rmse = 0.0
         total_percentage_error = 0.0
         total_graphs = 0
         all_predictions = []
@@ -567,13 +602,24 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
                     prefix="Train Batch Alignment Debug",
                 )
                 debug_printed = True
-            predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
-            targets_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
+            predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+            targets_learning_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
+            predictions_denormalized = eval_utils.convert_learning_target_to_report_target(
+                predictions_learning_denormalized,
+                batch,
+                hyperparameters.target_name,
+            )
+            targets_denormalized = eval_utils.convert_learning_target_to_report_target(
+                targets_learning_denormalized,
+                batch,
+                hyperparameters.target_name,
+            )
             if predictions.shape != targets.shape:
                 raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
             
             loss = loss_fn(predictions, targets)
             error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
+            rmse = eval_utils.root_mean_squared_error(predictions_denormalized, targets_denormalized)
             percentage_error = eval_utils.mean_absolute_percentage_error(predictions_denormalized, targets_denormalized)
 
             # Update parameters
@@ -583,6 +629,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             batch_size = targets.size(0)
             total_loss += loss.item() * batch_size
             total_error += error.item() * batch_size
+            total_rmse += (rmse.item() ** 2) * batch_size
             total_percentage_error += percentage_error.item() * batch_size
             total_graphs += batch_size
             all_predictions.append(predictions_denormalized.detach())
@@ -590,6 +637,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
 
         train_loss = total_loss / total_graphs if total_graphs else 0.0
         train_error = total_error / total_graphs if total_graphs else 0.0
+        train_rmse = math.sqrt(total_rmse / total_graphs) if total_graphs else 0.0
         train_percentage_error = total_percentage_error / total_graphs if total_graphs else 0.0
         train_r2 = (
             float(eval_utils.r2_score(torch.cat(all_predictions, dim=0), torch.cat(all_targets, dim=0)).item())
@@ -603,13 +651,15 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         # Log historical training data
         history["train_loss"].append(train_loss)
         history["train_error"].append(train_error)
+        history["train_rmse"].append(train_rmse)
         history["train_percentage_error"].append(train_percentage_error)
         history["train_r2"].append(train_r2)
         history["test_loss"].append(test_metrics["loss"])
         history["test_error"].append(test_metrics["error"])
+        history["test_rmse"].append(test_metrics["rmse"])
         history["test_percentage_error"].append(test_metrics["percentage_error"])
         history["test_r2"].append(test_metrics["r2"])
-        log_utils.print_epoch_metrics(epoch_idx, hyperparameters.num_epochs, train_loss, train_error, train_percentage_error, train_r2, test_metrics)
+        log_utils.print_epoch_metrics(epoch_idx, hyperparameters.num_epochs, train_loss, train_error, train_rmse, train_percentage_error, train_r2, test_metrics)
 
         error_improved = test_metrics["error"] < (best_error - hyperparameters.early_stopping_min_delta)
         r2_improved = test_metrics["r2"] > (best_r2 + hyperparameters.early_stopping_min_delta)
@@ -626,6 +676,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             history["best_epoch"] = epoch_idx
             history["best_test_loss"] = test_metrics["loss"]
             history["best_test_mae"] = test_metrics["error"]
+            history["best_test_rmse"] = test_metrics["rmse"]
             history["best_test_r2"] = test_metrics["r2"]
             history["best_epoch_predictions"] = [{"epoch": epoch_idx, **sample_prediction} for sample_prediction in test_metrics["epoch_predictions"]]
             log_utils.print_key_value("best_epoch", epoch_idx, log_utils.ANSI_GREY)
@@ -638,6 +689,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             log_utils.print_key_value("stopped_epoch", epoch_idx)
             log_utils.print_key_value("best_epoch", history["best_epoch"])
             log_utils.print_key_value("best_test_mae", "{:.6f}".format(history["best_test_mae"]))
+            log_utils.print_key_value("best_test_rmse", "{:.6f}".format(history["best_test_rmse"]))
             log_utils.print_key_value("best_test_r2", "{:.6f}".format(history["best_test_r2"]))
             log_utils.print_key_value("last_error_improvement_epoch", last_error_improvement_epoch)
             log_utils.print_key_value("last_r2_improvement_epoch", last_r2_improvement_epoch)
@@ -660,7 +712,7 @@ def run_inference(qornet, datasets_by_split, hyperparameters, normalization_cont
         log_utils.print_key_value("predictions_csv", output_path, log_utils.ANSI_GREY)
 
 
-def load_single_graph_sample(graph_path, normalization_context, recipe_dim):
+def load_single_graph_sample(graph_path, normalization_context, recipe_dim, target_name, recipe_feature_keys):
     graph = graph_proc.load_graph_from_file(graph_path)
     graph.design_name = getattr(graph, "design_name", Path(graph_path).stem)
     graph.design_id = getattr(graph, "design_id", graph.design_name)
@@ -684,6 +736,16 @@ def load_single_graph_sample(graph_path, normalization_context, recipe_dim):
         raise ValueError(
             "Single-graph recipe dimension {} does not match checkpoint recipe dimension {}.".format(observed_recipe_dim, recipe_dim))
 
+    if target_name == "wns":
+        clock_period = None
+        for clock_key in ("clock_period_ns_sta", "clock_period_ns_cfg"):
+            if clock_key in recipe_feature_keys:
+                clock_period = float(recipe_tensor.view(-1)[recipe_feature_keys.index(clock_key)].item())
+                break
+        if clock_period is None:
+            raise ValueError("Single-graph WNS inference requires a clock period recipe feature.")
+        graph.clock_period_ns = torch.tensor([clock_period], dtype=torch.float32)
+
     graph.recipe = recipe_tensor
     graph_proc.apply_feature_normalization_context([graph], normalization_context)
     return graph
@@ -700,7 +762,13 @@ def run_single_graph_inference(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    single_graph = load_single_graph_sample(args.single_graph, normalization_context, recipe_dim)
+    single_graph = load_single_graph_sample(
+        args.single_graph,
+        normalization_context,
+        recipe_dim,
+        hyperparameters.target_name,
+        hyperparameters.recipe_feature_keys,
+    )
     node_input_dim, edge_input_dim, _ = graph_proc.validate_input_dimensions([single_graph], [])
     log_utils.print_model_summary(hyperparameters, [single_graph], [], node_input_dim, edge_input_dim, recipe_dim)
 
@@ -715,7 +783,12 @@ def run_single_graph_inference(
             start_time = time.perf_counter()
             predictions = qornet(batch)
             elapsed_s = time.perf_counter() - start_time
-            predictions_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+            predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
+            predictions_denormalized = eval_utils.convert_learning_target_to_report_target(
+                predictions_learning_denormalized,
+                batch,
+                hyperparameters.target_name,
+            )
             prediction_value = float(predictions_denormalized.view(-1)[0].item())
             break
 
@@ -770,6 +843,7 @@ def summarize_history_metrics(history):
     if history["best_test_mae"] is not None and history["best_test_r2"] is not None:
         return {
             "test_mae": history["best_test_mae"],
+            "test_rmse": history["best_test_rmse"],
             "test_r2": history["best_test_r2"],
             "epoch_source": "best",
             "epoch": history["best_epoch"],
@@ -779,6 +853,7 @@ def summarize_history_metrics(history):
     if final_epoch == 0:
         return {
             "test_mae": 0.0,
+            "test_rmse": 0.0,
             "test_r2": 0.0,
             "epoch_source": "final",
             "epoch": 0,
@@ -786,6 +861,7 @@ def summarize_history_metrics(history):
 
     return {
         "test_mae": history["test_error"][-1],
+        "test_rmse": history["test_rmse"][-1],
         "test_r2": history["test_r2"][-1],
         "epoch_source": "final",
         "epoch": final_epoch,
@@ -797,13 +873,15 @@ def print_cross_validation_summary(fold_summaries):
         return
 
     average_mae = sum(summary["test_mae"] for summary in fold_summaries) / len(fold_summaries)
+    average_rmse = sum(summary["test_rmse"] for summary in fold_summaries) / len(fold_summaries)
     average_r2 = sum(summary["test_r2"] for summary in fold_summaries) / len(fold_summaries)
 
     log_utils.print_section("Cross-Validation Summary")
     for summary in fold_summaries:
         label = "fold_{}".format(summary["fold_index"])
-        value = "test_mae={:.6f} test_r2={:.6f} {}_epoch={}".format(
+        value = "test_mae={:.6f} test_rmse={:.6f} test_r2={:.6f} {}_epoch={}".format(
             summary["test_mae"],
+            summary["test_rmse"],
             summary["test_r2"],
             summary["epoch_source"],
             summary["epoch"],
@@ -811,6 +889,7 @@ def print_cross_validation_summary(fold_summaries):
         log_utils.print_key_value(label, value)
 
     log_utils.print_key_value("average_test_mae", "{:.6f}".format(average_mae), log_utils.ANSI_RED)
+    log_utils.print_key_value("average_test_rmse", "{:.6f}".format(average_rmse), log_utils.ANSI_RED)
     log_utils.print_key_value("average_test_r2", "{:.6f}".format(average_r2))
 
 
@@ -860,6 +939,7 @@ def main():
     validate_arguments(args)
     log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
+    hyperparameters.target_name = args.target_name
     hyperparameters.target_transform = args.target_transform
     hyperparameters.verbose = not args.disable_verbose
 

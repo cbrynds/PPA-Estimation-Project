@@ -71,6 +71,15 @@ def plot_training_history(history, hyperparameters, output_dir):
             "Training MAE",
             "Testing MAE",
         ),
+        (
+            "train_rmse",
+            "test_rmse",
+            "Training vs Testing Root Mean Squared Error",
+            "RMSE",
+            "rmse_history.png",
+            "Training RMSE",
+            "Testing RMSE",
+        ),
     )
 
     for (
