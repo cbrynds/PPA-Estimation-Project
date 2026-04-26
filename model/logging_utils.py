@@ -157,6 +157,67 @@ def write_training_history_csv(history, hyperparameters, output_path):
             )
 
 
+def _sample_num_nodes(sample):
+    num_nodes = getattr(sample, "num_nodes", None)
+    if num_nodes is not None:
+        return int(num_nodes)
+    if hasattr(sample, "x"):
+        return int(sample.x.size(0))
+    return 0
+
+
+def _sample_num_edges(sample):
+    if hasattr(sample, "edge_index"):
+        return int(sample.edge_index.size(1))
+    num_edges = getattr(sample, "num_edges", None)
+    if num_edges is not None:
+        return int(num_edges)
+    return 0
+
+
+def build_dataset_design_summary_rows(samples):
+    designs = {}
+    for sample in samples:
+        design_name = getattr(sample, "design_name", None) or getattr(sample, "design_id", None) or "<unknown>"
+        if design_name in designs:
+            continue
+        designs[design_name] = {
+            "design_name": design_name,
+            "num_nodes": _sample_num_nodes(sample),
+            "num_edges": _sample_num_edges(sample),
+        }
+
+    rows = [designs[design_name] for design_name in sorted(designs)]
+    if not rows:
+        return []
+
+    average_node_count = sum(row["num_nodes"] for row in rows) / len(rows)
+    average_edge_count = sum(row["num_edges"] for row in rows) / len(rows)
+    for row in rows:
+        row["average_node_count"] = average_node_count
+        row["average_edge_count"] = average_edge_count
+    return rows
+
+
+def write_dataset_design_summary_csv(samples, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = build_dataset_design_summary_rows(samples)
+
+    fieldnames = (
+        "design_name",
+        "num_nodes",
+        "num_edges",
+        "average_node_count",
+        "average_edge_count",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def median(values):
     if not values:
         return 0.0

@@ -759,6 +759,9 @@ def run_single_graph_inference(
     )
     node_input_dim, edge_input_dim, _ = graph_proc.validate_input_dimensions([single_graph], [])
     log_utils.print_model_summary(hyperparameters, [single_graph], [], node_input_dim, edge_input_dim, recipe_dim)
+    dataset_design_summary_path = output_dir / "input_dataset_design_summary.csv"
+    log_utils.write_dataset_design_summary_csv([single_graph], dataset_design_summary_path)
+    log_utils.print_key_value("dataset_summary_csv", dataset_design_summary_path, log_utils.ANSI_GREY)
 
     inference_loader = DataLoader([single_graph], batch_size=1, shuffle=False, exclude_keys=["node_to_idx"])
 
@@ -890,6 +893,9 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
     node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
 
     log_utils.print_model_summary(hyperparameters, training_data, testing_data, node_input_dim, edge_input_dim, recipe_dim)
+    dataset_design_summary_path = plot_dir / "input_dataset_design_summary.csv"
+    log_utils.write_dataset_design_summary_csv(training_data + testing_data, dataset_design_summary_path)
+    log_utils.print_key_value("dataset_summary_csv", dataset_design_summary_path, log_utils.ANSI_GREY)
 
     log_utils.print_section("Model Initialization")
     qornet = QoRNet(
@@ -1027,6 +1033,9 @@ def main():
         raise ValueError("Current dataset recipe dimension {} does not match checkpoint recipe dimension {}.".format(recipe_dim, checkpoint["recipe_dim"]))
 
     log_utils.print_model_summary(hyperparameters, training_data, testing_data, node_input_dim, edge_input_dim, recipe_dim)
+    dataset_design_summary_path = plot_dir / "input_dataset_design_summary.csv"
+    log_utils.write_dataset_design_summary_csv(training_data + testing_data, dataset_design_summary_path)
+    log_utils.print_key_value("dataset_summary_csv", dataset_design_summary_path, log_utils.ANSI_GREY)
     
     log_utils.print_section("Model Initialization")
     qornet = QoRNet(
