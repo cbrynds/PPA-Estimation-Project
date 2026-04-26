@@ -48,30 +48,10 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00002_fpexp
-  id: flopoco_00002
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00002_fpexp
-  top: flopoco_00002_fpexp_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00003_fpconstmult
   id: flopoco_00003
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00003_fpconstmult
   top: flopoco_00003_fpconstmult_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00004_fplog
-  id: flopoco_00004
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00004_fplog
-  top: flopoco_00004_fplog_top
   clock_port: clk
   clock_period_ns: 2.0
   recursive: false
@@ -84,16 +64,6 @@ designs:
   top: flopoco_00005_fpsqrt_top
   clock_port: clk
   clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00006_fplog
-  id: flopoco_00006
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00006_fplog
-  top: flopoco_00006_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
   recursive: false
   extensions:
   - .vhdl
@@ -178,16 +148,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00015_fpexp
-  id: flopoco_00015
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00015_fpexp
-  top: flopoco_00015_fpexp_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00016_fpconstmult
   id: flopoco_00016
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00016_fpconstmult
@@ -254,16 +214,6 @@ designs:
   top: flopoco_00022_ieeefpadd_top
   clock_port: clk
   clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00023_fplog
-  id: flopoco_00023
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00023_fplog
-  top: flopoco_00023_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
   recursive: false
   extensions:
   - .vhdl
@@ -348,26 +298,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00032_fplog
-  id: flopoco_00032
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00032_fplog
-  top: flopoco_00032_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00033_fpexp
-  id: flopoco_00033
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00033_fpexp
-  top: flopoco_00033_fpexp_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00034_fpmult
   id: flopoco_00034
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00034_fpmult
@@ -384,16 +314,6 @@ designs:
   top: flopoco_00035_fpconstdiv_top
   clock_port: clk
   clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00036_fplog
-  id: flopoco_00036
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00036_fplog
-  top: flopoco_00036_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -518,16 +438,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00049_fplog
-  id: flopoco_00049
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00049_fplog
-  top: flopoco_00049_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00050_fpadd
   id: flopoco_00050
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00050_fpadd
@@ -574,16 +484,6 @@ designs:
   top: flopoco_00054_fpadd_top
   clock_port: clk
   clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00055_fpexp
-  id: flopoco_00055
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00055_fpexp
-  top: flopoco_00055_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -678,16 +578,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00065_fplog
-  id: flopoco_00065
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00065_fplog
-  top: flopoco_00065_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00066_fpadd
   id: flopoco_00066
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00066_fpadd
@@ -718,16 +608,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00069_fplog
-  id: flopoco_00069
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00069_fplog
-  top: flopoco_00069_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00070_fpconstmult
   id: flopoco_00070
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00070_fpconstmult
@@ -744,36 +624,6 @@ designs:
   top: flopoco_00071_fpdiv_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00072_fpexp
-  id: flopoco_00072
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00072_fpexp
-  top: flopoco_00072_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00073_fpexp
-  id: flopoco_00073
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00073_fpexp
-  top: flopoco_00073_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00074_fplog
-  id: flopoco_00074
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00074_fplog
-  top: flopoco_00074_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -814,16 +664,6 @@ designs:
   top: flopoco_00078_fpmult_top
   clock_port: clk
   clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00079_fpexp
-  id: flopoco_00079
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00079_fpexp
-  top: flopoco_00079_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
   recursive: false
   extensions:
   - .vhdl
@@ -898,16 +738,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00087_fpexp
-  id: flopoco_00087
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00087_fpexp
-  top: flopoco_00087_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00088_fpsqrt
   id: flopoco_00088
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00088_fpsqrt
@@ -948,16 +778,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00092_fpexp
-  id: flopoco_00092
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00092_fpexp
-  top: flopoco_00092_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00093_fpcomparator
   id: flopoco_00093
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00093_fpcomparator
@@ -974,16 +794,6 @@ designs:
   top: flopoco_00094_fpdiv_top
   clock_port: clk
   clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00095_fpexp
-  id: flopoco_00095
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00095_fpexp
-  top: flopoco_00095_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
   recursive: false
   extensions:
   - .vhdl
@@ -1038,16 +848,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00101_fplog
-  id: flopoco_00101
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00101_fplog
-  top: flopoco_00101_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00102_fpconstdiv
   id: flopoco_00102
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00102_fpconstdiv
@@ -1084,16 +884,6 @@ designs:
   top: flopoco_00105_ieeefpadd_top
   clock_port: clk
   clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00106_fpexp
-  id: flopoco_00106
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00106_fpexp
-  top: flopoco_00106_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -1178,16 +968,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00115_fpexp
-  id: flopoco_00115
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00115_fpexp
-  top: flopoco_00115_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00116_fpsqrt
   id: flopoco_00116
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00116_fpsqrt
@@ -1254,16 +1034,6 @@ designs:
   top: flopoco_00122_fpsqrt_top
   clock_port: clk
   clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00123_fpexp
-  id: flopoco_00123
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00123_fpexp
-  top: flopoco_00123_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
   recursive: false
   extensions:
   - .vhdl
@@ -1338,30 +1108,10 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00131_fplog
-  id: flopoco_00131
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00131_fplog
-  top: flopoco_00131_fplog_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00132_ieeefpfma
   id: flopoco_00132
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00132_ieeefpfma
   top: flopoco_00132_ieeefpfma_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00133_fpexp
-  id: flopoco_00133
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00133_fpexp
-  top: flopoco_00133_fpexp_top
   clock_port: clk
   clock_period_ns: 6.666667
   recursive: false
@@ -1414,16 +1164,6 @@ designs:
   top: flopoco_00138_fpconstdiv_top
   clock_port: clk
   clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00139_fpexp
-  id: flopoco_00139
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00139_fpexp
-  top: flopoco_00139_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -1518,26 +1258,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00149_fplog
-  id: flopoco_00149
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00149_fplog
-  top: flopoco_00149_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00150_fplog
-  id: flopoco_00150
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00150_fplog
-  top: flopoco_00150_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00151_fpmult
   id: flopoco_00151
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00151_fpmult
@@ -1548,42 +1268,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00152_fplog
-  id: flopoco_00152
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00152_fplog
-  top: flopoco_00152_fplog_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00153_fpsqrt
   id: flopoco_00153
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00153_fpsqrt
   top: flopoco_00153_fpsqrt_top
   clock_port: clk
   clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00154_fpexp
-  id: flopoco_00154
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00154_fpexp
-  top: flopoco_00154_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00155_fplog
-  id: flopoco_00155
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00155_fplog
-  top: flopoco_00155_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -1698,40 +1388,10 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00167_fpexp
-  id: flopoco_00167
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00167_fpexp
-  top: flopoco_00167_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00168_fpexp
-  id: flopoco_00168
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00168_fpexp
-  top: flopoco_00168_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00169_fpmult
   id: flopoco_00169
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00169_fpmult
   top: flopoco_00169_fpmult_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00170_fplog
-  id: flopoco_00170
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00170_fplog
-  top: flopoco_00170_fplog_top
   clock_port: clk
   clock_period_ns: 5.0
   recursive: false
@@ -1948,32 +1608,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00192_fpexp
-  id: flopoco_00192
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00192_fpexp
-  top: flopoco_00192_fpexp_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00193_fpconstdiv
   id: flopoco_00193
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00193_fpconstdiv
   top: flopoco_00193_fpconstdiv_top
   clock_port: clk
   clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00194_fplog
-  id: flopoco_00194
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00194_fplog
-  top: flopoco_00194_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -2078,16 +1718,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00205_fplog
-  id: flopoco_00205
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00205_fplog
-  top: flopoco_00205_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00206_fpcomparator
   id: flopoco_00206
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00206_fpcomparator
@@ -2134,26 +1764,6 @@ designs:
   top: flopoco_00210_fpmult_top
   clock_port: clk
   clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00211_fpexp
-  id: flopoco_00211
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00211_fpexp
-  top: flopoco_00211_fpexp_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00212_fpexp
-  id: flopoco_00212
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00212_fpexp
-  top: flopoco_00212_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -2238,16 +1848,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00221_fpexp
-  id: flopoco_00221
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00221_fpexp
-  top: flopoco_00221_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00222_fpadd
   id: flopoco_00222
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00222_fpadd
@@ -2268,16 +1868,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00224_fpexp
-  id: flopoco_00224
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00224_fpexp
-  top: flopoco_00224_fpexp_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00225_fpcomparator
   id: flopoco_00225
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00225_fpcomparator
@@ -2288,52 +1878,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00226_fplog
-  id: flopoco_00226
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00226_fplog
-  top: flopoco_00226_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00227_fpsqrt
   id: flopoco_00227
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00227_fpsqrt
   top: flopoco_00227_fpsqrt_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00228_fplog
-  id: flopoco_00228
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00228_fplog
-  top: flopoco_00228_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00229_fplog
-  id: flopoco_00229
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00229_fplog
-  top: flopoco_00229_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00230_fpexp
-  id: flopoco_00230
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00230_fpexp
-  top: flopoco_00230_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -2364,16 +1914,6 @@ designs:
   top: flopoco_00233_fpconstmult_top
   clock_port: clk
   clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00234_fpexp
-  id: flopoco_00234
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00234_fpexp
-  top: flopoco_00234_fpexp_top
-  clock_port: clk
-  clock_period_ns: 5.0
   recursive: false
   extensions:
   - .vhdl
@@ -2448,16 +1988,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00242_fpexp
-  id: flopoco_00242
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00242_fpexp
-  top: flopoco_00242_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00243_fpdiv
   id: flopoco_00243
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00243_fpdiv
@@ -2488,32 +2018,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00246_fpexp
-  id: flopoco_00246
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00246_fpexp
-  top: flopoco_00246_fpexp_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00247_fpdiv
   id: flopoco_00247
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00247_fpdiv
   top: flopoco_00247_fpdiv_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00248_fpexp
-  id: flopoco_00248
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00248_fpexp
-  top: flopoco_00248_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
   recursive: false
   extensions:
   - .vhdl
@@ -2534,36 +2044,6 @@ designs:
   top: flopoco_00250_fpdiv_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00251_fplog
-  id: flopoco_00251
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00251_fplog
-  top: flopoco_00251_fplog_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00252_fplog
-  id: flopoco_00252
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00252_fplog
-  top: flopoco_00252_fplog_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00253_fplog
-  id: flopoco_00253
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00253_fplog
-  top: flopoco_00253_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
   recursive: false
   extensions:
   - .vhdl
@@ -2638,40 +2118,10 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00261_fpexp
-  id: flopoco_00261
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00261_fpexp
-  top: flopoco_00261_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00262_fpcomparator
   id: flopoco_00262
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00262_fpcomparator
   top: flopoco_00262_fpcomparator_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00263_fpexp
-  id: flopoco_00263
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00263_fpexp
-  top: flopoco_00263_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00264_fplog
-  id: flopoco_00264
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00264_fplog
-  top: flopoco_00264_fplog_top
   clock_port: clk
   clock_period_ns: 5.0
   recursive: false
@@ -2788,16 +2238,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00276_fpexp
-  id: flopoco_00276
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00276_fpexp
-  top: flopoco_00276_fpexp_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00277_fpconstmult
   id: flopoco_00277
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00277_fpconstmult
@@ -2888,16 +2328,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00286_fpexp
-  id: flopoco_00286
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00286_fpexp
-  top: flopoco_00286_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00287_ieeefpadd
   id: flopoco_00287
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00287_ieeefpadd
@@ -2968,16 +2398,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00294_fplog
-  id: flopoco_00294
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00294_fplog
-  top: flopoco_00294_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00295_fpdiv
   id: flopoco_00295
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00295_fpdiv
@@ -3038,16 +2458,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00301_fpexp
-  id: flopoco_00301
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00301_fpexp
-  top: flopoco_00301_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00302_fpconstmult
   id: flopoco_00302
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00302_fpconstmult
@@ -3074,16 +2484,6 @@ designs:
   top: flopoco_00304_fpadd_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00305_fplog
-  id: flopoco_00305
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00305_fplog
-  top: flopoco_00305_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -3128,16 +2528,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00310_fplog
-  id: flopoco_00310
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00310_fplog
-  top: flopoco_00310_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00311_ieeefpfma
   id: flopoco_00311
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00311_ieeefpfma
@@ -3154,16 +2544,6 @@ designs:
   top: flopoco_00312_fpsqrt_top
   clock_port: clk
   clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00313_fplog
-  id: flopoco_00313
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00313_fplog
-  top: flopoco_00313_fplog_top
-  clock_port: clk
-  clock_period_ns: 6.666667
   recursive: false
   extensions:
   - .vhdl
@@ -3188,42 +2568,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00316_fplog
-  id: flopoco_00316
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00316_fplog
-  top: flopoco_00316_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00317_fplog
-  id: flopoco_00317
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00317_fplog
-  top: flopoco_00317_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00318_fpcomparator
   id: flopoco_00318
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00318_fpcomparator
   top: flopoco_00318_fpcomparator_top
   clock_port: clk
   clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00319_fplog
-  id: flopoco_00319
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00319_fplog
-  top: flopoco_00319_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -3238,32 +2588,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00321_fpexp
-  id: flopoco_00321
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00321_fpexp
-  top: flopoco_00321_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00322_fpconstdiv
   id: flopoco_00322
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00322_fpconstdiv
   top: flopoco_00322_fpconstdiv_top
   clock_port: clk
   clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00323_fpexp
-  id: flopoco_00323
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00323_fpexp
-  top: flopoco_00323_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
   recursive: false
   extensions:
   - .vhdl
@@ -3328,26 +2658,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00330_fpexp
-  id: flopoco_00330
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00330_fpexp
-  top: flopoco_00330_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00331_fpexp
-  id: flopoco_00331
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00331_fpexp
-  top: flopoco_00331_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00332_fpsqrt
   id: flopoco_00332
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00332_fpsqrt
@@ -3388,16 +2698,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00336_fplog
-  id: flopoco_00336
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00336_fplog
-  top: flopoco_00336_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00337_fpconstdiv
   id: flopoco_00337
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00337_fpconstdiv
@@ -3428,32 +2728,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00340_fplog
-  id: flopoco_00340
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00340_fplog
-  top: flopoco_00340_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00341_fpmult
   id: flopoco_00341
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00341_fpmult
   top: flopoco_00341_fpmult_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00342_fpexp
-  id: flopoco_00342
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00342_fpexp
-  top: flopoco_00342_fpexp_top
-  clock_port: clk
-  clock_period_ns: 5.0
   recursive: false
   extensions:
   - .vhdl
@@ -3468,32 +2748,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00344_fplog
-  id: flopoco_00344
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00344_fplog
-  top: flopoco_00344_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00345_ieeefpadd
   id: flopoco_00345
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00345_ieeefpadd
   top: flopoco_00345_ieeefpadd_top
   clock_port: clk
   clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00346_fplog
-  id: flopoco_00346
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00346_fplog
-  top: flopoco_00346_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
   recursive: false
   extensions:
   - .vhdl
@@ -3548,16 +2808,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00352_fpexp
-  id: flopoco_00352
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00352_fpexp
-  top: flopoco_00352_fpexp_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00353_fpcomparator
   id: flopoco_00353
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00353_fpcomparator
@@ -3584,16 +2834,6 @@ designs:
   top: flopoco_00355_fpdiv_top
   clock_port: clk
   clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00356_fplog
-  id: flopoco_00356
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00356_fplog
-  top: flopoco_00356_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
   recursive: false
   extensions:
   - .vhdl
@@ -3628,32 +2868,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00360_fplog
-  id: flopoco_00360
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00360_fplog
-  top: flopoco_00360_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00361_ieeefpfma
   id: flopoco_00361
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00361_ieeefpfma
   top: flopoco_00361_ieeefpfma_top
   clock_port: clk
   clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00362_fplog
-  id: flopoco_00362
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00362_fplog
-  top: flopoco_00362_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -3674,16 +2894,6 @@ designs:
   top: flopoco_00364_fpconstdiv_top
   clock_port: clk
   clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00365_fplog
-  id: flopoco_00365
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00365_fplog
-  top: flopoco_00365_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -3724,16 +2934,6 @@ designs:
   top: flopoco_00369_fpconstdiv_top
   clock_port: clk
   clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00370_fplog
-  id: flopoco_00370
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00370_fplog
-  top: flopoco_00370_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -3818,16 +3018,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00379_fpexp
-  id: flopoco_00379
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00379_fpexp
-  top: flopoco_00379_fpexp_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00380_fpdiv
   id: flopoco_00380
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00380_fpdiv
@@ -3864,16 +3054,6 @@ designs:
   top: flopoco_00383_fpadd_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00384_fplog
-  id: flopoco_00384
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00384_fplog
-  top: flopoco_00384_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.5
   recursive: false
   extensions:
   - .vhdl
@@ -3928,16 +3108,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00390_fpexp
-  id: flopoco_00390
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00390_fpexp
-  top: flopoco_00390_fpexp_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00391_fpdiv
   id: flopoco_00391
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00391_fpdiv
@@ -3954,16 +3124,6 @@ designs:
   top: flopoco_00392_fpconstmult_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00393_fplog
-  id: flopoco_00393
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00393_fplog
-  top: flopoco_00393_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
   recursive: false
   extensions:
   - .vhdl
@@ -4078,26 +3238,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00405_fpexp
-  id: flopoco_00405
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00405_fpexp
-  top: flopoco_00405_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00406_fplog
-  id: flopoco_00406
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00406_fplog
-  top: flopoco_00406_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00407_fpmult
   id: flopoco_00407
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00407_fpmult
@@ -4128,42 +3268,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00410_fplog
-  id: flopoco_00410
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00410_fplog
-  top: flopoco_00410_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00411_ieeefpadd
   id: flopoco_00411
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00411_ieeefpadd
   top: flopoco_00411_ieeefpadd_top
   clock_port: clk
   clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00412_fpexp
-  id: flopoco_00412
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00412_fpexp
-  top: flopoco_00412_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00413_fplog
-  id: flopoco_00413
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00413_fplog
-  top: flopoco_00413_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.0
   recursive: false
   extensions:
   - .vhdl
@@ -4278,16 +3388,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00425_fpexp
-  id: flopoco_00425
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00425_fpexp
-  top: flopoco_00425_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00426_fpmult
   id: flopoco_00426
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00426_fpmult
@@ -4328,40 +3428,10 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00430_fplog
-  id: flopoco_00430
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00430_fplog
-  top: flopoco_00430_fplog_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00431_fpexp
-  id: flopoco_00431
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00431_fpexp
-  top: flopoco_00431_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00432_fpsqrt
   id: flopoco_00432
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00432_fpsqrt
   top: flopoco_00432_fpsqrt_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00433_fplog
-  id: flopoco_00433
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00433_fplog
-  top: flopoco_00433_fplog_top
   clock_port: clk
   clock_period_ns: 2.0
   recursive: false
@@ -4384,16 +3454,6 @@ designs:
   top: flopoco_00435_fpconstmult_top
   clock_port: clk
   clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00436_fplog
-  id: flopoco_00436
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00436_fplog
-  top: flopoco_00436_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
   recursive: false
   extensions:
   - .vhdl
@@ -4458,42 +3518,12 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00443_fplog
-  id: flopoco_00443
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00443_fplog
-  top: flopoco_00443_fplog_top
-  clock_port: clk
-  clock_period_ns: 3.333333
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00444_fpexp
-  id: flopoco_00444
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00444_fpexp
-  top: flopoco_00444_fpexp_top
-  clock_port: clk
-  clock_period_ns: 2.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00445_fpconstmult
   id: flopoco_00445
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00445_fpconstmult
   top: flopoco_00445_fpconstmult_top
   clock_port: clk
   clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00446_fplog
-  id: flopoco_00446
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00446_fplog
-  top: flopoco_00446_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
   recursive: false
   extensions:
   - .vhdl
@@ -4598,36 +3628,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00457_fpexp
-  id: flopoco_00457
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00457_fpexp
-  top: flopoco_00457_fpexp_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00458_fplog
-  id: flopoco_00458
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00458_fplog
-  top: flopoco_00458_fplog_top
-  clock_port: clk
-  clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00459_fplog
-  id: flopoco_00459
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00459_fplog
-  top: flopoco_00459_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00460_fpmult
   id: flopoco_00460
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00460_fpmult
@@ -4644,16 +3644,6 @@ designs:
   top: flopoco_00461_fpsqrt_top
   clock_port: clk
   clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00462_fpexp
-  id: flopoco_00462
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00462_fpexp
-  top: flopoco_00462_fpexp_top
-  clock_port: clk
-  clock_period_ns: 5.0
   recursive: false
   extensions:
   - .vhdl
@@ -4818,16 +3808,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00479_fplog
-  id: flopoco_00479
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00479_fplog
-  top: flopoco_00479_fplog_top
-  clock_port: clk
-  clock_period_ns: 2.5
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00480_fpmult
   id: flopoco_00480
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00480_fpmult
@@ -4878,16 +3858,6 @@ designs:
   extensions:
   - .vhdl
   vhdl_std: 08
-- name: flopoco_00485_fplog
-  id: flopoco_00485
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00485_fplog
-  top: flopoco_00485_fplog_top
-  clock_port: clk
-  clock_period_ns: 4.0
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
 - name: flopoco_00486_fpcomparator
   id: flopoco_00486
   rtl_dir: generated/flopoco_dataset/designs/flopoco_00486_fpcomparator
@@ -4914,16 +3884,6 @@ designs:
   top: flopoco_00488_fpconstdiv_top
   clock_port: clk
   clock_period_ns: 6.666667
-  recursive: false
-  extensions:
-  - .vhdl
-  vhdl_std: 08
-- name: flopoco_00489_fplog
-  id: flopoco_00489
-  rtl_dir: generated/flopoco_dataset/designs/flopoco_00489_fplog
-  top: flopoco_00489_fplog_top
-  clock_port: clk
-  clock_period_ns: 5.0
   recursive: false
   extensions:
   - .vhdl
@@ -5031,20 +3991,18 @@ designs:
 flopoco_dataset:
   generator: scripts/generate_flopoco_dataset.py
   seed: 1337
-  count: 500
+  count: 396
   profile: floating-point
   families:
-  - FPAdd
-  - FPComparator
-  - FPConstDiv
-  - FPConstMult
-  - FPDiv
-  - FPExp
-  - FPLog
-  - FPMult
-  - FPSqrt
-  - IEEEFPAdd
-  - IEEEFPFMA
+    - FPAdd
+    - FPComparator
+    - FPConstDiv
+    - FPConstMult
+    - FPDiv
+    - FPMult
+    - FPSqrt
+    - IEEEFPAdd
+    - IEEEFPFMA
   frequencies_mhz:
   - 150
   - 200
