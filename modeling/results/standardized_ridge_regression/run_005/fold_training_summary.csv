@@ -1,0 +1,11 @@
+fold,target,ridge_alpha,train_r2,test_r2,coef_norm,intercept
+1,worst_slack_ns,1.0,0.8536,0.9219,0.5015,0.0139
+1,total_negative_slack_ns,1.0,0.355,0.3642,41.3781,-16.4735
+2,worst_slack_ns,1.0,0.8651,-0.0384,0.519,-0.0085
+2,total_negative_slack_ns,1.0,0.3629,0.3356,42.2314,-18.0052
+3,worst_slack_ns,1.0,0.8993,0.3102,0.6794,0.0024
+3,total_negative_slack_ns,1.0,0.3626,-0.007,95.6973,-17.7579
+4,worst_slack_ns,1.0,0.8983,0.7553,0.4429,-0.0235
+4,total_negative_slack_ns,1.0,0.37,-3.5221,69.8902,-21.4664
+5,worst_slack_ns,1.0,0.8604,0.8919,0.569,0.0149
+5,total_negative_slack_ns,1.0,0.374,0.2259,32.0163,-17.4295

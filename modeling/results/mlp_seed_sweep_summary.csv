@@ -1,0 +1,11 @@
+dataset,seed,run_dir,wns_oof_r2,wns_oof_mae,wns_oof_rmse,tns_oof_r2,tns_oof_mae,tns_oof_rmse,wns_mean_fold_r2,tns_mean_fold_r2
+old_ast,7,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_old_ast\run_001,0.8052,0.1268,0.1832,0.9254,5.9472,17.9927,0.8025,0.882
+old_ast,11,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_old_ast\run_002,0.8155,0.1223,0.1783,0.8124,10.2081,28.534,0.8145,0.8016
+old_ast,21,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_old_ast\run_003,0.8473,0.1149,0.1622,0.9266,5.9099,17.846,0.8453,0.8761
+old_ast,42,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_old_ast\run_004,0.6745,0.1544,0.2368,0.8967,7.7752,21.1711,0.6796,0.8519
+old_ast,123,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_old_ast\run_005,0.8399,0.1212,0.1661,0.9315,5.9793,17.2372,0.8374,0.8831
+new_ast,7,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_new_ast\run_001,0.8097,0.1242,0.1811,0.9702,4.9451,11.3648,0.807,0.909
+new_ast,11,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_new_ast\run_002,0.8503,0.1159,0.1606,0.9686,4.6093,11.6777,0.8464,0.9104
+new_ast,21,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_new_ast\run_003,0.7187,0.147,0.2201,0.9403,5.9381,16.1039,0.723,0.8902
+new_ast,42,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_new_ast\run_004,0.8234,0.1192,0.1744,0.7038,10.4064,35.8537,0.8232,0.7097
+new_ast,123,C:\Users\DeAndre\Documents\Spring 2026\nndl\final_project\PPA-Estimation-Project\modeling\results\mlp_seed_sweep_new_ast\run_005,0.8391,0.1185,0.1665,0.9682,4.82,11.751,0.8363,0.9122

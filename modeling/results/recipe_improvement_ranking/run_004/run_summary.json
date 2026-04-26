@@ -1,0 +1,160 @@
+{
+  "model_kind": "mlp",
+  "target_model_mode": "separate_single_output_models",
+  "data_path": "..\\data\\merged_vector_dataset.csv",
+  "run_dir": "..\\results\\recipe_improvement_ranking\\run_004",
+  "total_base_rows": 13536,
+  "total_designs": 47,
+  "num_folds": 5,
+  "batch_size": 4096,
+  "epochs": 30,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "max_train_targets_per_source": 16,
+  "max_test_targets_per_source": null,
+  "ast_feature_columns": [
+    "total_input_bits",
+    "total_output_bits",
+    "total_register_bits",
+    "total_logic_operator_bits",
+    "total_adder_sub_bits",
+    "total_multiplier_bits",
+    "total_comparator_bits",
+    "total_multiplexer_bits",
+    "total_shift_bits",
+    "total_division_bits",
+    "average_tree_depth",
+    "average_wire_width"
+  ],
+  "numeric_config_columns": [
+    "clock_period_ns_cfg",
+    "max_fanout_cfg",
+    "max_transition_ns_cfg",
+    "max_capacitance_ff_cfg",
+    "fanout_load_cfg"
+  ],
+  "categorical_config_columns": [
+    "abc_fast_cfg",
+    "flow_mode"
+  ],
+  "delta_target_columns": [
+    "delta_worst_slack_ns",
+    "delta_total_negative_slack_ns"
+  ],
+  "folds": [
+    {
+      "fold": 1,
+      "train_rows": 10656,
+      "test_rows": 2880,
+      "train_design_count": 37,
+      "test_design_count": 10,
+      "train_designs": "i2c, s1196a, s1196b, s1238, s1238a, s13207a, s1423, s1423a, s1488, s15850a, s27, s298, s344, s35932, s382, s38417, s38584, s386, s400, s420, s444, s526, s526a, s5378, s5378a, s713, s820, s820a, s832, s838, s9234, s9234a, s953, sasc, simple_spi, ss_pcm, systemcdes",
+      "test_designs": "s1196, s13207, s15850, s349, s38584a, s510, s641, s832a, s953a, usb_phy"
+    },
+    {
+      "fold": 2,
+      "train_rows": 10656,
+      "test_rows": 2880,
+      "train_design_count": 37,
+      "test_design_count": 10,
+      "train_designs": "s1196, s1196a, s1196b, s1238, s13207, s13207a, s1423, s1423a, s15850, s15850a, s27, s298, s349, s35932, s382, s38417, s38584a, s386, s400, s420, s510, s526, s526a, s5378, s641, s713, s820, s820a, s832a, s838, s9234, s9234a, s953a, sasc, simple_spi, ss_pcm, usb_phy",
+      "test_designs": "i2c, s1238a, s1488, s344, s38584, s444, s5378a, s832, s953, systemcdes"
+    },
+    {
+      "fold": 3,
+      "train_rows": 10944,
+      "test_rows": 2592,
+      "train_design_count": 38,
+      "test_design_count": 9,
+      "train_designs": "i2c, s1196, s1196a, s1196b, s1238a, s13207, s13207a, s1423, s1488, s15850, s15850a, s27, s344, s349, s35932, s382, s38584, s38584a, s386, s400, s444, s510, s526, s526a, s5378a, s641, s713, s820, s832, s832a, s838, s9234, s953, s953a, sasc, simple_spi, systemcdes, usb_phy",
+      "test_designs": "s1238, s1423a, s298, s38417, s420, s5378, s820a, s9234a, ss_pcm"
+    },
+    {
+      "fold": 4,
+      "train_rows": 10944,
+      "test_rows": 2592,
+      "train_design_count": 38,
+      "test_design_count": 9,
+      "train_designs": "i2c, s1196, s1196a, s1238, s1238a, s13207, s13207a, s1423a, s1488, s15850, s15850a, s298, s344, s349, s35932, s38417, s38584, s38584a, s386, s420, s444, s510, s526, s5378, s5378a, s641, s713, s820a, s832, s832a, s838, s9234a, s953, s953a, sasc, ss_pcm, systemcdes, usb_phy",
+      "test_designs": "s1196b, s1423, s27, s382, s400, s526a, s820, s9234, simple_spi"
+    },
+    {
+      "fold": 5,
+      "train_rows": 10944,
+      "test_rows": 2592,
+      "train_design_count": 38,
+      "test_design_count": 9,
+      "train_designs": "i2c, s1196, s1196b, s1238, s1238a, s13207, s1423, s1423a, s1488, s15850, s27, s298, s344, s349, s382, s38417, s38584, s38584a, s400, s420, s444, s510, s526a, s5378, s5378a, s641, s820, s820a, s832, s832a, s9234, s9234a, s953, s953a, simple_spi, ss_pcm, systemcdes, usb_phy",
+      "test_designs": "s1196a, s13207a, s15850a, s35932, s386, s526, s713, s838, sasc"
+    }
+  ],
+  "pair_counts": [
+    {
+      "fold": 1,
+      "train_pair_rows": 170496,
+      "test_pair_rows": 826560
+    },
+    {
+      "fold": 2,
+      "train_pair_rows": 170496,
+      "test_pair_rows": 826560
+    },
+    {
+      "fold": 3,
+      "train_pair_rows": 175104,
+      "test_pair_rows": 743904
+    },
+    {
+      "fold": 4,
+      "train_pair_rows": 175104,
+      "test_pair_rows": 743904
+    },
+    {
+      "fold": 5,
+      "train_pair_rows": 175104,
+      "test_pair_rows": 743904
+    }
+  ],
+  "regression_summary": [
+    {
+      "target": "delta_worst_slack_ns",
+      "mean_r2": 0.9435,
+      "var_r2": 0.006,
+      "mean_mae": 0.0576,
+      "mean_rmse": 0.1001
+    },
+    {
+      "target": "delta_total_negative_slack_ns",
+      "mean_r2": 0.9558,
+      "var_r2": 0.0032,
+      "mean_mae": 4.7409,
+      "mean_rmse": 12.6348
+    }
+  ],
+  "ranking_summary": [
+    {
+      "target": "delta_worst_slack_ns",
+      "source_states": 13536,
+      "exact_match_rate": 0.0055,
+      "improvement_rate": 0.9081,
+      "mean_chosen_true_delta": 0.5714,
+      "mean_oracle_true_delta": 0.5918,
+      "mean_regret": 0.0204,
+      "median_regret": 0.0082,
+      "near_oracle_threshold_ns": 0.05,
+      "near_oracle_rate": 0.8908
+    },
+    {
+      "target": "delta_total_negative_slack_ns",
+      "source_states": 13536,
+      "exact_match_rate": 0.0012,
+      "improvement_rate": 0.5292,
+      "mean_chosen_true_delta": 18.1671,
+      "mean_oracle_true_delta": 18.237,
+      "mean_regret": 0.0699,
+      "median_regret": 0.0,
+      "near_oracle_threshold_ns": 5.0,
+      "near_oracle_rate": 0.9999
+    }
+  ]
+}
