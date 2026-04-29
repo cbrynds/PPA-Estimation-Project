@@ -17,7 +17,6 @@ def hyperparameters_to_dict(hyperparameters):
         "num_heads": hyperparameters.num_heads,
         "dropout": hyperparameters.dropout,
         "early_stopping_patience": hyperparameters.early_stopping_patience,
-        "early_stopping_min_delta": hyperparameters.early_stopping_min_delta,
     }
 
 

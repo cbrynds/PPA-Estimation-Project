@@ -1,3 +1,11 @@
+"""
+CSV and terminal logging utilities for QoRNet training and evaluation. 
+
+Disclaimer: GPT Codex was used to develop some of the code in this file. 
+
+Author: Cory Brynds
+"""
+
 import csv
 from pathlib import Path
 import math
@@ -53,7 +61,7 @@ def print_startup_banner(args):
     for key, value in vars(args).items():
         print_key_value(key, value)
 
-
+# Print a summary of model parameters in verbose mode
 def print_model_summary(hyperparameters, training_data, testing_data, node_input_dim, edge_input_dim, recipe_dim):
     print_section("Training Configuration")
     print_key_value("epochs", hyperparameters.num_epochs)
@@ -73,7 +81,7 @@ def print_model_summary(hyperparameters, training_data, testing_data, node_input
     print_key_value("training_samples", len(training_data))
     print_key_value("testing_samples", len(testing_data))
 
-
+# At the end of each training epoch, print out various training and testing metrics to 6 digits of precision
 def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_rmse, train_percentage_error, train_r2, test_metrics):
     print_section("Epoch {}/{}".format(epoch_idx, num_epochs))
     print_key_value("train_loss", "{:.6f}".format(train_loss))
@@ -85,7 +93,7 @@ def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_rm
     print_key_value("test_rmse", "{:.6f}".format(test_metrics["rmse"]), ANSI_RED)
     print_key_value("test_r2", "{:.6f}".format(test_metrics["r2"]))
     
-    
+# Report various training metrics on a per-epoch basis at the end of model training
 def write_training_history_csv(history, hyperparameters, output_path):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -156,8 +164,8 @@ def write_training_history_csv(history, hyperparameters, output_path):
                 }
             )
 
-
-def _sample_num_nodes(sample):
+# Return the number of nodes in a graph sample
+def sample_num_nodes(sample):
     num_nodes = getattr(sample, "num_nodes", None)
     if num_nodes is not None:
         return int(num_nodes)
@@ -165,8 +173,8 @@ def _sample_num_nodes(sample):
         return int(sample.x.size(0))
     return 0
 
-
-def _sample_num_edges(sample):
+# Return the number of edges in a graph sample
+def sample_num_edges(sample):
     if hasattr(sample, "edge_index"):
         return int(sample.edge_index.size(1))
     num_edges = getattr(sample, "num_edges", None)
@@ -174,7 +182,7 @@ def _sample_num_edges(sample):
         return int(num_edges)
     return 0
 
-
+# Build the design summary to be printed in verbose mode
 def build_dataset_design_summary_rows(samples):
     designs = {}
     for sample in samples:
@@ -183,8 +191,8 @@ def build_dataset_design_summary_rows(samples):
             continue
         designs[design_name] = {
             "design_name": design_name,
-            "num_nodes": _sample_num_nodes(sample),
-            "num_edges": _sample_num_edges(sample),
+            "num_nodes": sample_num_nodes(sample),
+            "num_edges": sample_num_edges(sample),
         }
 
     rows = [designs[design_name] for design_name in sorted(designs)]
@@ -198,7 +206,7 @@ def build_dataset_design_summary_rows(samples):
         row["average_edge_count"] = average_edge_count
     return rows
 
-
+# Write out a CSV summary of the designs in the training and testing dataset
 def write_dataset_design_summary_csv(samples, output_path):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -218,16 +226,16 @@ def write_dataset_design_summary_csv(samples, output_path):
         writer.writerows(rows)
 
 
+# Compute the median of a list of values
 def median(values):
-    if not values:
-        return 0.0
     ordered = sorted(values)
     midpoint = len(ordered) // 2
     if len(ordered) % 2 == 1:
         return ordered[midpoint]
-    return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
+    else:
+        return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
 
-
+# Compute percentage error with a small epsilon to avoid ZeroDiv
 def safe_percentage_error(prediction, target):
     denominator = abs(target)
     if denominator <= 1e-8:
@@ -235,6 +243,7 @@ def safe_percentage_error(prediction, target):
     return (abs(prediction - target) / denominator) * 100.0
 
 
+# Build the CSV that returns the CSV rows for a per-design summary of the epoch with the best overall accuracy
 def build_best_epoch_design_summary_rows(history):
     best_epoch = history.get("best_epoch")
     best_epoch_predictions = history.get("best_epoch_predictions", [])
@@ -319,7 +328,7 @@ def build_best_epoch_design_summary_rows(history):
 
     return rows
 
-
+# Write out a CSV files that summarizes the performance of the best epoch for each design
 def write_best_epoch_design_summary_csv(history, output_path):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -349,7 +358,7 @@ def write_best_epoch_design_summary_csv(history, output_path):
         writer.writeheader()
         writer.writerows(rows)
 
-
+# Write out a per-design summary for all of the cross validation folds at the end of CV training
 def write_cross_validation_design_summary_csv(rows, output_path):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -378,32 +387,3 @@ def write_cross_validation_design_summary_csv(rows, output_path):
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
-
-def print_inference_metrics(split_name, metrics):
-    print_section("Inference Results ({})".format(split_name))
-    print_key_value("loss", "{:.6f}".format(metrics["loss"]))
-    print_key_value("mae", "{:.6f}".format(metrics["error"]), ANSI_GREY)
-    print_key_value("rmse", "{:.6f}".format(metrics["rmse"]), ANSI_GREY)
-    print_key_value("r2", "{:.6f}".format(metrics["r2"]))
-    print_key_value("samples", len(metrics["epoch_predictions"]))
-    
-def write_predictions_csv(predictions, output_path):
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fieldnames = (
-        "split",
-        "design_name",
-        "design_id",
-        "recipe_id",
-        "run_id",
-        "target_name",
-        "target",
-        "prediction",
-        "abs_error",
-    )
-
-    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(predictions)

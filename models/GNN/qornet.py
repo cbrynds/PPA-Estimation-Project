@@ -12,11 +12,6 @@ import math
 import os
 from pathlib import Path
 import time
-
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/qornet_matplotlib")
-os.environ.setdefault("XDG_CACHE_HOME", "/tmp")
-Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,6 +23,8 @@ import graph_processing as graph_proc
 import logging_utils as log_utils
 import plotting_utils as plot_utils
 
+CATEGORICAL_EMBEDDING_DIM = 8
+
 """
 Hyperparameters for training
 These values were taken from the 'How Good Is Your Verilog RTL Code? An Answer from Machine Learning'
@@ -37,26 +34,21 @@ paper and based on recommendations from GNN literature.
 @dataclass
 class Hyperparameters:
     num_epochs: int = 300
-    learning_rate: float = 1e-4 # Changed from 1e-3
+    learning_rate: float = 1e-4             # Changed from 1e-3
     batch_size: int = 32
-    weight_decay: float = 1e-4 # Prevents the weights from becoming too large (reduces overfitting)
-    loss_fn: nn.Module = nn.SmoothL1Loss() # Much less sensitive to outliers than MSELoss
+    weight_decay: float = 1e-4              # Prevents the weights from becoming too large (reduces overfitting)
+    loss_fn: nn.Module = nn.SmoothL1Loss()  # Much less sensitive to outliers than MSELoss
     target_name: str = "wns"
     target_transform: str = "none"
     device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     shuffle_training: bool = True
-    hidden_dim: int = 32 # Reduced from 128 to mitigate overfitting
-    num_gat_layers: int = 2 # Reduced to 2 for simplicity
+    hidden_dim: int = 32                    # Reduced from 128 to mitigate overfitting
+    num_gat_layers: int = 2                 # Reduced to 2 for simplicity
     num_heads: int = 4
     dropout: float = 0.1
-    early_stopping_patience: int = 50 # Number of epochs to wait for improvement before stopping
-    early_stopping_min_delta: float = 0.0 # Minimum improvement to reset early stopping counter
+    early_stopping_patience: int = 50       # Number of epochs to wait for improvement before stopping
     verbose: bool = True
-    recipe_feature_keys: tuple[str, ...] = ()
 
-
-def embedding_dim_for_vocab(vocab_size):
-    return min(16, max(4, int(math.ceil(math.sqrt(max(vocab_size, 1))))))
 
 class QoRNet(nn.Module):
     """
@@ -82,10 +74,6 @@ class QoRNet(nn.Module):
         super().__init__()
 
         self.feature_schema = feature_schema
-        self.recipe_dim = recipe_dim
-        self.hidden_dim = hidden_dim
-        self.num_gat_layers = num_gat_layers
-        self.num_heads = num_heads
         self.dropout = dropout
 
         if hidden_dim % num_heads != 0:
@@ -93,36 +81,25 @@ class QoRNet(nn.Module):
 
         node_numeric_dim = len(feature_schema.node_numeric_indices)
         edge_numeric_dim = len(feature_schema.edge_numeric_indices)
-        node_embedding_dims = [
-            embedding_dim_for_vocab(vocab_size)
-            for vocab_size in feature_schema.node_categorical_vocab_sizes
-        ]
-        edge_embedding_dims = [
-            embedding_dim_for_vocab(vocab_size)
-            for vocab_size in feature_schema.edge_categorical_vocab_sizes
-        ]
+        node_categorical_dim = len(feature_schema.node_categorical_vocab_sizes) * CATEGORICAL_EMBEDDING_DIM
+        edge_categorical_dim = len(feature_schema.edge_categorical_vocab_sizes) * CATEGORICAL_EMBEDDING_DIM
 
         self.node_categorical_embeddings = nn.ModuleList(
-            nn.Embedding(vocab_size, embedding_dim)
-            for vocab_size, embedding_dim in zip(
-                feature_schema.node_categorical_vocab_sizes,
-                node_embedding_dims,
-            )
+            nn.Embedding(vocab_size, CATEGORICAL_EMBEDDING_DIM)
+            for vocab_size in feature_schema.node_categorical_vocab_sizes
         )
         self.edge_categorical_embeddings = nn.ModuleList(
-            nn.Embedding(vocab_size, embedding_dim)
-            for vocab_size, embedding_dim in zip(
-                feature_schema.edge_categorical_vocab_sizes,
-                edge_embedding_dims,
-            )
+            nn.Embedding(vocab_size, CATEGORICAL_EMBEDDING_DIM)
+            for vocab_size in feature_schema.edge_categorical_vocab_sizes
         )
 
-        input_projection_dim = node_numeric_dim + recipe_dim + sum(node_embedding_dims)
-        edge_encoder_dim = edge_numeric_dim + sum(edge_embedding_dims)
+        input_projection_dim = node_numeric_dim + recipe_dim + node_categorical_dim
+        edge_encoder_dim = edge_numeric_dim + edge_categorical_dim
 
         self.input_projection = nn.Linear(input_projection_dim, hidden_dim)
         self.edge_encoder = nn.Linear(edge_encoder_dim, hidden_dim)
         self.gnn_layers = nn.ModuleList()
+        
         for _ in range(num_gat_layers):
             self.gnn_layers.append(
                 GATConv(
@@ -134,6 +111,8 @@ class QoRNet(nn.Module):
                     edge_dim=hidden_dim,
                 )
             )
+            
+        # Dimensions of 2 graph pooling methods + 2 graph size features
         regressor_input_dim = (2 * hidden_dim) + 2
         
         # FC layers to map from graph embedding to final QoR prediction
@@ -233,94 +212,7 @@ class QoRNet(nn.Module):
         return self.regressor(graph_embedding)
 
 
-def _denormalize_recipe_tensor(recipe_tensor, normalization_context):
-    recipe_mean = normalization_context.recipe_mean.to(
-        device=recipe_tensor.device,
-        dtype=recipe_tensor.dtype,
-    )
-    recipe_std = normalization_context.recipe_std.to(
-        device=recipe_tensor.device,
-        dtype=recipe_tensor.dtype,
-    )
-    return (recipe_tensor * recipe_std) + recipe_mean
-
-
-def debug_print_batch_alignment(
-    batch,
-    hyperparameters,
-    normalization_context,
-    predictions=None,
-    max_graphs_to_print=3,
-    prefix="Batch Alignment Debug",
-):
-    if not hyperparameters.verbose:
-        return
-
-    num_graphs = getattr(batch, "num_graphs", 0)
-    if num_graphs == 0:
-        return
-
-    recipe_tensor = batch.recipe
-    if recipe_tensor.dim() == 1:
-        recipe_tensor = recipe_tensor.view(1, -1)
-
-    if recipe_tensor.size(0) != num_graphs:
-        raise ValueError(
-            "Expected one recipe vector per graph, but got recipe shape {} for {} graphs.".format(
-                tuple(recipe_tensor.shape),
-                num_graphs,
-            )
-        )
-
-    recipe_denormalized = _denormalize_recipe_tensor(recipe_tensor.float(), normalization_context)
-    targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
-    targets_learning_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
-    targets_denormalized = eval_utils.convert_learning_target_to_report_target(
-        targets_learning_denormalized,
-        batch,
-        hyperparameters.target_name,
-    )
-    predictions_denormalized = None
-    if predictions is not None:
-        predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
-        predictions_denormalized = eval_utils.convert_learning_target_to_report_target(
-            predictions_learning_denormalized,
-            batch,
-            hyperparameters.target_name,
-        )
-
-    design_names = eval_utils.resolve_batch_metadata(batch, "design_name", num_graphs)
-    run_ids = eval_utils.resolve_batch_metadata(batch, "run_id", num_graphs)
-    recipe_feature_keys = hyperparameters.recipe_feature_keys or tuple(
-        "feature_{}".format(index) for index in range(recipe_denormalized.size(1))
-    )
-
-    log_utils.print_section(prefix)
-    for sample_idx in range(min(num_graphs, max_graphs_to_print)):
-        log_utils.print_key_value("sample_index", sample_idx, log_utils.ANSI_GREY)
-        log_utils.print_key_value("design_name", design_names[sample_idx], log_utils.ANSI_GREY)
-        log_utils.print_key_value("run_id", run_ids[sample_idx], log_utils.ANSI_GREY)
-        recipe_values = {
-            key: float(value)
-            for key, value in zip(
-                recipe_feature_keys,
-                recipe_denormalized[sample_idx].detach().cpu().tolist(),
-            )
-        }
-        log_utils.print_key_value("recipe", recipe_values, log_utils.ANSI_GREY)
-        log_utils.print_key_value(
-            "target_{}".format(hyperparameters.target_name),
-            "{:.6f}".format(float(targets_denormalized[sample_idx].item())),
-            log_utils.ANSI_GREY,
-        )
-        if predictions_denormalized is not None:
-            log_utils.print_key_value(
-                "prediction_{}".format(hyperparameters.target_name),
-                "{:.6f}".format(float(predictions_denormalized[sample_idx].item())),
-                log_utils.ANSI_GREY,
-            )
-        log_utils.print_rule()
-
+# Handle user command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser(description="QoRNet: Edge-aware Graph Neural Network for RTL code")
     parser.add_argument("--config", type=str, default=None, help="Path to the dataset config file")
@@ -337,10 +229,7 @@ def parse_arguments():
         "--single_graph",
         type=str,
         default=None,
-        help=(
-            "Path to one serialized PyG graph (.pt) for single-design inference. "
-            "In this mode, QoRNet skips the config/labels/dataset_dir workflow."
-        ),
+        help="Path to one serialized PyG graph (.pt) for single-design inference.",
     )
     parser.add_argument(
         "--training_split",
@@ -358,17 +247,12 @@ def parse_arguments():
         "--cv_fold_index",
         type=int,
         default=None,
-        help="Which validation fold to run when --cv_folds is greater than 1. Leave unset to train every fold and report the average test MAE/R^2.",
+        help="Which validation fold to run when --cv_folds is greater than 1. Leave unset to train every fold.",
     )
     parser.add_argument(
         "--cv_stratify_by_size",
         action="store_true",
         help="When using cross-validation, balance folds by graph size so very large designs are spread across folds.",
-    )
-    parser.add_argument(
-        "--cv_stratify_by_operator",
-        action="store_true",
-        help="When using cross-validation on FloPoCo-style datasets, balance folds by inferred operator family from design names.",
     )
     parser.add_argument(
         "--mode",
@@ -380,7 +264,7 @@ def parse_arguments():
     parser.add_argument(
         "--plot_dir",
         type=str,
-        default=None,
+        required=True,
         help="Path to the directory for saving training plots or single-graph inference outputs.",
     )
     parser.add_argument(
@@ -401,42 +285,27 @@ def parse_arguments():
         action="store_true",
         help="Disable dataset-loading and normalization summary prints.",
     )
-    return parser.parse_args()
-
-
-def validate_arguments(args):
-    if args.mode == "inference":
-        if not args.single_graph:
-            raise ValueError("Inference mode only supports single-graph evaluation. Provide --single_graph.")
-        if args.cv_folds != 1:
-            raise ValueError("--single_graph does not support cross-validation settings.")
-        return
-
-    if args.single_graph:
-        raise ValueError("--single_graph is only supported in inference mode.")
-
-    missing = [
-        flag_name
-        for flag_name, value in (
-            ("--config", args.config),
-            ("--labels", args.labels),
-            ("--dataset_dir", args.dataset_dir),
-        )
-        if not value
-    ]
-    if missing:
-        raise ValueError("Missing required arguments for dataset-based {} mode: {}.".format(args.mode, ", ".join(missing)))
-
-
-def resolve_plot_dir(args):
-    if args.plot_dir:
-        return Path(args.plot_dir)
+    
+    args = parser.parse_args()
 
     if args.mode == "train":
-        raise ValueError("--plot_dir is required in train mode.")
-
-    checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
-    return checkpoint_path.parent / "inference_outputs"
+        missing_train_args = [
+            argument_name
+            for argument_name in ("config", "labels", "dataset_dir")
+            if getattr(args, argument_name) is None
+        ]
+        if missing_train_args:
+            raise ValueError(
+                "Train mode requires: {}".format(
+                    ", ".join("--{}".format(argument_name) for argument_name in missing_train_args)
+                )
+            )
+        if args.single_graph is not None:
+            raise ValueError("--single_graph is only supported in inference mode.")
+    elif args.single_graph is None:
+        raise ValueError("Inference mode requires --single_graph.")
+    
+    return args
 
 
 def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_context):
@@ -451,7 +320,6 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
     all_predictions = []
     all_targets = []
     epoch_predictions = []
-    debug_printed = False
 
     with torch.no_grad():
         for batch in evaluation_loader:
@@ -462,15 +330,7 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
 
             batch = batch.to(hyperparameters.device)
             predictions = qornet(batch)
-            if hyperparameters.verbose and not debug_printed:
-                debug_print_batch_alignment(
-                    batch,
-                    hyperparameters,
-                    normalization_context,
-                    predictions=predictions,
-                    prefix="Eval Batch Alignment Debug",
-                )
-                debug_printed = True
+
             targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
             predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
             targets_learning_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
@@ -582,7 +442,6 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         total_graphs = 0
         all_predictions = []
         all_targets = []
-        debug_printed = False
 
         # Loop across batches in the training loader
         for batch in training_loader:
@@ -593,15 +452,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
 
             optimizer.zero_grad()
             predictions = qornet(batch)
-            if hyperparameters.verbose and not debug_printed:
-                debug_print_batch_alignment(
-                    batch,
-                    hyperparameters,
-                    normalization_context,
-                    predictions=predictions.detach(),
-                    prefix="Train Batch Alignment Debug",
-                )
-                debug_printed = True
+
             predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
             targets_learning_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
             predictions_denormalized = eval_utils.convert_learning_target_to_report_target(
@@ -661,8 +512,8 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
         history["test_r2"].append(test_metrics["r2"])
         log_utils.print_epoch_metrics(epoch_idx, hyperparameters.num_epochs, train_loss, train_error, train_rmse, train_percentage_error, train_r2, test_metrics)
 
-        error_improved = test_metrics["error"] < (best_error - hyperparameters.early_stopping_min_delta)
-        r2_improved = test_metrics["r2"] > (best_r2 + hyperparameters.early_stopping_min_delta)
+        error_improved = test_metrics["error"] < best_error
+        r2_improved = test_metrics["r2"] > best_r2
 
         if error_improved:
             best_error = test_metrics["error"]
@@ -875,7 +726,6 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
     if not args.disable_verbose:
         log_utils.print_section("Dataset Loading")
     training_data, testing_data, normalization_context = graph_proc.load_data(args, hyperparameters.target_name)
-    hyperparameters.recipe_feature_keys = graph_proc.load_recipe_feature_keys(args.config)
 
     node_input_dim, edge_input_dim, recipe_dim = graph_proc.validate_input_dimensions(training_data, testing_data)
 
@@ -917,7 +767,6 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
 
 def main():
     args = parse_arguments()
-    validate_arguments(args)
     log_utils.print_startup_banner(args)
     hyperparameters = Hyperparameters()
     hyperparameters.target_name = args.target_name
@@ -932,7 +781,7 @@ def main():
                 fold_args = clone_args_with_fold(args, fold_index)
                 fold_hyperparameters = deepcopy(hyperparameters)
                 fold_checkpoint_path = ckpt_utils.resolve_checkpoint_path(fold_args)
-                fold_plot_dir = resolve_plot_dir(fold_args)
+                fold_plot_dir = Path(fold_args.plot_dir)
 
                 log_utils.print_section("Cross-Validation Fold {}/{}".format(fold_index + 1, args.cv_folds))
                 history, _ = train_single_run(fold_args, fold_hyperparameters, fold_checkpoint_path, fold_plot_dir)
@@ -953,17 +802,17 @@ def main():
             print_cross_validation_summary(fold_summaries)
             unified_design_summary_path = Path(args.plot_dir) / "cross_validation_best_epoch_per_design_summary.csv"
             log_utils.write_cross_validation_design_summary_csv(unified_design_summary_rows, unified_design_summary_path)
-            log_utils.print_key_value( "cv_design_summary_csv", unified_design_summary_path, log_utils.ANSI_GREY)
+            log_utils.print_key_value("cv_design_summary_csv", unified_design_summary_path, log_utils.ANSI_GREY)
             log_utils.print_rule()
             return
 
         checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
-        plot_dir = resolve_plot_dir(args)
+        plot_dir = Path(args.plot_dir)
         train_single_run(args, hyperparameters, checkpoint_path, plot_dir)
         return
 
     checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
-    plot_dir = resolve_plot_dir(args)
+    plot_dir = Path(args.plot_dir)
 
     checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
     hyperparameters = ckpt_utils.update_hyperparameters_from_dict(hyperparameters, checkpoint["hyperparameters"])
