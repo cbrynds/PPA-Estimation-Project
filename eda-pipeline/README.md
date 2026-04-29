@@ -1,205 +1,157 @@
-# Dataset Generation Pipeline
+# EDA Dataset Generation Pipeline
 
-This directory contains a modified synthesis and implementation flow for generating
-ASTs (Yosys) and ground truth timing values (OpenROAD) for an RTL dataset.
+This directory contains the RTL-to-QoR data generation flow used to create Yosys ASTs and ground-truth timing/area labels. The flow uses Yosys for AST and netlist generation and OpenROAD for implementation/timing reports. Additionally, we implement Slurm job arrays for parallelized design + recipe synthesis.
 
-## Included Assets
+## Directory Structure
 
-- `scripts/` modified from `Open-EDA-Flow/yosys-openroad-flow/scripts`
-- `data/Nangate45/` Nangate45 standard cell library
-- `data/NangateOpenCellLibrary_typical.lib` ABC liberty file for Nangate45
-- `collect_dataset.py` Top-level script to generate ASTs and ground truth labels
-- `dataset_config.yaml` Configuration file for dataset generation
+- `collect_dataset.py`: CLI entry point for manifest generation, one-run
+  execution, and result merging.
+- `dataset_config.py`: YAML config parsing, recipe expansion, RTL discovery,
+  and manifest spec construction.
+- `flow_tools.py`: Yosys/OpenROAD command helpers, generated Yosys scripts, SDC
+  writing, and cached shared-failure handling.
+- `manifest_utils.py`: manifest JSONL loading/writing, per-run result shards,
+  single-run execution, and final CSV merging.
+- `slurm_scripts/`: Slurm wrappers for building manifests, running array tasks,
+  and merging completed result shards.
+- `scripts/`: OpenROAD/Yosys Tcl flow scripts used inside the Apptainer image.
+- `data/`: EDA support data such as the Nangate liberty file and constraints.
+- `iscas_89_config.yaml`: example dataset-generation config.
 
-## Run
+Run commands from the repository root unless otherwise noted.
 
-### Slurm job-array workflow
+## Configuration File
 
-Use the Slurm path when you want to synthesize many `design x recipe` runs in
-parallel on a cluster.
-
-Each array task does exactly one manifest entry:
-
-- `slurm_submit_array.sh` builds the manifest and submits the array job
-- `slurm_array_task.sh` runs one manifest entry using `SLURM_ARRAY_TASK_ID`
-- `slurm_merge_results.sh` merges all result shards into one CSV after the array finishes
-
-#### 1. Prepare a config
-
-Start from `synthesis/dataset_config.yaml` and make sure these paths are valid
-on the cluster node:
-
-- `apptainer_image`
-- `project_root`
-- RTL paths under `designs`
-
-#### 2. Submit the array job
-
-The simplest submission command is:
+The YAML configuration file is the main user-facing input to the dataset flow.
+It tells the pipeline where the project lives, which EDA container and flow mode
+to use, which synthesis recipes to sweep, where outputs should be written, and
+which RTL designs should be processed.
 
 ```bash
-synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
+eda-pipeline/iscas_89_config.yaml
 ```
 
-If you use the helper setup script, make sure to source it so the module load and
-exports affect your current shell:
+Important top-level fields:
+
+- `project_root`: repository-relative or absolute path used as the base for
+  most other paths.
+- `synthesis_root`: working directory for generated netlists, constraints, run
+  directories, logs, and OpenROAD outputs.
+- `apptainer_image`: path to the Apptainer/Singularity image containing Yosys,
+  OpenROAD, and flow dependencies.
+- `flow_mode`: `full` for the full OpenROAD flow, or `fast` for a faster
+  placement-oriented flow.
+- `die_area` and `core_area`: OpenROAD floorplan bounds passed into the flow.
+- `default_clock_port` and `default_clock_period_ns`: fallback timing settings
+  used when a design does not override them.
+
+Recipe configuration:
+
+- `sweep_mode: bounded_cartesian` expands the values under `sweep` into a full
+  design x recipe manifest.
+- `sweep.clock_period_ns` is treated as a subtraction offset from each design's
+  `default_clock_period_ns`. For example, an offset of `0.01` means the
+  effective STA period is `default_clock_period_ns - 0.01`.
+- `sweep.max_fanout`, `sweep.max_transition_ns`, and
+  `sweep.max_capacitance_ff` define timing/design-rule constraint values to
+  sweep.
+
+AST configuration:
+
+- `ast.proc`: run Yosys `proc` before writing the AST JSON.
+- `ast.flatten`: flatten the design before writing the AST JSON.
+- `ast.dump_ast`: enable Yosys AST dumping while reading Verilog.
+
+Output configuration:
+
+- `output.csv_path`: final merged ground-truth CSV.
+- `output.runs_dir`: per-run OpenROAD directories.
+- `output.ast_dir` and `output.ast_log_dir`: generated AST JSON and logs.
+- `output.result_shards_dir`: per-run JSON result shards written by array tasks.
+- `output.yosys_logs_dir`: synthesis logs.
+- `output.shared_failures_dir`: cached failures shared across recipes of the
+  same design.
+
+Each entry under `designs` describes one RTL design:
+
+- `name`: short design name used in run IDs and output filenames.
+- `id`: stable dataset identifier.
+- `rtl_dir` or `files`: RTL source location.
+- `top`: top module/entity name.
+- `clock_port`: clock port used in the generated SDC.
+- `default_clock_period_ns`: design-specific base clock period.
+- `recursive`: whether to recursively scan `rtl_dir`.
+- `extensions`: RTL file extensions to include.
+
+By default, generated artifacts still live under the configured synthesis root,
+for example `synthesis/results/...`, `synthesis/runs/...`, and
+`synthesis/data/...`.
+
+## Slurm Job-Array Workflow
+
+The Slurm job-array flow is the recommended way to run this script. A realistic
+dataset sweep can contain thousands of design x recipe runs, so the pipeline
+first builds a manifest and then lets Slurm run each manifest row independently.
+
+Recommended flow:
+
+1. Edit the YAML config.
+2. Submit the array job with `slurm_submit_array.sh`.
+3. Wait for all array tasks to finish.
+4. Merge the per-run JSON result shards into one CSV with
+   `slurm_merge_results.sh`.
+
+The submit script performs the expansion step:
 
 ```bash
-source synthesis/slurm_setup.sh
+python3 eda-pipeline/collect_dataset.py build-manifest ...
 ```
 
-This will:
-
-- expand the YAML into a JSONL manifest
-- create one Slurm array task per manifest row
-- write Slurm stdout/stderr logs under `synthesis/results/slurm_logs/`
-
-You can also choose a custom manifest path:
+Each Slurm task then runs one manifest row:
 
 ```bash
-synthesis/slurm_submit_array.sh \
-  synthesis/dataset_config.yaml \
-  synthesis/results/my_manifest.jsonl
+python3 eda-pipeline/collect_dataset.py run-manifest-entry ...
 ```
 
-#### 3. Set Slurm resource options
-
-`slurm_submit_array.sh` reads common Slurm settings from environment variables
-before calling `sbatch`.
-
-Example:
+After the array finishes, the merge script runs:
 
 ```bash
-export ARRAY_MAX_CONCURRENT=50
-export ARRAY_MAX_SIZE=1001
-export SLURM_PARTITION=compute
-export SLURM_TIME=04:00:00
-export SLURM_MEM=8G
-export SLURM_CPUS_PER_TASK=4
-
-# Make the repo path visible inside the Apptainer container.
-cd "$(readlink -f .)"
-export APPTAINER_BINDPATH="$PWD:$PWD"
-
-# Optional: avoid known-bad nodes.
-export SLURM_EXCLUDE=ec26
-
-synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
+python3 eda-pipeline/collect_dataset.py merge-results ...
 ```
 
-Supported variables:
+### 1. Optional Environment Setup
 
-- `ARRAY_MAX_CONCURRENT`: max number of array tasks running at once
-- `ARRAY_MAX_SIZE`: max number of tasks in any one submitted Slurm array job
-- `SLURM_LOG_DIR`: directory for `slurm-%A_%a.out` and `slurm-%A_%a.err`
-- `SLURM_PARTITION`: passed to `sbatch --partition`
-- `SLURM_EXCLUDE`: passed to `sbatch --exclude`
-- `SLURM_NODELIST`: passed to `sbatch --nodelist`
-- `SLURM_TIME`: passed to `sbatch --time`
-- `SLURM_MEM`: passed to `sbatch --mem`
-- `SLURM_CPUS_PER_TASK`: passed to `sbatch --cpus-per-task`
-
-#### Cluster notes
-
-On some clusters, Apptainer may not automatically bind the canonical project path
-seen by Slurm compute nodes. When that happens, AST generation can fail with an
-error like `Can't open script file ... No such file or directory` even though the
-file exists on the host. A reliable workaround is to submit from the resolved repo
-path and export `APPTAINER_BINDPATH` before calling `slurm_submit_array.sh`:
+If your cluster requires Apptainer to be loaded before submission:
 
 ```bash
-cd "$(readlink -f .)"
-export APPTAINER_BINDPATH="$PWD:$PWD"
+source eda-pipeline/slurm_scripts/slurm_setup.sh
 ```
 
-The batch wrapper now runs `module load apptainer` inside each Slurm array task
-as well, so compute nodes do not depend on the submit shell still having the
-Apptainer module in its `PATH`.
-
-If your site has a misconfigured node, you can exclude it without editing the
-submission script:
+### 2. Submit The Array
 
 ```bash
-export SLURM_EXCLUDE=ec26
-synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
+eda-pipeline/slurm_scripts/slurm_submit_array.sh \
+  eda-pipeline/iscas_89_config.yaml
 ```
 
-Or pin the run to a known-good node:
+The submit script calls:
 
 ```bash
-export SLURM_NODELIST=ec25
-synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
+python3 eda-pipeline/collect_dataset.py build-manifest ...
 ```
 
-If your cluster limits array size, the submit wrapper will automatically split
-the manifest into multiple chunk manifests when the total number of runs exceeds
-`ARRAY_MAX_SIZE` (default `1001`). Each chunk is submitted as its own Slurm
-array job, while still sharing the same result-shard directory for merging later.
+and then submits `eda-pipeline/slurm_scripts/slurm_array_task.sh` via `sbatch`.
 
-#### 4. What each task runs
+## Outputs
 
-If you want to test one task locally, you can run one manifest row directly:
-
-```bash
-python3 synthesis/collect_dataset.py run-manifest-entry \
-  synthesis/dataset_config.yaml \
-  --manifest synthesis/results/run_manifest.jsonl \
-  --index 0
-```
-
-Inside Slurm, the wrapper does the equivalent of:
-
-```bash
-synthesis/slurm_array_task.sh \
-  /path/to/repo \
-  synthesis/dataset_config.yaml \
-  synthesis/results/run_manifest.jsonl
-```
-
-and uses `SLURM_ARRAY_TASK_ID` as the manifest index.
-
-#### 5. Merge the finished shards
-
-After the array job completes, merge the per-run JSON shards into the final CSV:
-
-```bash
-synthesis/slurm_merge_results.sh synthesis/dataset_config.yaml
-```
-
-You can also override the shard directory and output CSV:
-
-```bash
-synthesis/slurm_merge_results.sh \
-  synthesis/dataset_config.yaml \
-  synthesis/results/result_shards \
-  synthesis/results/ground_truth_qor_dataset.csv
-```
-
-#### 6. Recommended cluster workflow
-
-```bash
-export ARRAY_MAX_CONCURRENT=50
-export SLURM_PARTITION=compute
-export SLURM_TIME=04:00:00
-export SLURM_MEM=8G
-export SLURM_CPUS_PER_TASK=4
-
-synthesis/slurm_submit_array.sh synthesis/dataset_config.yaml
-
-# wait for the array job to finish
-
-synthesis/slurm_merge_results.sh synthesis/dataset_config.yaml
-```
-
-Outputs:
+Default output locations depend on the YAML config, but typical paths are:
 
 - Per-run artifacts/logs: `synthesis/runs/<design>__<recipe>/`
-- AST JSON + logs: `synthesis/results/ast/`, `synthesis/results/ast_logs/`
-- Netlists: `synthesis/data/rtl/*_netlist.v`
-- Per-run result shards: `synthesis/results/result_shards/*.json` (default)
-- CSV with ground truth data: `synthesis/results/ground_truth_qor_dataset.csv` (default)
-
-## Notes
-
-- `flow_mode: full` is slower but more accuracy to a physical design.
-- `flow_mode: fast` stops after placement step. Is faster but less accurate.
+- AST JSON: `synthesis/results/ast/` - this is used to build vector and graph features by `ast-parser`
+- AST logs: `synthesis/results/ast_logs/`
+- Yosys logs: `synthesis/results/yosys_logs/`
+- Netlists: `synthesis/data/rtl/*_netlist.v` 
+- Constraints: `synthesis/data/constraints/*.sdc`
+- Per-run result shards: `synthesis/results/result_shards/*.json`
+- Final CSV: `synthesis/results/ground_truth_qor_dataset.csv` - this is the ground truth CSV used for model training
+- Slurm logs: `synthesis/results/slurm_logs/` - for diagnostics/run debugging
