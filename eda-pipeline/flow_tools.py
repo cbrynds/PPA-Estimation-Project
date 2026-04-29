@@ -117,7 +117,7 @@ def write_sdc(sdc_path, clock_port, period_ns, max_fanout=None, max_transition_n
         f.write("\n".join(lines))
 
 
-# Read the final row of the OpenROAD PPA CSV for a completed run.
+# Read the final row of the OpenROAD PPA CSV for a completed run
 def read_last_ppa_row(ppa_csv):
     with open(ppa_csv, "r") as f:
         reader = csv.DictReader(f)
@@ -127,7 +127,7 @@ def read_last_ppa_row(ppa_csv):
     return rows[-1]
 
 
-# Read a cached shared failure marker, if one exists.
+# Read a cached shared failure marker, if one exists
 def read_failure_marker(marker_path):
     if not marker_path.exists():
         return None
@@ -135,7 +135,7 @@ def read_failure_marker(marker_path):
         return json.load(f)
 
 
-# Cache a design-level failure so repeated recipes can fail fast.
+# Cache a design-level failure so repeated recipes can fail fast
 def write_failure_marker(marker_path, stage, error_message):
     marker_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -147,7 +147,7 @@ def write_failure_marker(marker_path, stage, error_message):
         f.write("\n")
 
 
-# Delete a cached failure marker after a later successful shared step.
+# Delete a cached failure marker after a later successful shared step
 def remove_failure_marker(marker_path):
     try:
         marker_path.unlink()
@@ -155,7 +155,7 @@ def remove_failure_marker(marker_path):
         pass
 
 
-# Raise an exception if this design already has a cached shared failure.
+# Raise an exception if this design already has a cached shared failure
 def raise_cached_failure(marker_path, design_name):
     failure = read_failure_marker(marker_path)
     if failure is None:
@@ -169,7 +169,7 @@ def raise_cached_failure(marker_path, design_name):
     )
 
 
-# Detect OpenROAD errors that may appear in successful process output.
+# Detect OpenROAD errors that may appear in successful process output
 def validate_openroad_output(output):
     error_markers = [
         "\n[ERROR ",
@@ -180,7 +180,7 @@ def validate_openroad_output(output):
         raise RuntimeError("OpenROAD reported an error:\n{}".format(output))
 
 
-# Generate the AST JSON once per design, protected by a lock file.
+# Generate the AST JSON once per design, protected by a lock file
 def generate_ast_if_needed(
     spec,
     project_root,
@@ -239,7 +239,7 @@ def generate_ast_if_needed(
                 pass
 
 
-# Generate the shared synthesized netlist once per design/synthesis variant.
+# Generate the shared synthesized netlist once per design/synthesis variant
 def synthesize_if_needed(
     spec,
     project_root,

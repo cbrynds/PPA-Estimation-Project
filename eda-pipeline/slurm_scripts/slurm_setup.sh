@@ -9,4 +9,5 @@ export SLURM_TIME=04:00:00
 export SLURM_MEM=8G
 export SLURM_CPUS_PER_TASK=4
 
+# This node was failing during dataset collection, exclude it
 export SLURM_EXCLUDE=ec26

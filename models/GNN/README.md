@@ -6,8 +6,9 @@ This directory contains QoRNet's graph neural network model for predicting desig
 
 - `qornet.py`: CLI entry point, GAT model definition, training loop,
   evaluation loop, checkpoint save/load, and single-graph inference.
-- `graph_processing.py`: graph/label loading, recipe metadata attachment,
+- `graph_processing.py`: graph loading, recipe metadata attachment
   train/test splitting, feature schema construction, and normalization.
+- `label_parsing.py`: YAML config parsing, CSV label loading
 - `evaluation_utils.py`: target conversion, denormalization, MAE, RMSE, MAPE,
   and R2 helpers.
 - `logging_utils.py`: terminal formatting plus CSV writers for training

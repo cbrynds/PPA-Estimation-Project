@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load Apptainer inside the batch job so compute nodes inherit the runtime too.
+# Load Apptainer inside the batch job so compute nodes inherit the module
 module load apptainer
 
 if [[ $# -lt 2 ]]; then

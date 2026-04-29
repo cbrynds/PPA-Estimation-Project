@@ -52,6 +52,7 @@ def plot_metric_pair(
     plt.close()
 
 
+# Generate all training-history plots and the matching history CSV
 def plot_training_history(history, hyperparameters, output_dir):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -86,15 +87,7 @@ def plot_training_history(history, hyperparameters, output_dir):
         ),
     )
 
-    for (
-        train_metric_key,
-        test_metric_key,
-        title,
-        ylabel,
-        filename,
-        training_label,
-        testing_label,
-    ) in paired_metric_specs:
+    for (train_metric_key, test_metric_key, title, ylabel, filename, training_label, testing_label) in paired_metric_specs:
         plot_metric_pair(history[train_metric_key], history[test_metric_key], title, ylabel, output_dir / filename, training_label, testing_label)
 
     metric_specs = (

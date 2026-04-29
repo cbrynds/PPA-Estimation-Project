@@ -1,7 +1,7 @@
 """
 CSV and terminal logging utilities for QoRNet training and evaluation. 
 
-Disclaimer: GPT Codex was used to develop some of the code in this file. 
+Disclaimer: GPT Codex was used to develop some of the logging scripts in this file. 
 
 Author: Cory Brynds
 """
@@ -31,20 +31,24 @@ HORIZONTAL_RULE = "=" * 78
 TERMINAL_TEXT_WIDTH = 78
 
 
+# Wrap text in an ANSI color sequence.
 def colorize(text, color_code):
     return "{}{}{}".format(color_code, text, ANSI_RESET)
 
 
+# Print a standard horizontal section rule.
 def print_rule():
     print(HORIZONTAL_RULE)
 
 
+# Print a bold section heading with rules above and below.
 def print_section(title):
     print_rule()
     print("{}{}{}".format(ANSI_BOLD, title, ANSI_RESET))
     print_rule()
 
 
+# Print one aligned label/value row.
 def print_key_value(label, value, color_code=None):
     rendered_value = str(value)
     if color_code:
@@ -52,10 +56,12 @@ def print_key_value(label, value, color_code=None):
     print("  {:<18} {}".format(label + ":", rendered_value))
 
 
+# Join values into a comma-separated display string.
 def format_list(values):
     return ", ".join(str(value) for value in values)
 
 
+# Print a label/value row with wrapped continuation lines.
 def print_wrapped_key_value(label, value, width=TERMINAL_TEXT_WIDTH):
     prefix = "  {:<18} ".format(label + ":")
     wrapped_lines = textwrap.wrap(
@@ -73,6 +79,7 @@ def print_wrapped_key_value(label, value, width=TERMINAL_TEXT_WIDTH):
         print("{}{}".format(" " * len(prefix), line))
 
 
+# Print graph-size summaries as a compact table.
 def print_graph_summary_table(graph_summaries):
     print("Graph statistics:")
     print("  {:<16} {:>8} {:>8} {:>8} {:>8}".format("design", "nodes", "edges", "node_f", "edge_f"))
@@ -84,6 +91,7 @@ def print_graph_summary_table(graph_summaries):
         )
 
 
+# Print the startup banner and parsed command-line arguments.
 def print_startup_banner(args):
     print_rule()
     print(ASCII_BANNER)
@@ -427,3 +435,58 @@ def write_cross_validation_design_summary_csv(rows, output_path):
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+# Select the best available test metrics from a training history
+def summarize_history_metrics(history):
+    if history["best_test_mae"] is not None and history["best_test_r2"] is not None:
+        return {
+            "test_mae": history["best_test_mae"],
+            "test_rmse": history["best_test_rmse"],
+            "test_r2": history["best_test_r2"],
+            "epoch_source": "best",
+            "epoch": history["best_epoch"],
+        }
+
+    final_epoch = len(history["test_error"])
+    if final_epoch == 0:
+        return {
+            "test_mae": 0.0,
+            "test_rmse": 0.0,
+            "test_r2": 0.0,
+            "epoch_source": "final",
+            "epoch": 0,
+        }
+
+    return {
+        "test_mae": history["test_error"][-1],
+        "test_rmse": history["test_rmse"][-1],
+        "test_r2": history["test_r2"][-1],
+        "epoch_source": "final",
+        "epoch": final_epoch,
+    }
+
+
+# Print average and per-fold cross-validation metrics
+def print_cross_validation_summary(fold_summaries):
+    if not fold_summaries:
+        return
+
+    average_mae = sum(summary["test_mae"] for summary in fold_summaries) / len(fold_summaries)
+    average_rmse = sum(summary["test_rmse"] for summary in fold_summaries) / len(fold_summaries)
+    average_r2 = sum(summary["test_r2"] for summary in fold_summaries) / len(fold_summaries)
+
+    print_section("Cross-Validation Summary")
+    for summary in fold_summaries:
+        label = "fold_{}".format(summary["fold_index"])
+        value = "test_mae={:.6f} test_rmse={:.6f} test_r2={:.6f} {}_epoch={}".format(
+            summary["test_mae"],
+            summary["test_rmse"],
+            summary["test_r2"],
+            summary["epoch_source"],
+            summary["epoch"],
+        )
+        print_key_value(label, value)
+
+    print_key_value("average_test_mae", "{:.6f}".format(average_mae), ANSI_RED)
+    print_key_value("average_test_rmse", "{:.6f}".format(average_rmse), ANSI_RED)
+    print_key_value("average_test_r2", "{:.6f}".format(average_r2))
