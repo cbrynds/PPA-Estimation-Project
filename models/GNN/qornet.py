@@ -7,9 +7,7 @@ Author: Cory Brynds
 import argparse
 from copy import deepcopy
 from dataclasses import dataclass
-import json
 import math
-import os
 from pathlib import Path
 import time
 import torch
@@ -264,8 +262,8 @@ def parse_arguments():
     parser.add_argument(
         "--plot_dir",
         type=str,
-        required=True,
-        help="Path to the directory for saving training plots or single-graph inference outputs.",
+        default=None,
+        help="Path to the directory for saving training plots and CSV outputs.",
     )
     parser.add_argument(
         "--checkpoint_path",
@@ -300,6 +298,8 @@ def parse_arguments():
                     ", ".join("--{}".format(argument_name) for argument_name in missing_train_args)
                 )
             )
+        if args.plot_dir is None:
+            raise ValueError("Train mode requires --plot_dir.")
         if args.single_graph is not None:
             raise ValueError("--single_graph is only supported in inference mode.")
     elif args.single_graph is None:
@@ -523,6 +523,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             best_r2 = test_metrics["r2"]
             last_r2_improvement_epoch = epoch_idx
 
+        # If the error has decreased or r2 increased, update best epoch information and log
         if error_improved or r2_improved:
             history["best_epoch"] = epoch_idx
             history["best_test_loss"] = test_metrics["loss"]
@@ -585,21 +586,13 @@ def run_single_graph_inference(
     hyperparameters,
     normalization_context,
     recipe_dim,
-    output_dir,
 ):
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
     single_graph = load_single_graph_sample(
         args.single_graph,
         normalization_context,
         recipe_dim,
     )
-    node_input_dim, edge_input_dim, _ = graph_proc.validate_input_dimensions([single_graph], [])
-    log_utils.print_model_summary(hyperparameters, [single_graph], [], node_input_dim, edge_input_dim, recipe_dim)
-    dataset_design_summary_path = output_dir / "input_dataset_design_summary.csv"
-    log_utils.write_dataset_design_summary_csv([single_graph], dataset_design_summary_path)
-    log_utils.print_key_value("dataset_summary_csv", dataset_design_summary_path, log_utils.ANSI_GREY)
+    graph_proc.validate_input_dimensions([single_graph], [])
 
     inference_loader = DataLoader([single_graph], batch_size=1, shuffle=False, exclude_keys=["node_to_idx"])
 
@@ -625,24 +618,12 @@ def run_single_graph_inference(
         raise RuntimeError("Single-graph inference did not produce a prediction.")
 
     target_label = "predicted_{}_ns".format(hyperparameters.target_name)
-    summary = {
-        "graph_path": str(Path(args.single_graph)),
-        "design_name": single_graph.design_name,
-        "design_id": single_graph.design_id,
-        "target_name": hyperparameters.target_name,
-        target_label: prediction_value,
-        "prediction": prediction_value,
-        "prediction_runtime_s": elapsed_s,
-    }
-    summary_path = output_dir / "single_graph_prediction.json"
-    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-
-    log_utils.print_section("Single-Design Prediction")
+    log_utils.print_section("Model Inference")
     log_utils.print_key_value("graph_path", args.single_graph, log_utils.ANSI_GREY)
     log_utils.print_key_value("design_name", single_graph.design_name)
+    log_utils.print_key_value("target_name", hyperparameters.target_name)
     log_utils.print_key_value(target_label, "{:.6f}".format(prediction_value), log_utils.ANSI_RED)
     log_utils.print_key_value("prediction_runtime_s", "{:.6f}".format(elapsed_s))
-    log_utils.print_key_value("summary_json", summary_path, log_utils.ANSI_GREY)
     log_utils.print_rule()
 
 
@@ -734,7 +715,6 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
     log_utils.write_dataset_design_summary_csv(training_data + testing_data, dataset_design_summary_path)
     log_utils.print_key_value("dataset_summary_csv", dataset_design_summary_path, log_utils.ANSI_GREY)
 
-    log_utils.print_section("Model Initialization")
     qornet = QoRNet(
         feature_schema=normalization_context.feature_schema,
         recipe_dim=recipe_dim,
@@ -743,7 +723,6 @@ def train_single_run(args, hyperparameters, checkpoint_path, plot_dir):
         num_heads=hyperparameters.num_heads,
         dropout=hyperparameters.dropout,
     )
-    print("Initialized QoRNet model")
 
     log_utils.print_section("Training")
     history = train(qornet, training_data, testing_data, hyperparameters, normalization_context)
@@ -812,7 +791,6 @@ def main():
         return
 
     checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
-    plot_dir = Path(args.plot_dir)
 
     checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
     hyperparameters = ckpt_utils.update_hyperparameters_from_dict(hyperparameters, checkpoint["hyperparameters"])
@@ -827,7 +805,6 @@ def main():
     normalization_context = ckpt_utils.normalization_context_from_dict(checkpoint["normalization_context"])
     recipe_dim = int(checkpoint["recipe_dim"])
 
-    log_utils.print_section("Model Initialization")
     qornet = QoRNet(
         feature_schema=normalization_context.feature_schema,
         recipe_dim=recipe_dim,
@@ -836,14 +813,11 @@ def main():
         num_heads=hyperparameters.num_heads,
         dropout=hyperparameters.dropout,
     )
-    print("Initialized QoRNet model")
 
-    log_utils.print_section("Checkpoint Load")
     qornet.load_state_dict(checkpoint["model_state_dict"])
     qornet = qornet.to(hyperparameters.device)
-    log_utils.print_key_value("checkpoint_path", checkpoint_path, log_utils.ANSI_GREY)
 
-    run_single_graph_inference(args, qornet, hyperparameters, normalization_context, recipe_dim, plot_dir)
+    run_single_graph_inference(args, qornet, hyperparameters, normalization_context, recipe_dim)
     log_utils.print_rule()
 
 if __name__ == "__main__":

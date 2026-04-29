@@ -11,6 +11,7 @@ import random
 import torch
 import yaml
 from torch_geometric.data import Data
+import logging_utils as log_utils
 
 
 EPSILON = 1e-8
@@ -420,10 +421,9 @@ def load_label_rows(labels_path, allowed_design_names, allowed_recipe_values=Non
             labels_by_design[design_name].append(row)
 
     if allowed_recipe_values:
-        print(
-            "Skipped {} successful CSV rows that fell outside the YAML sweep values.".format(
-                skipped_by_sweep
-            )
+        log_utils.print_wrapped_key_value(
+            "skipped_rows",
+            "{} successful CSV rows outside YAML sweep values".format(skipped_by_sweep),
         )
 
     return labels_by_design
@@ -752,8 +752,17 @@ def load_raw_data(args):
     available_graph_designs = list_graph_design_names(dataset_dir)
     
     if verbose:
-        print("Designs declared in config: {}".format(", ".join(design_names)))
-        print("Available graph designs: {}".format(", ".join(available_graph_designs)))
+        log_utils.print_wrapped_key_value(
+            "config_designs",
+            "{} ({})".format(len(design_names), log_utils.format_list(design_names)),
+        )
+        log_utils.print_wrapped_key_value(
+            "graph_designs",
+            "{} ({})".format(
+                len(available_graph_designs),
+                log_utils.format_list(sorted(available_graph_designs)),
+            ),
+        )
     
     allowed_design_names = [design_name for design_name in design_names if design_name in available_graph_designs]
     missing_graph_designs = [design_name for design_name in design_names if design_name not in available_graph_designs]
@@ -774,27 +783,32 @@ def load_raw_data(args):
     random.Random(0).shuffle(shuffled_designs)
     graphs_by_design = {}
     graph_summaries = []
-    graph_summary_by_design = {}
     design_sizes = {}
     for design_name in shuffled_designs:
         graph = load_graph_for_design(dataset_dir, design_name)
         graphs_by_design[design_name] = graph
         summary = summarize_graph(graph, design_name)
         graph_summaries.append(summary)
-        graph_summary_by_design[design_name] = summary
         design_sizes[design_name] = summary["num_nodes"]
 
-    training_designs, testing_designs = split_designs(shuffled_designs, args.training_split, cv_folds=args.cv_folds, cv_fold_index=args.cv_fold_index, stratify_by_size=getattr(args, "cv_stratify_by_size", False), design_sizes=design_sizes)
+    training_designs, testing_designs = split_designs(
+        shuffled_designs,
+        args.training_split,
+        cv_folds=args.cv_folds,
+        cv_fold_index=args.cv_fold_index,
+        stratify_by_size=getattr(args, "cv_stratify_by_size", False),
+        design_sizes=design_sizes,
+    )
 
     training_data = []
     testing_data = []
 
     for design_name in shuffled_designs:
         graph = graphs_by_design[design_name]
-        summary = graph_summary_by_design[design_name]
-        if verbose:
-            print(summary)
-        design_samples = [attach_label_metadata(graph, label_row, recipe_feature_keys) for label_row in labels_by_design[design_name]]
+        design_samples = [
+            attach_label_metadata(graph, label_row, recipe_feature_keys)
+            for label_row in labels_by_design[design_name]
+        ]
 
         if design_name in training_designs:
             training_data.extend(design_samples)
@@ -802,37 +816,56 @@ def load_raw_data(args):
             testing_data.extend(design_samples)
 
     if verbose and missing_graph_designs:
-        print("Skipped {} config designs with no graph file in {}: {}".format(len(missing_graph_designs), dataset_dir, ", ".join(missing_graph_designs)))
+        log_utils.print_wrapped_key_value(
+            "missing_graphs",
+            "{} in {} ({})".format(
+                len(missing_graph_designs),
+                dataset_dir,
+                log_utils.format_list(missing_graph_designs),
+            ),
+        )
 
     if verbose and graph_summaries:
-        print("Graph statistics:")
-        for summary in graph_summaries:
-            print(
-                "  {}: nodes={} edges={} node_feature_dim={} edge_feature_dim={}".format(
-                    summary["design_name"],
-                    summary["num_nodes"],
-                    summary["num_edges"],
-                    summary["node_feature_dim"],
-                    summary["edge_feature_dim"],
-                )
-            )
+        log_utils.print_graph_summary_table(graph_summaries)
 
         total_nodes = sum(summary["num_nodes"] for summary in graph_summaries)
         total_edges = sum(summary["num_edges"] for summary in graph_summaries)
-        print("Graph totals: designs={} total_nodes={} total_edges={} avg_nodes_per_graph={:.2f} avg_edges_per_graph={:.2f}".format(len(graph_summaries), total_nodes, total_edges, total_nodes / len(graph_summaries), total_edges / len(graph_summaries)))
+        log_utils.print_wrapped_key_value(
+            "graph_totals",
+            "designs={} total_nodes={} total_edges={} avg_nodes={:.2f} avg_edges={:.2f}".format(
+                len(graph_summaries),
+                total_nodes,
+                total_edges,
+                total_nodes / len(graph_summaries),
+                total_edges / len(graph_summaries),
+            ),
+        )
 
     if verbose:
-        print("Loaded {} designs with labels from {}".format(len(designs_with_labels), args.labels))
-        print("Recipe features: {}".format(", ".join(recipe_feature_keys)))
-        print("Shuffled design order: {}".format(", ".join(shuffled_designs)))
+        log_utils.print_wrapped_key_value("recipe_features", log_utils.format_list(recipe_feature_keys))
+        log_utils.print_wrapped_key_value("design_order", log_utils.format_list(shuffled_designs))
+        
         if args.cv_folds > 1:
-            print("Cross-validation fold: {}/{}".format(args.cv_fold_index + 1, args.cv_folds))
-            if getattr(args, "cv_stratify_by_size", False):
-                print("Cross-validation stratification: graph size (node count)")
-        print("Training designs: {}".format(", ".join(design_name for design_name in shuffled_designs if design_name in training_designs)))
-        print("Testing designs: {}".format(", ".join(design_name for design_name in shuffled_designs if design_name in testing_designs)))
-        print("Design split: {} train / {} test".format(len(training_designs), len(testing_designs)))
-        print("Sample split: {} train / {} test".format(len(training_data), len(testing_data)))
+            log_utils.print_wrapped_key_value("cv_fold", "{}/{}".format(args.cv_fold_index + 1, args.cv_folds))
+            
+        log_utils.print_wrapped_key_value(
+            "train_designs",
+            log_utils.format_list(
+                design_name
+                for design_name in shuffled_designs
+                if design_name in training_designs
+            ),
+        )
+        log_utils.print_wrapped_key_value(
+            "test_designs",
+            log_utils.format_list(
+                design_name
+                for design_name in shuffled_designs
+                if design_name in testing_designs
+            ),
+        )
+        log_utils.print_wrapped_key_value("design_split", "{} train / {} test".format(len(training_designs), len(testing_designs)))
+        log_utils.print_wrapped_key_value("sample_split", "{} train / {} test".format(len(training_data), len(testing_data)))
     return training_data, testing_data
 
 
@@ -849,20 +882,14 @@ def load_data(args, target_name):
     apply_normalization_context(testing_data, normalization_context, target_name)
 
     if verbose:
-        print(
-            "Normalization summary: node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
+        log_utils.print_wrapped_key_value(
+            "normalization",
+            "node_numeric={} node_categorical={} edge_numeric={} edge_categorical={} recipe_numeric={}".format(
                 normalization_context.feature_schema.node_numeric_indices,
                 normalization_context.feature_schema.node_categorical_indices,
                 normalization_context.feature_schema.edge_numeric_indices,
                 normalization_context.feature_schema.edge_categorical_indices,
                 normalization_context.feature_schema.recipe_numeric_indices,
-            )
-        )
-        print(
-            "Target normalization ({}): mean={:.6f} std={:.6f}".format(
-                target_name,
-                normalization_context.target_mean,
-                normalization_context.target_std,
             )
         )
 

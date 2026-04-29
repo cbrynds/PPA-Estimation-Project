@@ -9,6 +9,7 @@ Author: Cory Brynds
 import csv
 from pathlib import Path
 import math
+import textwrap
 
 ASCII_BANNER = r"""
   ░██████              ░█████████  ░███    ░██               ░██
@@ -27,6 +28,7 @@ ANSI_BOLD = "\033[1m"
 ANSI_RED = "\033[31m"
 ANSI_GREY = "\033[90m"
 HORIZONTAL_RULE = "=" * 78
+TERMINAL_TEXT_WIDTH = 78
 
 
 def colorize(text, color_code):
@@ -50,11 +52,41 @@ def print_key_value(label, value, color_code=None):
     print("  {:<18} {}".format(label + ":", rendered_value))
 
 
+def format_list(values):
+    return ", ".join(str(value) for value in values)
+
+
+def print_wrapped_key_value(label, value, width=TERMINAL_TEXT_WIDTH):
+    prefix = "  {:<18} ".format(label + ":")
+    wrapped_lines = textwrap.wrap(
+        str(value),
+        width=max(20, width - len(prefix)),
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    if not wrapped_lines:
+        print(prefix)
+        return
+
+    print("{}{}".format(prefix, wrapped_lines[0]))
+    for line in wrapped_lines[1:]:
+        print("{}{}".format(" " * len(prefix), line))
+
+
+def print_graph_summary_table(graph_summaries):
+    print("Graph statistics:")
+    print("  {:<16} {:>8} {:>8} {:>8} {:>8}".format("design", "nodes", "edges", "node_f", "edge_f"))
+    for summary in graph_summaries:
+        print(
+            "  {design_name:<16} {num_nodes:>8} {num_edges:>8} {node_feature_dim:>8} {edge_feature_dim:>8}".format(
+                **summary
+            )
+        )
+
+
 def print_startup_banner(args):
     print_rule()
     print(ASCII_BANNER)
-    print_rule()
-    print("{}QoRNet Run{}".format(ANSI_BOLD, ANSI_RESET))
     print_rule()
     print("Command-line arguments")
     print_rule()
@@ -84,14 +116,22 @@ def print_model_summary(hyperparameters, training_data, testing_data, node_input
 # At the end of each training epoch, print out various training and testing metrics to 6 digits of precision
 def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_rmse, train_percentage_error, train_r2, test_metrics):
     print_section("Epoch {}/{}".format(epoch_idx, num_epochs))
-    print_key_value("train_loss", "{:.6f}".format(train_loss))
-    print_key_value("train_mae", "{:.6f}".format(train_error), ANSI_RED)
-    print_key_value("train_rmse", "{:.6f}".format(train_rmse), ANSI_RED)
-    print_key_value("train_r2", "{:.6f}".format(train_r2))
-    print_key_value("test_loss", "{:.6f}".format(test_metrics["loss"]))
-    print_key_value("test_mae", "{:.6f}".format(test_metrics["error"]), ANSI_RED)
-    print_key_value("test_rmse", "{:.6f}".format(test_metrics["rmse"]), ANSI_RED)
-    print_key_value("test_r2", "{:.6f}".format(test_metrics["r2"]))
+    print(
+        "  train: loss={:.6f} mae={:.6f} rmse={:.6f} r2={:.6f}".format(
+            train_loss,
+            train_error,
+            train_rmse,
+            train_r2,
+        )
+    )
+    print(
+        "  test:  loss={:.6f} mae={:.6f} rmse={:.6f} r2={:.6f}".format(
+            test_metrics["loss"],
+            test_metrics["error"],
+            test_metrics["rmse"],
+            test_metrics["r2"],
+        )
+    )
     
 # Report various training metrics on a per-epoch basis at the end of model training
 def write_training_history_csv(history, hyperparameters, output_path):
