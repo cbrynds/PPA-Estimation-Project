@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 from dataset_config import build_context, build_run_specs, ensure_common_output_dirs
-from manifest_utils import load_manifest_entries, merge_result_shards, run_single_spec, write_manifest)
+from manifest_utils import load_manifest_entries, merge_result_shards, run_single_spec, write_manifest
 
 # Build the CLI parser
 def build_parser():
