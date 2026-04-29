@@ -10,51 +10,18 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-
-from dataset_config import ensure_dir
-from flow_tools import (
-    generate_ast_if_needed,
-    read_last_ppa_row,
-    run_cmd,
-    synthesize_if_needed,
-    validate_openroad_output,
-    write_sdc,
-)
+from flow_tools import generate_ast_if_needed, read_last_ppa_row, run_cmd, synthesize_if_needed, validate_openroad_output, write_sdc
 
 CSV_FIELDNAMES = [
-    "run_utc",
-    "run_id",
-    "design_name",
-    "design_id",
-    "recipe_id",
-    "flow_mode",
-    "top_module",
-    "clock_port",
-    "abc_fast_cfg",
-    "default_clock_period_ns_cfg",
-    "clock_period_offset_ns_cfg",
-    "clock_period_ns_cfg",
-    "max_fanout_cfg",
-    "max_transition_ns_cfg",
-    "max_capacitance_ff_cfg",
-    "fanout_load_cfg",
-    "num_rtl_files",
-    "ast_json_path",
-    "ast_log_path",
-    "netlist_path",
-    "sdc_path",
-    "run_dir",
-    "area_um2",
-    "worst_slack_ns",
-    "total_negative_slack_ns",
-    "clock_period_ns_sta",
-    "utilization_pct",
-    "tool_runtime_s",
-    "status",
-    "error_stage",
-    "error_message",
+    "run_utc", "run_id", "design_name", "design_id", "recipe_id", "flow_mode", "top_module", "clock_port", "abc_fast_cfg", 
+    "default_clock_period_ns_cfg", "clock_period_offset_ns_cfg", "clock_period_ns_cfg", "max_fanout_cfg", "max_transition_ns_cfg", 
+    "max_capacitance_ff_cfg", "fanout_load_cfg", "num_rtl_files", "ast_json_path", "ast_log_path", "netlist_path", "sdc_path", 
+    "run_dir", "area_um2", "worst_slack_ns", "total_negative_slack_ns", "clock_period_ns_sta", "utilization_pct", "tool_runtime_s", 
+    "status", "error_stage", "error_message",
 ]
 
+
+# Load JSONL manifest entries
 def load_manifest_entries(manifest_path):
     manifest = Path(manifest_path).resolve()
     entries = []
@@ -72,6 +39,7 @@ def load_manifest_entries(manifest_path):
     return entries
 
 
+# Write manifest specs as one sorted JSON object per line.
 def write_manifest(manifest_path, run_specs):
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     with open(manifest_path, "w") as f:
@@ -79,10 +47,12 @@ def write_manifest(manifest_path, run_specs):
             f.write(json.dumps(spec, sort_keys=True) + "\n")
 
 
+# Convert a path field from a manifest spec into a Path object.
 def spec_path(spec, key):
     return Path(spec[key])
 
 
+# Create the default failed-result row before running EDA tools.
 def make_base_row(spec):
     return {
         "run_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -119,6 +89,7 @@ def make_base_row(spec):
     }
 
 
+# Write one per-run JSON result shard using the final CSV field schema.
 def write_result_shard(row, shard_path):
     shard_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {field: row.get(field, "") for field in CSV_FIELDNAMES}
@@ -127,6 +98,7 @@ def write_result_shard(row, shard_path):
         f.write("\n")
 
 
+# Execute one design/recipe manifest spec and write its result shard.
 def run_single_spec(spec):
     project_root = Path(spec["project_root"])
     synthesis_root = Path(spec["synthesis_root"])
@@ -143,14 +115,14 @@ def run_single_spec(spec):
     files = [Path(p) for p in spec["rtl_files"]]
     include_dirs = [Path(p) for p in spec.get("include_dirs", [])]
 
-    ensure_dir(run_dir)
-    ensure_dir(ast_json_out.parent)
-    ensure_dir(ast_log_path.parent)
-    ensure_dir(netlist_out.parent)
-    ensure_dir(yosys_log_path.parent)
-    ensure_dir(shared_failure_path.parent)
-    ensure_dir(sdc_out.parent)
-    ensure_dir(shard_path.parent)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    ast_json_out.parent.mkdir(parents=True, exist_ok=True)
+    ast_log_path.parent.mkdir(parents=True, exist_ok=True)
+    netlist_out.parent.mkdir(parents=True, exist_ok=True)
+    yosys_log_path.parent.mkdir(parents=True, exist_ok=True)
+    shared_failure_path.parent.mkdir(parents=True, exist_ok=True)
+    sdc_out.parent.mkdir(parents=True, exist_ok=True)
+    shard_path.parent.mkdir(parents=True, exist_ok=True)
 
     row = make_base_row(spec)
     stage = "ast"
@@ -241,6 +213,7 @@ def run_single_spec(spec):
 
     return row
 
+
 # Following the completion of all synthesis runs, merge all of the sharded results into the final CSV dataset file
 def merge_result_shards(shards_dir, output_csv):
     shards_dir = Path(shards_dir).resolve()
@@ -254,18 +227,12 @@ def merge_result_shards(shards_dir, output_csv):
             row = json.load(f)
         missing = [field for field in CSV_FIELDNAMES if field not in row]
         if missing:
-            raise ValueError(
-                "Shard {} is missing required fields: {}".format(
-                    shard_path, ", ".join(missing)
-                )
-            )
+            raise ValueError("Shard {} is missing required fields: {}".format(shard_path, ", ".join(missing)))
+        
         run_id = row["run_id"]
         if run_id in seen_run_ids:
-            raise ValueError(
-                "Duplicate run_id '{}' found in {} and {}".format(
-                    run_id, seen_run_ids[run_id], shard_path
-                )
-            )
+            raise ValueError("Duplicate run_id '{}' found in {} and {}".format(run_id, seen_run_ids[run_id], shard_path))
+        
         seen_run_ids[run_id] = shard_path
         rows.append({field: row.get(field, "") for field in CSV_FIELDNAMES})
 

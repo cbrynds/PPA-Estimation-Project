@@ -1,0 +1,55 @@
+project_root: .
+synthesis_root: eda-pipeline
+apptainer_image: Open-EDA-Flow/eda-flow.sif
+
+# full: includes routing + extraction (slower, closer to routed metrics)
+# fast: stops post-placement, faster but less accurate
+flow_mode: full
+die_area: "0 0 800 800"
+core_area: "10 10 790 790"
+
+default_clock_port: clk
+default_clock_period_ns: 3.0
+
+sweep_mode: bounded_cartesian
+sweep:
+  # `clock_period_ns` is treated as a subtraction offset from each design's
+  # `default_clock_period_ns`, so 0.01 means "default minus 0.01 ns".
+  clock_period_ns: [0.01, 0.02, 0.05, 0.10]
+  max_fanout: [8, 16, 32, 64]
+  max_transition_ns: [0.16, 0.20, 0.24]
+  max_capacitance_ff: [40.0, 60.0, 80.0, 100.0]
+
+# Arguments for Yosys script generating the ASTs
+ast:
+  proc: true
+  flatten: true
+  dump_ast: true
+
+output:
+  csv_path: eda-pipeline/test_results/test_ground_truth_qor.csv
+  runs_dir: eda-pipeline/runs
+  ast_dir: eda-pipeline/test_results/ast
+  ast_log_dir: eda-pipeline/test_results/ast_logs
+  result_shards_dir: eda-pipeline/test_results/result_shards
+  yosys_logs_dir: eda-pipeline/test_results/yosys_logs
+  shared_failures_dir: eda-pipeline/test_results/shared_failures
+
+designs:
+  - name: s1196
+    id: iscas89_0001
+    rtl_dir: iscas89-benchmarks/s1196
+    top: s1196
+    clock_port: CK # No explict clock port
+    default_clock_period_ns: 0.75
+    recursive: false
+    extensions: [".v"]
+
+  - name: ss_pcm
+    id: iwls05_0012
+    rtl_dir: hdl-benchmarks/iwls05/opencores/rtl/ss_pcm
+    top: pcm_slv_top
+    clock_port: clk
+    default_clock_period_ns: 0.3
+    recursive: true
+    extensions: [".v"]

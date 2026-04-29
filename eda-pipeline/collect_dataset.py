@@ -1,5 +1,5 @@
 """
-CLI entry point for the YAML-driven AST + synthesis/OpenROAD dataset flow.
+Main script for the YAML-driven AST + synthesis/OpenROAD dataset flow.
 
 Author: Cory Brynds
 """
@@ -8,19 +8,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
-
 from dataset_config import build_context, build_run_specs, ensure_common_output_dirs
-from manifest_utils import (
-    load_manifest_entries,
-    merge_result_shards,
-    run_single_spec,
-    write_manifest,
-)
+from manifest_utils import load_manifest_entries, merge_result_shards, run_single_spec, write_manifest)
 
+# Build the CLI parser
 def build_parser():
-    parser = argparse.ArgumentParser(
-        description="Run the Slurm-oriented AST generation + synthesis/OpenROAD dataset flow from YAML"
-    )
+    parser = argparse.ArgumentParser(description="Run the Slurm-oriented AST generation + synthesis/OpenROAD dataset flow from YAML")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     manifest_parser = subparsers.add_parser(
@@ -69,6 +62,7 @@ def build_parser():
     return parser
 
 
+# Expand the YAML config into a JSONL manifest of design/recipe runs
 def cmd_build_manifest(args):
     ctx = build_context(args.config)
     ensure_common_output_dirs(ctx)
@@ -82,6 +76,7 @@ def cmd_build_manifest(args):
         print("Recommendation: use the Slurm job-array workflow for manifests larger than 100 entries.")
 
 
+# Run one manifest entry, usually selected by a Slurm array index
 def cmd_run_manifest_entry(args):
     ctx = build_context(args.config)
     ensure_common_output_dirs(ctx)
@@ -93,10 +88,10 @@ def cmd_run_manifest_entry(args):
         if args.manifest is None or args.index is None:
             raise ValueError("Either --entry-json or both --manifest and --index are required")
         entries = load_manifest_entries(args.manifest)
+        
         if args.index < 0 or args.index >= len(entries):
-            raise IndexError(
-                "Manifest index {} is out of range for {}".format(args.index, args.manifest)
-            )
+            raise IndexError("Manifest index {} is out of range for {}".format(args.index, args.manifest))
+        
         spec = entries[args.index]
 
     row = run_single_spec(spec)
@@ -105,6 +100,7 @@ def cmd_run_manifest_entry(args):
         raise SystemExit(1)
 
 
+# Merge per-run result shards into one ground-truth CSV
 def cmd_merge_results(args):
     ctx = build_context(args.config)
     shards_dir = Path(args.shards_dir).resolve() if args.shards_dir else ctx["result_shards_dir"]
@@ -113,6 +109,7 @@ def cmd_merge_results(args):
     print("Merged {} result shards into {}".format(len(rows), output_csv))
 
 
+# Parse arguments and dispatch to the selected subcommand.
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()

@@ -1,5 +1,5 @@
 """
-Yosys/OpenROAD command helpers for the dataset flow.
+Yosys/OpenROAD command helpers for the dataset generationflow.
 
 Author: Cory Brynds
 """
@@ -12,20 +12,17 @@ import shlex
 import subprocess
 import tempfile
 
+
+# Run an external command (such as Yosys/OpenROAD) and optionally capture its combined output to a log
 def run_cmd(cmd, cwd, env=None, log_path=None):
-    proc = subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True,
-        check=False,
-    )
+    proc = subprocess.run(cmd, cwd=str(cwd), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, check=False)
+    
     if log_path is not None:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with open(log_path, "w") as f:
             f.write(proc.stdout)
+            
+    # If command failed to exit successfully
     if proc.returncode != 0:
         raise RuntimeError(
             "Command failed: {}\nOutput:\n{}".format(
@@ -35,10 +32,12 @@ def run_cmd(cmd, cwd, env=None, log_path=None):
     return proc.stdout
 
 
+# Return whether an RTL source file should be handled by the VHDL frontend
 def is_vhdl_file(file_path):
     return file_path.suffix.lower() in (".vhd", ".vhdl")
 
 
+# Build the Yosys read commands for RTL inputs
 def yosys_read_commands(files, include_dirs, dump_ast, top, vhdl_std):
     lines = []
     vhdl_files = [file_path for file_path in files if is_vhdl_file(file_path)]
@@ -67,7 +66,8 @@ def yosys_read_commands(files, include_dirs, dump_ast, top, vhdl_std):
         )
     return lines
 
-# Write yosys script to generate an AST JSON file for the given RTL design
+
+# Write Yosys script to generate an AST JSON file for the given RTL design
 def make_ast_yosys_script(files, top, json_out, include_dirs, use_proc, use_flatten, dump_ast, vhdl_std):
     lines = yosys_read_commands(files, include_dirs, dump_ast, top, vhdl_std)
     lines.append("hierarchy -top {}".format(top))
@@ -78,7 +78,8 @@ def make_ast_yosys_script(files, top, json_out, include_dirs, use_proc, use_flat
     lines.append("write_json {}".format(json_out))
     return "\n".join(lines) + "\n"
 
-# Write yosys script to synthesize a given RTL design to a gate-level netlist
+
+# Write Yosys script to synthesize a given RTL design to a gate-level netlist
 def make_synth_yosys_script( files, top, netlist_out, include_dirs, liberty_file, abc_fast, abc_extra, vhdl_std):
     lines = yosys_read_commands(files, include_dirs, dump_ast=False, top=top, vhdl_std=vhdl_std)
     lines.append("hierarchy -check -top {}".format(top))
@@ -96,13 +97,11 @@ def make_synth_yosys_script( files, top, netlist_out, include_dirs, liberty_file
     lines.append("write_verilog -noattr -noexpr -simple-lhs {}".format(netlist_out))
     return "\n".join(lines) + "\n"
 
+
 # Write the design constraints file to be used for physical implementation by OpenROAD
 def write_sdc(sdc_path, clock_port, period_ns, max_fanout=None, max_transition_ns=None, max_capacitance_ff=None, fanout_load=None):
-    lines = [
-        "create_clock [get_ports {}] -name core_clock -period {:.3f}".format(
-            clock_port, float(period_ns)
-        ),
-    ]
+    lines = ["create_clock [get_ports {}] -name core_clock -period {:.3f}".format(clock_port, float(period_ns))]
+    
     if max_fanout is not None:
         lines.append("set_max_fanout {:.3f} [current_design]".format(float(max_fanout)))
     if max_transition_ns is not None:
@@ -118,6 +117,7 @@ def write_sdc(sdc_path, clock_port, period_ns, max_fanout=None, max_transition_n
         f.write("\n".join(lines))
 
 
+# Read the final row of the OpenROAD PPA CSV for a completed run.
 def read_last_ppa_row(ppa_csv):
     with open(ppa_csv, "r") as f:
         reader = csv.DictReader(f)
@@ -127,6 +127,7 @@ def read_last_ppa_row(ppa_csv):
     return rows[-1]
 
 
+# Read a cached shared failure marker, if one exists.
 def read_failure_marker(marker_path):
     if not marker_path.exists():
         return None
@@ -134,6 +135,7 @@ def read_failure_marker(marker_path):
         return json.load(f)
 
 
+# Cache a design-level failure so repeated recipes can fail fast.
 def write_failure_marker(marker_path, stage, error_message):
     marker_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -145,6 +147,7 @@ def write_failure_marker(marker_path, stage, error_message):
         f.write("\n")
 
 
+# Delete a cached failure marker after a later successful shared step.
 def remove_failure_marker(marker_path):
     try:
         marker_path.unlink()
@@ -152,6 +155,7 @@ def remove_failure_marker(marker_path):
         pass
 
 
+# Raise an exception if this design already has a cached shared failure.
 def raise_cached_failure(marker_path, design_name):
     failure = read_failure_marker(marker_path)
     if failure is None:
@@ -165,6 +169,7 @@ def raise_cached_failure(marker_path, design_name):
     )
 
 
+# Detect OpenROAD errors that may appear in successful process output.
 def validate_openroad_output(output):
     error_markers = [
         "\n[ERROR ",
@@ -175,6 +180,7 @@ def validate_openroad_output(output):
         raise RuntimeError("OpenROAD reported an error:\n{}".format(output))
 
 
+# Generate the AST JSON once per design, protected by a lock file.
 def generate_ast_if_needed(
     spec,
     project_root,
@@ -233,6 +239,7 @@ def generate_ast_if_needed(
                 pass
 
 
+# Generate the shared synthesized netlist once per design/synthesis variant.
 def synthesize_if_needed(
     spec,
     project_root,
