@@ -115,35 +115,6 @@ python3 models/GNN/qornet.py \
 When `--cv_folds` is greater than 1 and `--cv_fold_index` is omitted, QoRNet
 trains all folds and writes fold outputs under `plot_dir/fold_<index>/`.
 
-Train model to predict total negative slack (with log transform on target data):
-
-```bash
-python3 models/GNN/qornet.py \
-  --mode train \
-  --config data/iscas_89_config.yaml \
-  --labels data/iscas_ground_truth_qor.csv \
-  --dataset_dir data/iscas_graphs_new/tensors \
-  --target_name tns \
-  --target_transform log1p \
-  --plot_dir qornet_results_tns \
-  --checkpoint_path qornet_results_tns/qornet_checkpoint.pt
-```
-
-Five-fold cross-validation, balanced by graph size:
-
-```bash
-python3 models/GNN/qornet.py \
-  --mode train \
-  --config data/iscas_89_config.yaml \
-  --labels data/iscas_ground_truth_qor.csv \
-  --dataset_dir data/iscas_graphs_new/tensors \
-  --target_name wns \
-  --plot_dir qornet_results_wns_cv \
-  --checkpoint_path qornet_results_wns_cv/qornet_checkpoint.pt \
-  --cv_folds 5 \
-  --cv_stratify_by_size
-```
-
 ## Training Outputs
 
 Each training run writes:
