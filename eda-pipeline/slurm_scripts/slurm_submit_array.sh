@@ -8,7 +8,7 @@ fi
 
 CONFIG_PATH=$1
 MANIFEST_PATH=${2:-}
-REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "${REPO_ROOT}"
 
 timestamp=$(date +"%Y%m%d_%H%M%S")
@@ -19,7 +19,7 @@ ARRAY_MAX_SIZE=${ARRAY_MAX_SIZE:-1001}
 
 mkdir -p "${SLURM_LOG_DIR}"
 
-python3 synthesis/collect_dataset.py build-manifest "${CONFIG_PATH}" --output "${MANIFEST_PATH}"
+python3 eda-pipeline/collect_dataset.py build-manifest "${CONFIG_PATH}" --output "${MANIFEST_PATH}"
 
 entry_count=$(wc -l < "${MANIFEST_PATH}")
 if [[ "${entry_count}" -le 0 ]]; then
@@ -65,7 +65,7 @@ submitted_jobs=0
 if [[ "${entry_count}" -le "${ARRAY_MAX_SIZE}" ]]; then
   array_range="0-$((entry_count - 1))%${ARRAY_MAX_CONCURRENT}"
   sbatch "${sbatch_args[@]}" --array "${array_range}" \
-    synthesis/slurm_array_task.sh "${REPO_ROOT}" "${CONFIG_PATH}" "${MANIFEST_PATH}"
+    eda-pipeline/slurm_scripts/slurm_array_task.sh "${REPO_ROOT}" "${CONFIG_PATH}" "${MANIFEST_PATH}"
   submitted_jobs=1
 else
   chunk_dir="${MANIFEST_PATH%.jsonl}_chunks"
@@ -83,7 +83,7 @@ else
     array_range="0-$((chunk_entries - 1))%${ARRAY_MAX_CONCURRENT}"
     echo "Submitting chunk ${chunk_manifest} with ${chunk_entries} tasks"
     sbatch "${sbatch_args[@]}" --array "${array_range}" \
-      synthesis/slurm_array_task.sh "${REPO_ROOT}" "${CONFIG_PATH}" "${chunk_manifest}"
+      eda-pipeline/slurm_scripts/slurm_array_task.sh "${REPO_ROOT}" "${CONFIG_PATH}" "${chunk_manifest}"
     submitted_jobs=$((submitted_jobs + 1))
   done
 fi
@@ -94,4 +94,4 @@ if [[ "${entry_count}" -gt "${ARRAY_MAX_SIZE}" ]]; then
   echo "Chunk manifests: ${MANIFEST_PATH%.jsonl}_chunks/"
 fi
 echo "When the array completes, merge shards with:"
-echo "  synthesis/slurm_merge_results.sh ${CONFIG_PATH}"
+echo "  eda-pipeline/slurm_scripts/slurm_merge_results.sh ${CONFIG_PATH}"

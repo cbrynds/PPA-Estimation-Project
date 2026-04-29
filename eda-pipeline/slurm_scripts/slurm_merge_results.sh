@@ -9,11 +9,11 @@ fi
 CONFIG_PATH=$1
 SHARDS_DIR=${2:-}
 OUTPUT_CSV=${3:-}
-REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
 cd "${REPO_ROOT}"
 
-cmd=(python3 synthesis/collect_dataset.py merge-results "${CONFIG_PATH}")
+cmd=(python3 eda-pipeline/collect_dataset.py merge-results "${CONFIG_PATH}")
 
 if [[ -n "${SHARDS_DIR}" ]]; then
   cmd+=(--shards-dir "${SHARDS_DIR}")

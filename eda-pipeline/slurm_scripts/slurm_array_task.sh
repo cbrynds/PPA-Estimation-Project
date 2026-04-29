@@ -25,7 +25,7 @@ fi
 
 cd "${REPO_ROOT}"
 
-python3 synthesis/collect_dataset.py run-manifest-entry \
+python3 eda-pipeline/collect_dataset.py run-manifest-entry \
   "${CONFIG_PATH}" \
   --manifest "${MANIFEST_PATH}" \
   --index "${SLURM_ARRAY_TASK_ID}"
