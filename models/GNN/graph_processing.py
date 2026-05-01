@@ -1,6 +1,8 @@
 """
 Graph dataset loading and preprocessing for QoRNet.
 
+Disclaimer: certain graph processing functions (such as error handling and graph loading) were developed with the assistance of GPT Codex.
+
 Author: Cory Brynds
 """
 
@@ -177,7 +179,7 @@ def compute_target_stats(samples, target_name, target_transform):
     return mean, std
 
 
-# Fit all feature and target normalization statistics.
+# Fit all feature and target normalization statistics
 def fit_normalization_context(training_data, testing_data, target_name, target_transform="none"):
     feature_schema = build_feature_schema(training_data, testing_data)
     node_mean, node_std = compute_mean_std(training_data, "x", feature_schema.node_numeric_indices)
@@ -318,13 +320,13 @@ def validate_input_dimensions(training_data, testing_data):
 # CROSS-VALIDATION TRAINING FUNCTIONS
 #######################################################################################
 
-# Build size-balanced folds by assigning larger designs round-robin
-def build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds):
+# Build score-balanced folds by assigning larger-scored designs round-robin
+def build_score_stratified_folds(shuffled_designs, design_scores, cv_folds):
     randomized_designs = list(shuffled_designs)
     random.Random(0).shuffle(randomized_designs)
     sorted_designs = sorted(
         randomized_designs,
-        key=lambda design_name: design_sizes.get(design_name, 0),
+        key=lambda design_name: design_scores.get(design_name, 0),
         reverse=True,
     )
 
@@ -337,15 +339,35 @@ def build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds):
     return folds
 
 
+# Average absolute target value per design
+# We use this to distribute high-violation designs across cross-validation folds.
+def compute_design_target_magnitudes(labels_by_design, target_name):
+    target_column_by_name = {
+        "wns": "worst_slack_ns",
+        "tns": "total_negative_slack_ns",
+        "area": "area_um2",
+    }
+    target_column = target_column_by_name.get(target_name, target_name)
+    design_target_magnitudes = {}
+
+    for design_name, label_rows in labels_by_design.items():
+        magnitudes = []
+        for label_row in label_rows:
+            target_value = label_row.get(target_column)
+            if target_value in (None, ""):
+                continue
+            magnitudes.append(abs(float(target_value)))
+
+        if magnitudes:
+            design_target_magnitudes[design_name] = sum(magnitudes) / len(magnitudes)
+
+    return design_target_magnitudes
+
+
 # Split design names into train/test sets or cross-validation folds
-def split_designs(
-    shuffled_designs,
-    training_split,
-    cv_folds=1,
-    cv_fold_index=0,
-    stratify_by_size=False,
-    design_sizes=None,
-):
+# These are controlled by command-line arguments. The currently-supported stratification options are by graph size or target magnitude
+def split_designs(shuffled_designs, training_split, cv_folds=1, cv_fold_index=0, stratify_by_size=False, 
+    stratify_by_target_size=False, design_sizes=None, design_target_magnitudes=None):
     if cv_folds < 1:
         raise ValueError("--cv_folds must be at least 1.")
 
@@ -364,10 +386,14 @@ def split_designs(
     if not 0 <= cv_fold_index < cv_folds:
         raise ValueError("--cv_fold_index must be between 0 and {} when --cv_folds={}.".format(cv_folds - 1, cv_folds))
 
+    if stratify_by_size and stratify_by_target_size:
+        raise ValueError("Use only one of --cv_stratify_by_size or --cv_stratify_by_target_size.")
+
+    # Stratify by either design size, target magnitue (WNS or TNS), or randomly
     if stratify_by_size:
-        if not design_sizes:
-            raise ValueError("Size-stratified cross-validation requires per-design size metadata.")
-        folds = build_size_stratified_folds(shuffled_designs, design_sizes, cv_folds)
+        folds = build_score_stratified_folds(shuffled_designs, design_sizes, cv_folds)
+    elif stratify_by_target_size:
+        folds = build_score_stratified_folds(shuffled_designs, design_target_magnitudes, cv_folds)
     else:
         fold_sizes = [len(shuffled_designs) // cv_folds] * cv_folds
         for fold_idx in range(len(shuffled_designs) % cv_folds):
@@ -431,6 +457,7 @@ def load_raw_data(args):
         set(allowed_design_names),
         allowed_recipe_values=allowed_recipe_values,
     )
+    design_target_magnitudes = compute_design_target_magnitudes(labels_by_design, getattr(args, "target_name", "wns"))
 
     designs_with_labels = [design_name for design_name in allowed_design_names if labels_by_design.get(design_name)]
     
@@ -457,7 +484,9 @@ def load_raw_data(args):
         cv_folds=args.cv_folds,
         cv_fold_index=args.cv_fold_index,
         stratify_by_size=getattr(args, "cv_stratify_by_size", False),
+        stratify_by_target_size=getattr(args, "cv_stratify_by_target_size", False),
         design_sizes=design_sizes,
+        design_target_magnitudes=design_target_magnitudes,
     )
 
     training_data = []
@@ -509,6 +538,13 @@ def load_raw_data(args):
         
         if args.cv_folds > 1:
             log_utils.print_wrapped_key_value("cv_fold", "{}/{}".format(args.cv_fold_index + 1, args.cv_folds))
+            if getattr(args, "cv_stratify_by_target_size", False):
+                fold_target_values = [
+                    "{}={:.6g}".format(design_name, design_target_magnitudes.get(design_name, 0.0))
+                    for design_name in shuffled_designs
+                    if design_name in testing_designs
+                ]
+                log_utils.print_wrapped_key_value("test_target_mag", log_utils.format_list(fold_target_values))
             
         log_utils.print_wrapped_key_value(
             "train_designs",

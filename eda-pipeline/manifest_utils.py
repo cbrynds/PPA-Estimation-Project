@@ -39,7 +39,7 @@ def load_manifest_entries(manifest_path):
     return entries
 
 
-# Write manifest specs as one sorted JSON object per line.
+# Write manifest specs as one sorted JSON object per line
 def write_manifest(manifest_path, run_specs):
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     with open(manifest_path, "w") as f:
@@ -47,12 +47,12 @@ def write_manifest(manifest_path, run_specs):
             f.write(json.dumps(spec, sort_keys=True) + "\n")
 
 
-# Convert a path field from a manifest spec into a Path object.
+# Convert a path field from a manifest spec into a Path object
 def spec_path(spec, key):
     return Path(spec[key])
 
 
-# Create the default failed-result row before running EDA tools.
+# Create the default failed-result row before running EDA tools
 def make_base_row(spec):
     return {
         "run_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -89,7 +89,7 @@ def make_base_row(spec):
     }
 
 
-# Write one per-run JSON result shard using the final CSV field schema.
+# Write one per-run JSON result shard using the final CSV field schema
 def write_result_shard(row, shard_path):
     shard_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {field: row.get(field, "") for field in CSV_FIELDNAMES}
@@ -98,7 +98,7 @@ def write_result_shard(row, shard_path):
         f.write("\n")
 
 
-# Execute one design/recipe manifest spec and write its result shard.
+# Execute one design/recipe manifest spec and write its result shard
 def run_single_spec(spec):
     project_root = Path(spec["project_root"])
     synthesis_root = Path(spec["synthesis_root"])

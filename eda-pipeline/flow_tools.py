@@ -180,7 +180,7 @@ def validate_openroad_output(output):
         raise RuntimeError("OpenROAD reported an error:\n{}".format(output))
 
 
-# Generate the AST JSON once per design, protected by a lock file
+# Generate the AST JSON once per design
 def generate_ast_if_needed(
     spec,
     project_root,

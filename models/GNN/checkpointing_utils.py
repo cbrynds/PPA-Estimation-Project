@@ -64,7 +64,7 @@ def normalization_context_to_dict(normalization_context):
     }
 
 
-# Rebuild the normalization context from a loaded checkpoint
+# Rebuild the normalization context from a loaded checkpoint (for model inference)
 def normalization_context_from_dict(serialized_context):
     serialized_feature_schema = serialized_context["feature_schema"]
     feature_schema = FeatureSchema(
@@ -90,7 +90,7 @@ def normalization_context_from_dict(serialized_context):
     }
 
 
-# Resolve the checkpoint path from explicit CLI args or the training plot dir.
+# Resolve the checkpoint path from explicit CLI args or the training plot dir
 def resolve_checkpoint_path(args):
     if args.checkpoint_path:
         return Path(args.checkpoint_path)
@@ -102,7 +102,7 @@ def resolve_checkpoint_path(args):
     raise ValueError("--checkpoint_path is required in inference mode.")
 
 
-# Save model weights, hyperparameters, normalization context, and recipe shape
+# Save model weights, hyperparameters, normalization context, and recipe shape (after training)
 def save_checkpoint(qornet, hyperparameters, normalization_context, recipe_dim, checkpoint_path):
     checkpoint_path = Path(checkpoint_path)
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
