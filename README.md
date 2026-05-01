@@ -31,6 +31,7 @@ This project was completed for the Spring 2026 course *EEL6812: Intro to Neural 
 - `eda-pipeline/`: Scripts and data for the EDA pipeline used to produce ground truth metrics
 - `resources/`: Reference papers and project materials used for methodology comparison
 - `data/`: Ground truth CSVs, graph tensors, and training configuration files
+- `results`: Raw results and report plots for WNS prediction, TNS prediction, and tool runtime
 
 ## External Submodules
 
@@ -40,8 +41,7 @@ This project was completed for the Spring 2026 course *EEL6812: Intro to Neural 
 Run
 
 ```
-git submodule init
-git submodule update
+git submodule update --init --recursive
 ```
 
 ## Dependencies
