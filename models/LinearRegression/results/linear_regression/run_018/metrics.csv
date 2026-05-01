@@ -1,0 +1,5 @@
+split,target,mae,rmse,r2,mae_pct_of_range,rmse_pct_of_range,mae_pct_of_mean_abs_target,rmse_pct_of_mean_abs_target
+train,worst_slack_ns,0.1177,0.1602,0.8491,6.13,8.34,35.85,48.8
+train,total_negative_slack_ns,22.558,67.954,0.1027,4.25,12.79,111.75,336.63
+test,worst_slack_ns,0.1118,0.139,0.8912,5.98,7.44,32.79,40.76
+test,total_negative_slack_ns,12.524,26.7589,0.1625,7.09,15.15,125.17,267.45

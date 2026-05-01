@@ -1,0 +1,492 @@
+"""
+CSV and terminal logging utilities for QoRNet training and evaluation. 
+
+Disclaimer: GPT Codex was used to develop some of the logging scripts in this file. 
+
+Author: Cory Brynds
+"""
+
+import csv
+from pathlib import Path
+import math
+import textwrap
+
+ASCII_BANNER = r"""
+  ░██████              ░█████████  ░███    ░██               ░██
+ ░██   ░██             ░██     ░██ ░████   ░██               ░██
+░██     ░██  ░███████  ░██     ░██ ░██░██  ░██  ░███████  ░████████
+░██     ░██ ░██    ░██ ░█████████  ░██ ░██ ░██ ░██    ░██    ░██
+░██     ░██ ░██    ░██ ░██   ░██   ░██  ░██░██ ░█████████    ░██
+ ░██   ░██  ░██    ░██ ░██    ░██  ░██   ░████ ░██           ░██
+  ░██████    ░███████  ░██     ░██ ░██    ░███  ░███████      ░████
+       ░██
+        ░██
+""".strip("\n")
+
+ANSI_RESET = "\033[0m"
+ANSI_BOLD = "\033[1m"
+ANSI_RED = "\033[31m"
+ANSI_GREY = "\033[90m"
+HORIZONTAL_RULE = "=" * 78
+TERMINAL_TEXT_WIDTH = 78
+
+
+# Wrap text in an ANSI color sequence.
+def colorize(text, color_code):
+    return "{}{}{}".format(color_code, text, ANSI_RESET)
+
+
+# Print a standard horizontal section rule.
+def print_rule():
+    print(HORIZONTAL_RULE)
+
+
+# Print a bold section heading with rules above and below.
+def print_section(title):
+    print_rule()
+    print("{}{}{}".format(ANSI_BOLD, title, ANSI_RESET))
+    print_rule()
+
+
+# Print one aligned label/value row.
+def print_key_value(label, value, color_code=None):
+    rendered_value = str(value)
+    if color_code:
+        rendered_value = colorize(rendered_value, color_code)
+    print("  {:<18} {}".format(label + ":", rendered_value))
+
+
+# Join values into a comma-separated display string.
+def format_list(values):
+    return ", ".join(str(value) for value in values)
+
+
+# Print a label/value row with wrapped continuation lines.
+def print_wrapped_key_value(label, value, width=TERMINAL_TEXT_WIDTH):
+    prefix = "  {:<18} ".format(label + ":")
+    wrapped_lines = textwrap.wrap(
+        str(value),
+        width=max(20, width - len(prefix)),
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    if not wrapped_lines:
+        print(prefix)
+        return
+
+    print("{}{}".format(prefix, wrapped_lines[0]))
+    for line in wrapped_lines[1:]:
+        print("{}{}".format(" " * len(prefix), line))
+
+
+# Print graph-size summaries as a compact table.
+def print_graph_summary_table(graph_summaries):
+    print("Graph statistics:")
+    print("  {:<16} {:>8} {:>8} {:>8} {:>8}".format("design", "nodes", "edges", "node_f", "edge_f"))
+    for summary in graph_summaries:
+        print(
+            "  {design_name:<16} {num_nodes:>8} {num_edges:>8} {node_feature_dim:>8} {edge_feature_dim:>8}".format(
+                **summary
+            )
+        )
+
+
+# Print the startup banner and parsed command-line arguments.
+def print_startup_banner(args):
+    print_rule()
+    print(ASCII_BANNER)
+    print_rule()
+    print("Command-line arguments")
+    print_rule()
+    for key, value in vars(args).items():
+        print_key_value(key, value)
+
+# Print a summary of model parameters in verbose mode
+def print_model_summary(hyperparameters, training_data, testing_data, node_input_dim, edge_input_dim, recipe_dim):
+    print_section("Training Configuration")
+    print_key_value("epochs", hyperparameters.num_epochs)
+    print_key_value("batch_size", hyperparameters.batch_size)
+    print_key_value("learning_rate", hyperparameters.learning_rate)
+    print_key_value("weight_decay", hyperparameters.weight_decay)
+    print_key_value("device", hyperparameters.device)
+    print_key_value("target_name", hyperparameters.target_name)
+    print_key_value("target_transform", hyperparameters.target_transform)
+    print_key_value("hidden_dim", hyperparameters.hidden_dim)
+    print_key_value("num_gnn_layers", hyperparameters.num_gat_layers)
+    print_key_value("num_heads", hyperparameters.num_heads)
+    print_key_value("dropout", hyperparameters.dropout)
+    print_key_value("node_input_dim", node_input_dim)
+    print_key_value("edge_input_dim", edge_input_dim)
+    print_key_value("recipe_dim", recipe_dim)
+    print_key_value("training_samples", len(training_data))
+    print_key_value("testing_samples", len(testing_data))
+
+# At the end of each training epoch, print out various training and testing metrics to 6 digits of precision
+def print_epoch_metrics(epoch_idx, num_epochs, train_loss, train_error, train_rmse, train_percentage_error, train_r2, test_metrics):
+    print_section("Epoch {}/{}".format(epoch_idx, num_epochs))
+    print(
+        "  train: loss={:.6f} mae={:.6f} rmse={:.6f} r2={:.6f}".format(
+            train_loss,
+            train_error,
+            train_rmse,
+            train_r2,
+        )
+    )
+    print(
+        "  test:  loss={:.6f} mae={:.6f} rmse={:.6f} r2={:.6f}".format(
+            test_metrics["loss"],
+            test_metrics["error"],
+            test_metrics["rmse"],
+            test_metrics["r2"],
+        )
+    )
+    
+# Report various training metrics on a per-epoch basis at the end of model training
+def write_training_history_csv(history, hyperparameters, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    hyperparameter_values = {
+        "num_epochs": hyperparameters.num_epochs,
+        "learning_rate": hyperparameters.learning_rate,
+        "batch_size": hyperparameters.batch_size,
+        "weight_decay": hyperparameters.weight_decay,
+        "loss_fn": type(hyperparameters.loss_fn).__name__,
+        "target_name": hyperparameters.target_name,
+        "target_transform": hyperparameters.target_transform,
+        "device": hyperparameters.device,
+        "shuffle_training": hyperparameters.shuffle_training,
+        "hidden_dim": hyperparameters.hidden_dim,
+        "num_gat_layers": hyperparameters.num_gat_layers,
+        "num_heads": hyperparameters.num_heads,
+        "dropout": hyperparameters.dropout,
+    }
+
+    fieldnames = (
+        "epoch",
+        "train_loss",
+        "train_mae",
+        "train_rmse",
+        "train_mape",
+        "train_r2",
+        "test_loss",
+        "test_mae",
+        "test_rmse",
+        "test_mape",
+        "test_r2",
+        "num_epochs",
+        "learning_rate",
+        "batch_size",
+        "weight_decay",
+        "loss_fn",
+        "target_name",
+        "target_transform",
+        "device",
+        "shuffle_training",
+        "hidden_dim",
+        "num_gat_layers",
+        "num_heads",
+        "dropout",
+    )
+    num_epochs = len(history["train_loss"])
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for epoch_idx in range(num_epochs):
+            writer.writerow(
+                {
+                    "epoch": epoch_idx + 1,
+                    "train_loss": history["train_loss"][epoch_idx],
+                    "train_mae": history["train_error"][epoch_idx],
+                    "train_rmse": history["train_rmse"][epoch_idx],
+                    "train_mape": history["train_percentage_error"][epoch_idx],
+                    "train_r2": history["train_r2"][epoch_idx],
+                    "test_loss": history["test_loss"][epoch_idx],
+                    "test_mae": history["test_error"][epoch_idx],
+                    "test_rmse": history["test_rmse"][epoch_idx],
+                    "test_mape": history["test_percentage_error"][epoch_idx],
+                    "test_r2": history["test_r2"][epoch_idx],
+                    **hyperparameter_values,
+                }
+            )
+
+# Return the number of nodes in a graph sample
+def sample_num_nodes(sample):
+    num_nodes = getattr(sample, "num_nodes", None)
+    if num_nodes is not None:
+        return int(num_nodes)
+    if hasattr(sample, "x"):
+        return int(sample.x.size(0))
+    return 0
+
+# Return the number of edges in a graph sample
+def sample_num_edges(sample):
+    if hasattr(sample, "edge_index"):
+        return int(sample.edge_index.size(1))
+    num_edges = getattr(sample, "num_edges", None)
+    if num_edges is not None:
+        return int(num_edges)
+    return 0
+
+# Build the design summary to be printed in verbose mode
+def build_dataset_design_summary_rows(samples):
+    designs = {}
+    for sample in samples:
+        design_name = getattr(sample, "design_name", None) or getattr(sample, "design_id", None) or "<unknown>"
+        if design_name in designs:
+            continue
+        designs[design_name] = {
+            "design_name": design_name,
+            "num_nodes": sample_num_nodes(sample),
+            "num_edges": sample_num_edges(sample),
+        }
+
+    rows = [designs[design_name] for design_name in sorted(designs)]
+    if not rows:
+        return []
+
+    average_node_count = sum(row["num_nodes"] for row in rows) / len(rows)
+    average_edge_count = sum(row["num_edges"] for row in rows) / len(rows)
+    for row in rows:
+        row["average_node_count"] = average_node_count
+        row["average_edge_count"] = average_edge_count
+    return rows
+
+# Write out a CSV summary of the designs in the training and testing dataset
+def write_dataset_design_summary_csv(samples, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = build_dataset_design_summary_rows(samples)
+
+    fieldnames = (
+        "design_name",
+        "num_nodes",
+        "num_edges",
+        "average_node_count",
+        "average_edge_count",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+# Compute the median of a list of values
+def median(values):
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2 == 1:
+        return ordered[midpoint]
+    else:
+        return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
+
+# Compute percentage error with a small epsilon to avoid ZeroDiv
+def safe_percentage_error(prediction, target):
+    denominator = abs(target)
+    if denominator <= 1e-8:
+        return None
+    return (abs(prediction - target) / denominator) * 100.0
+
+
+# Build the CSV that returns the CSV rows for a per-design summary of the epoch with the best overall accuracy
+def build_best_epoch_design_summary_rows(history):
+    best_epoch = history.get("best_epoch")
+    best_epoch_predictions = history.get("best_epoch_predictions", [])
+    if best_epoch is None or not best_epoch_predictions:
+        raise ValueError("Cannot write per-design summary because no best epoch predictions are available.")
+
+    per_design = {}
+    rows = []
+    for row in best_epoch_predictions:
+        design_name = row.get("design_name")
+        if not design_name:
+            continue
+        bucket = per_design.setdefault(
+            design_name,
+            {
+                "design_name": design_name,
+                "design_id": row.get("design_id"),
+                "target_name": row.get("target_name"),
+                "recipe_ids": set(),
+                "targets": [],
+                "predictions": [],
+                "abs_errors": [],
+                "pct_errors": [],
+            },
+        )
+        bucket["recipe_ids"].add(row.get("recipe_id"))
+        target = float(row["target"])
+        prediction = float(row["prediction"])
+        abs_error = float(row["abs_error"])
+        pct_error = safe_percentage_error(prediction, target)
+        bucket["targets"].append(target)
+        bucket["predictions"].append(prediction)
+        bucket["abs_errors"].append(abs_error)
+        if pct_error is not None and not math.isnan(pct_error):
+            bucket["pct_errors"].append(pct_error)
+
+    for design_name in sorted(per_design):
+        bucket = per_design[design_name]
+        targets = bucket["targets"]
+        predictions = bucket["predictions"]
+        abs_errors = bucket["abs_errors"]
+        pct_errors = bucket["pct_errors"]
+
+        target_mean = sum(targets) / len(targets) if targets else 0.0
+        prediction_mean = sum(predictions) / len(predictions) if predictions else 0.0
+        mae_mean = sum(abs_errors) / len(abs_errors) if abs_errors else 0.0
+        maemedian = median(abs_errors)
+        rmse = math.sqrt(sum(error ** 2 for error in abs_errors) / len(abs_errors)) if abs_errors else 0.0
+        pct_mean = sum(pct_errors) / len(pct_errors) if pct_errors else 0.0
+        pctmedian = median(pct_errors)
+
+        total_sum_squares = sum((target - target_mean) ** 2 for target in targets)
+        residual_sum_squares = sum(
+            (prediction - target) ** 2
+            for prediction, target in zip(predictions, targets)
+        )
+        if total_sum_squares <= 1e-8:
+            design_r2 = 0.0
+        else:
+            design_r2 = 1.0 - (residual_sum_squares / total_sum_squares)
+
+        rows.append(
+            {
+                "epoch": best_epoch,
+                "design_name": bucket["design_name"],
+                "design_id": bucket["design_id"],
+                "target_name": bucket["target_name"],
+                "num_recipes": len(bucket["recipe_ids"]),
+                "overall_best_test_mae": history.get("best_test_mae"),
+                "overall_best_test_rmse": history.get("best_test_rmse"),
+                "overall_best_test_r2": history.get("best_test_r2"),
+                "design_mae_mean": mae_mean,
+                "design_maemedian": maemedian,
+                "design_rmse": rmse,
+                "design_pct_error_mean": pct_mean,
+                "design_pct_errormedian": pctmedian,
+                "design_r2": design_r2,
+                "target_mean": target_mean,
+                "prediction_mean": prediction_mean,
+            }
+        )
+
+    return rows
+
+# Write out a CSV files that summarizes the performance of the best epoch for each design
+def write_best_epoch_design_summary_csv(history, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = build_best_epoch_design_summary_rows(history)
+
+    fieldnames = (
+        "epoch",
+        "design_name",
+        "design_id",
+        "target_name",
+        "num_recipes",
+        "overall_best_test_mae",
+        "overall_best_test_rmse",
+        "overall_best_test_r2",
+        "design_mae_mean",
+        "design_maemedian",
+        "design_rmse",
+        "design_pct_error_mean",
+        "design_pct_errormedian",
+        "design_r2",
+        "target_mean",
+        "prediction_mean",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+# Write out a per-design summary for all of the cross validation folds at the end of CV training
+def write_cross_validation_design_summary_csv(rows, output_path):
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fieldnames = (
+        "fold_index",
+        "epoch",
+        "design_name",
+        "design_id",
+        "target_name",
+        "num_recipes",
+        "overall_best_test_mae",
+        "overall_best_test_rmse",
+        "overall_best_test_r2",
+        "design_mae_mean",
+        "design_maemedian",
+        "design_rmse",
+        "design_pct_error_mean",
+        "design_pct_errormedian",
+        "design_r2",
+        "target_mean",
+        "prediction_mean",
+    )
+
+    with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+# Select the best available test metrics from a training history
+def summarize_history_metrics(history):
+    if history["best_test_mae"] is not None and history["best_test_r2"] is not None:
+        return {
+            "test_mae": history["best_test_mae"],
+            "test_rmse": history["best_test_rmse"],
+            "test_r2": history["best_test_r2"],
+            "epoch_source": "best",
+            "epoch": history["best_epoch"],
+        }
+
+    final_epoch = len(history["test_error"])
+    if final_epoch == 0:
+        return {
+            "test_mae": 0.0,
+            "test_rmse": 0.0,
+            "test_r2": 0.0,
+            "epoch_source": "final",
+            "epoch": 0,
+        }
+
+    return {
+        "test_mae": history["test_error"][-1],
+        "test_rmse": history["test_rmse"][-1],
+        "test_r2": history["test_r2"][-1],
+        "epoch_source": "final",
+        "epoch": final_epoch,
+    }
+
+
+# Print average and per-fold cross-validation metrics
+def print_cross_validation_summary(fold_summaries):
+    if not fold_summaries:
+        return
+
+    average_mae = sum(summary["test_mae"] for summary in fold_summaries) / len(fold_summaries)
+    average_rmse = sum(summary["test_rmse"] for summary in fold_summaries) / len(fold_summaries)
+    average_r2 = sum(summary["test_r2"] for summary in fold_summaries) / len(fold_summaries)
+
+    print_section("Cross-Validation Summary")
+    for summary in fold_summaries:
+        label = "fold_{}".format(summary["fold_index"])
+        value = "test_mae={:.6f} test_rmse={:.6f} test_r2={:.6f} {}_epoch={}".format(
+            summary["test_mae"],
+            summary["test_rmse"],
+            summary["test_r2"],
+            summary["epoch_source"],
+            summary["epoch"],
+        )
+        print_key_value(label, value)
+
+    print_key_value("average_test_mae", "{:.6f}".format(average_mae), ANSI_RED)
+    print_key_value("average_test_rmse", "{:.6f}".format(average_rmse), ANSI_RED)
+    print_key_value("average_test_r2", "{:.6f}".format(average_r2))

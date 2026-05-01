@@ -1,0 +1,3 @@
+target,mean_r2,var_r2,mean_mae,var_mae
+worst_slack_ns,0.8443,0.0053,0.1157,0.0007
+total_negative_slack_ns,0.8879,0.0106,6.3957,16.6478

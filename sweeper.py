@@ -3,10 +3,10 @@ import os
 import time
 
 # QoRNet training command line
-BASE_COMMAND =  [ "python3", "model/qornet.py",
+BASE_COMMAND =  [ "python3", "models/GNN/qornet.py",
 	"--config", "data/iscas_89_config.yaml",
-	"--labels", "data/iscas_ground_truth_qor.csv",
-	"--dataset_dir", "ast-parser/ast_parser_results/tensors",
+	"--labels", "data/ground_truth_data/iscas_ground_truth_qor.csv",
+	"--dataset_dir", "data/graph_dataset/tensors",
 	"--plot_dir", "%basedir%",
 	"--checkpoint_path", "%basedir%/qornet_checkpoint.pt",
 	"--cv_folds", "5",
@@ -64,14 +64,14 @@ def main():
 	# Batch size sweep
 	batch_sizes = [ 4, 8, 16, 32, 64, 128 ]
 	for x in batch_sizes:
-		config = BASE_CONFIG.copy()	
+		config = BASE_CONFIG.copy()
 		config['QORNET_BATCH_SIZE'] = x
 		run_training(config, f'sweeper-output/wns-batch-size/{x}')
-	
-	# Hidden dim sweep	
+
+	# Hidden dim sweep
 	hidden_dims = [ 4, 8, 16, 32, 64, 128 ]
 	for x in hidden_dims:
-		config = BASE_CONFIG.copy()	
+		config = BASE_CONFIG.copy()
 		config['QORNET_HIDDEN_DIM'] = x
 		run_training(config, f'sweeper-output/wns-hidden-dim/{x}')
 
