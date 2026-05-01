@@ -96,7 +96,7 @@ Train models. Detailed instructions are included in each model directory under `
 
 ```bash
 python3 models/GNN/qornet.py --target_name "wns" \
---config data/iscas_89_config.yaml \
+--config data/qornet_design_config.yaml \
 --labels data/ground_truth_data/iscas_ground_truth_qor.csv \
 --dataset_dir data/graph_dataset/tensors/ \
 --plot_dir qornet_gnn_results_wns \
