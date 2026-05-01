@@ -339,8 +339,8 @@ def build_score_stratified_folds(shuffled_designs, design_scores, cv_folds):
     return folds
 
 
-# Average absolute target value per design, used to distribute high-violation
-# designs across cross-validation folds.
+# Average absolute target value per design
+# We use this to distribute high-violation designs across cross-validation folds.
 def compute_design_target_magnitudes(labels_by_design, target_name):
     target_column_by_name = {
         "wns": "worst_slack_ns",
@@ -365,16 +365,9 @@ def compute_design_target_magnitudes(labels_by_design, target_name):
 
 
 # Split design names into train/test sets or cross-validation folds
-def split_designs(
-    shuffled_designs,
-    training_split,
-    cv_folds=1,
-    cv_fold_index=0,
-    stratify_by_size=False,
-    stratify_by_target_size=False,
-    design_sizes=None,
-    design_target_magnitudes=None,
-):
+# These are controlled by command-line arguments. The currently-supported stratification options are by graph size or target magnitude
+def split_designs(shuffled_designs, training_split, cv_folds=1, cv_fold_index=0, stratify_by_size=False, 
+    stratify_by_target_size=False, design_sizes=None, design_target_magnitudes=None):
     if cv_folds < 1:
         raise ValueError("--cv_folds must be at least 1.")
 
@@ -396,13 +389,10 @@ def split_designs(
     if stratify_by_size and stratify_by_target_size:
         raise ValueError("Use only one of --cv_stratify_by_size or --cv_stratify_by_target_size.")
 
+    # Stratify by either design size, target magnitue (WNS or TNS), or randomly
     if stratify_by_size:
-        if not design_sizes:
-            raise ValueError("Size-stratified cross-validation requires per-design size metadata.")
         folds = build_score_stratified_folds(shuffled_designs, design_sizes, cv_folds)
     elif stratify_by_target_size:
-        if not design_target_magnitudes:
-            raise ValueError("Target-size-stratified cross-validation requires per-design target metadata.")
         folds = build_score_stratified_folds(shuffled_designs, design_target_magnitudes, cv_folds)
     else:
         fold_sizes = [len(shuffled_designs) // cv_folds] * cv_folds

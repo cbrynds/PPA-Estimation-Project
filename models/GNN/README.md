@@ -65,6 +65,9 @@ Inference does not require `--config`, `--labels`, `--dataset_dir`, or `--plot_d
 --cv_stratify_by_size
     Balance cross-validation folds by graph node count.
 
+--cv_stratify_by_target_size
+    Balance cross-validation folds by average absolute target value.
+
 --mode {train,inference}
     Train a model or run single-graph inference. Defaults to train.
 
