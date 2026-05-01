@@ -43,8 +43,10 @@ def denormalize_targets(values, normalization_context):
 
 
 # Convert model-space targets back into report-facing QoR values (basically just for TNS converting back to signed form)
+# We also clamp the value of TNS to be non-negative before negating it (since positive TNS is impossible)
 def convert_learning_target_to_report_target(values, batch, target_name):
     if target_name == "tns":
+        values = torch.clamp(values, min=0.0)
         return -values
     return values
 
