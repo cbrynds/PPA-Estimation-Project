@@ -1,6 +1,6 @@
-# EDA Dataset Generation Pipeline
+# Dataset Generation Pipeline
 
-This directory contains the RTL-to-QoR data generation flow used to create Yosys ASTs and ground-truth timing/area labels. The flow uses Yosys for AST and netlist generation and OpenROAD for implementation/timing reports. Additionally, we implement Slurm job arrays for parallelized design + recipe synthesis.
+This directory contains the data generation flow used to create Yosys ASTs and ground-truth timing labels. The flow uses Yosys for AST and netlist generation and OpenROAD for implementation/timing reports. Additionally, we implement Slurm job arrays for parallelized design + recipe synthesis.
 
 ## Directory Structure
 
@@ -73,9 +73,9 @@ first builds a manifest and then lets Slurm run each manifest row independently.
 
 **FYI: Must be from Stokes or another slurm environment with Apptainer installed**
 
-```
+```bash
 source eda-pipeline/slurm_scripts/slurm_setup.sh
 ./eda-pipeline/slurm_scripts/slurm_submit_array.sh eda-pipeline/pipeline_test.yaml
 ```
 
-This runs a couple of designs through the EDA pipeline, producing the ground truth results at `eda-pipeline/test_results/test_ground_truth_qor.csv`. The full training CSV can be found under `data`. Yosys-generated ASTs have been pre-saved under `ast-parser`.
+This runs a couple of designs through the EDA pipeline, producing the ground truth results at `eda-pipeline/test_results/test_ground_truth_qor.csv`. The full training CSV can be found under `data`. Yosys-generated ASTs have been pre-saved under `data/yosys_asts`.
