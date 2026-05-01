@@ -3,10 +3,10 @@ import os
 import time
 
 # QoRNet training command line
-BASE_COMMAND =  [ "python3", "models/GNN/qornet.py",
-	"--config", "data/iscas_89_config.yaml",
-	"--labels", "data/ground_truth_data/iscas_ground_truth_qor.csv",
-	"--dataset_dir", "data/graph_dataset/tensors",
+BASE_COMMAND =  [ "python3", "../models/GNN/qornet.py",
+	"--config", "../data/iscas_89_config.yaml",
+	"--labels", "../data/ground_truth_data/iscas_ground_truth_qor.csv",
+	"--dataset_dir", "../data/graph_dataset/tensors",
 	"--plot_dir", "%basedir%",
 	"--checkpoint_path", "%basedir%/qornet_checkpoint.pt",
 	"--cv_folds", "5",
