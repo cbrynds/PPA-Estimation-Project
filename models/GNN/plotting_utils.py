@@ -1,7 +1,7 @@
 """
 Plotting utilities for QoRNet training and evaluation results.
 
-Disclaimer: GPT Codex was used to develop some of the code in this file. 
+Disclaimer: GPT Codex was used to develop some of the plotting utilities in this file. 
 
 Author: Cory Brynds
 """
