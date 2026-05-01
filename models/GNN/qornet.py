@@ -256,6 +256,11 @@ def parse_arguments():
         help="When using cross-validation, balance folds by graph size so very large designs are spread across folds.",
     )
     parser.add_argument(
+        "--cv_stratify_by_target_size",
+        action="store_true",
+        help="When using cross-validation, balance folds by average target magnitude so high-violation designs are spread across folds.",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         choices=("train", "inference"),
