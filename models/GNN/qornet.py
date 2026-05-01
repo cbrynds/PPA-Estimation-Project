@@ -1,7 +1,7 @@
 """
 Graph attention network model for post-routing TNS and WNS prediction from RTL code.
 
-Disclaimer: certain logging utilities (such as handling the reporting of training/testing history) were 
+Disclaimer: certain logging utilities (such as handling the reporting of training/testing history, error handling) were 
 developed with the assistance of GPT Codex.
 
 Author: Cory Brynds
@@ -58,12 +58,8 @@ class Hyperparameters:
     early_stopping_patience: int = 50       # Number of epochs to wait for improvement before stopping
     verbose: bool = True
 
-
-# Define the graph attention model for graph-level QoR regression.
 class QoRNet(nn.Module):
     """
-    Graph attention network model for predicting one QoR target per design graph.
-
     The model concatenates broadcasted recipe features onto each node feature
     vector, projects the result into a hidden space, applies multiple
     edge-aware `GATConv` layers, pools node embeddings to a graph embedding,
@@ -73,15 +69,7 @@ class QoRNet(nn.Module):
     layers, pooling strategy, etc is optimal for QoR prediction.
     """
     # Initialize feature encoders, GAT layers, and the graph-level regressor.
-    def __init__(
-        self,
-        feature_schema,
-        recipe_dim,
-        hidden_dim=128,
-        num_gat_layers=3,
-        num_heads=4,
-        dropout=0.1,
-    ):
+    def __init__(self, feature_schema, recipe_dim, hidden_dim=128, num_gat_layers=3, num_heads=4, dropout=0.1):
         super().__init__()
 
         self.feature_schema = feature_schema
@@ -168,7 +156,7 @@ class QoRNet(nn.Module):
 
         return torch.cat(edge_parts, dim=1)
 
-    # Combine mean/max pooled node embeddings with graph size features.
+    # Combine mean/max pooled node embeddings with graph size features
     def build_graph_level_features(self, data, node_embeddings):
         mean_graph_embedding = global_mean_pool(node_embeddings, data.batch)
         max_graph_embedding = global_max_pool(node_embeddings, data.batch)
@@ -189,11 +177,11 @@ class QoRNet(nn.Module):
                 dtype=node_embeddings.dtype,
             ).view(-1, 1)
 
-        # Log scaling keeps graph-size meaningful without letting very large circuits dominate input magnitude
+        # Our reasoning is that log scaling keeps graph-size meaningful without letting very large circuits dominate input magnitude
         graph_size_features = torch.cat((torch.log1p(node_counts), torch.log1p(edge_counts)), dim=1)
         return torch.cat((mean_graph_embedding, max_graph_embedding, graph_size_features), dim=1)
 
-    # Run one batched forward pass and return one prediction per graph.
+    # Run one batched forward pass and return one prediction per graph
     def forward(self, data):
         recipe_tensor = data.recipe.to(device=data.x.device, dtype=data.x.dtype)
         
@@ -234,7 +222,7 @@ def parse_arguments():
     parser.add_argument(
         "--target_name",
         type=str,
-        choices=("wns", "tns", "area", "crit_path"),
+        choices=("wns", "tns"),
         default="wns",
         help="Regression target to train or evaluate.",
     )

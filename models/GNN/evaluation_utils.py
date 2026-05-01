@@ -49,7 +49,7 @@ def convert_learning_target_to_report_target(values, batch, target_name):
     return values
 
 
-# Compute coefficient of determination for predictions and targets.
+# Compute coefficient of determination for predictions and targets
 def r2_score(predictions, targets, epsilon=1e-8):
     target_mean = torch.mean(targets)
     residual_sum_squares = torch.sum((predictions - targets) ** 2)

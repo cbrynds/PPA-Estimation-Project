@@ -1,6 +1,8 @@
 """
 Graph dataset loading and preprocessing for QoRNet.
 
+Disclaimer: certain graph processing functions (such as error handling and graph loading) were developed with the assistance of GPT Codex.
+
 Author: Cory Brynds
 """
 
@@ -177,7 +179,7 @@ def compute_target_stats(samples, target_name, target_transform):
     return mean, std
 
 
-# Fit all feature and target normalization statistics.
+# Fit all feature and target normalization statistics
 def fit_normalization_context(training_data, testing_data, target_name, target_transform="none"):
     feature_schema = build_feature_schema(training_data, testing_data)
     node_mean, node_std = compute_mean_std(training_data, "x", feature_schema.node_numeric_indices)

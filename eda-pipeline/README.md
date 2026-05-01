@@ -2,6 +2,8 @@
 
 This directory contains the data generation flow used to create Yosys ASTs and ground-truth timing labels. The flow uses Yosys for AST and netlist generation and OpenROAD for implementation/timing reports. Additionally, we implement Slurm job arrays for parallelized design + recipe synthesis.
 
+**DISCLAIMER** Portions of the Yosys/OpenROAD scripts under `\scripts\` were taken from [ArithTreeRL](https://github.com/laiyao1/ArithTreeRL), and GPT Codex was used to assist with writing configuration file parsing functions and job-level parallelization of the synthesis + implementation flow.
+
 ## Directory Structure
 
 - `collect_dataset.py`: CLI entry point for manifest generation and result merging
