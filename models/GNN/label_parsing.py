@@ -35,7 +35,7 @@ def load_recipe_feature_keys(config_path):
 
     sweep = config.get("sweep")
     if sweep:
-        return tuple(recipe_key_to_label_column(key) for key in sweep.keys())
+        return tuple("clock_period_ns_sta" if key == "clock_period_ns" else "{}_cfg".format(key) for key in sweep.keys())
 
     recipes = config.get("recipes", [])
     recipe_feature_keys = []
@@ -83,7 +83,7 @@ def load_allowed_recipe_values(config_path):
         # CSV, not from the swept YAML offset values, so it should not be used for row filtering.
         if key == "clock_period_ns":
             continue
-        cfg_key = recipe_key_to_label_column(key)
+        cfg_key = "{}_cfg".format(key)
         try:
             values.strip()
             values_for_key = (values,)
