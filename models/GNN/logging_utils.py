@@ -214,27 +214,30 @@ def write_training_history_csv(history, hyperparameters, output_path):
 
 # Return the number of nodes in a graph sample
 def sample_num_nodes(sample):
-    num_nodes = getattr(sample, "num_nodes", None)
-    if num_nodes is not None:
-        return int(num_nodes)
-    if hasattr(sample, "x"):
+    if sample.num_nodes is not None:
+        return int(sample.num_nodes)
+    if "x" in sample:
         return int(sample.x.size(0))
     return 0
 
 # Return the number of edges in a graph sample
 def sample_num_edges(sample):
-    if hasattr(sample, "edge_index"):
+    if "edge_index" in sample:
         return int(sample.edge_index.size(1))
-    num_edges = getattr(sample, "num_edges", None)
-    if num_edges is not None:
-        return int(num_edges)
+    if sample.num_edges is not None:
+        return int(sample.num_edges)
     return 0
 
 # Build the design summary to be printed in verbose mode
 def build_dataset_design_summary_rows(samples):
     designs = {}
     for sample in samples:
-        design_name = getattr(sample, "design_name", None) or getattr(sample, "design_id", None) or "<unknown>"
+        if "design_name" in sample and sample.design_name:
+            design_name = sample.design_name
+        elif "design_id" in sample and sample.design_id:
+            design_name = sample.design_id
+        else:
+            design_name = "<unknown>"
         if design_name in designs:
             continue
         designs[design_name] = {
@@ -260,13 +263,7 @@ def write_dataset_design_summary_csv(samples, output_path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     rows = build_dataset_design_summary_rows(samples)
 
-    fieldnames = (
-        "design_name",
-        "num_nodes",
-        "num_edges",
-        "average_node_count",
-        "average_edge_count",
-    )
+    fieldnames = ("design_name", "num_nodes", "num_edges", "average_node_count", "average_edge_count")
 
     with open(output_path, "w", encoding="utf-8", newline="") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
@@ -296,7 +293,7 @@ def build_best_epoch_design_summary_rows(history):
     best_epoch = history.get("best_epoch")
     best_epoch_predictions = history.get("best_epoch_predictions", [])
     if best_epoch is None or not best_epoch_predictions:
-        raise ValueError("Cannot write per-design summary because no best epoch predictions are available.")
+        return []
 
     per_design = {}
     rows = []

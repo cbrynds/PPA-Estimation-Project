@@ -41,10 +41,8 @@ def apply_target_transform(target_tensor, target_transform):
     if target_transform == "signed_log1p_abs":
         return torch.sign(target_tensor) * torch.log1p(torch.abs(target_tensor))
     if target_transform == "log1p":
-        if torch.any(target_tensor < 0):
-            raise ValueError("target_transform='log1p' requires nonnegative targets.")
         return torch.log1p(target_tensor)
-    raise ValueError("Unsupported target transform '{}'.".format(target_transform))
+    return target_tensor
 
 
 # Transform the model's output back to the original target if the target was transformed prior to training
@@ -56,7 +54,7 @@ def invert_target_transform(transformed_target_tensor, target_transform):
         return torch.sign(transformed_target_tensor) * torch.expm1(torch.abs(transformed_target_tensor))
     if target_transform == "log1p":
         return torch.expm1(transformed_target_tensor)
-    raise ValueError("Unsupported target transform '{}'.".format(target_transform))
+    return transformed_target_tensor
 
 
 # Select categorical feature columns based on layout in "ast-parser" directory
@@ -77,16 +75,13 @@ def default_categorical_indices(feature_width, kind):
 
 # Resolve categorical feature columns from graph node and edge features
 # "Attribute name" is either "x" (node) or "edge_attr" (edge)
-def resolve_categorical_indices(sample, attribute_name, feature_width, kind):
-    metadata_name = "{}_categorical_indices".format(attribute_name)
-    if hasattr(sample, metadata_name) and getattr(sample, metadata_name) is not None:
-        indices = tuple(int(index) for index in getattr(sample, metadata_name))
+def get_categorical_indices(sample, attribute_name, feature_width, kind):
+    if attribute_name == "x" and "x_categorical_indices" in sample and sample.x_categorical_indices is not None:
+        indices = tuple(int(index) for index in sample.x_categorical_indices)
+    elif attribute_name == "edge_attr" and "edge_attr_categorical_indices" in sample and sample.edge_attr_categorical_indices is not None:
+        indices = tuple(int(index) for index in sample.edge_attr_categorical_indices)
     else:
         indices = default_categorical_indices(feature_width, kind)
-
-    for index in indices:
-        if index < 0 or index >= feature_width:
-            raise ValueError("Invalid categorical {} feature index {} for width {}.".format(kind, index, feature_width))
 
     return tuple(sorted(set(indices)))
 
@@ -103,7 +98,8 @@ def compute_vocab_sizes(samples, tensor_name, categorical_indices):
     for index in categorical_indices:
         max_value = 0
         for sample in samples:
-            values = getattr(sample, tensor_name)[:, index].view(-1)
+            tensor = sample.x if tensor_name == "x" else sample.edge_attr
+            values = tensor[:, index].view(-1)
             if values.numel() == 0:
                 continue
             max_value = max(max_value, int(values.max().item()))
@@ -115,16 +111,14 @@ def compute_vocab_sizes(samples, tensor_name, categorical_indices):
 # Build the feature schema shared by training and testing samples
 def build_feature_schema(training_data, testing_data):
     all_samples = list(training_data) + list(testing_data)
-    if not all_samples:
-        raise ValueError("Cannot build feature schema because no data samples were loaded.")
 
     reference_sample = all_samples[0]
     node_feature_width = reference_sample.x.size(1)
     edge_feature_width = reference_sample.edge_attr.size(1)
     recipe_width = reference_sample.recipe.numel() if reference_sample.recipe.dim() == 1 else reference_sample.recipe.size(-1)
 
-    node_categorical_indices = resolve_categorical_indices(reference_sample, "x", node_feature_width, "node")
-    edge_categorical_indices = resolve_categorical_indices(reference_sample, "edge_attr", edge_feature_width, "edge")
+    node_categorical_indices = get_categorical_indices(reference_sample, "x", node_feature_width, "node")
+    edge_categorical_indices = get_categorical_indices(reference_sample, "edge_attr", edge_feature_width, "edge")
 
     return FeatureSchema(
         node_numeric_indices=invert_indices(node_feature_width, node_categorical_indices),
@@ -148,7 +142,12 @@ def gather_columns(samples, tensor_name, column_indices):
 
     columns = []
     for sample in samples:
-        tensor = getattr(sample, tensor_name)
+        if tensor_name == "x":
+            tensor = sample.x
+        elif tensor_name == "edge_attr":
+            tensor = sample.edge_attr
+        else:
+            tensor = sample.recipe
         columns.append(tensor[:, list(column_indices)].float())
 
     return torch.cat(columns, dim=0) if columns else torch.empty((0, len(column_indices)), dtype=torch.float32)
@@ -213,9 +212,12 @@ def normalize_selected_columns(tensor, column_indices, mean, std):
 
 # Convert raw target tensors into the model's learning target convention
 def get_learning_target_tensor(sample, target_name):
-    target_tensor = getattr(sample, target_name).view(-1, 1).float()
     if target_name == "tns":
+        target_tensor = sample.tns.view(-1, 1).float()
         return -target_tensor
+    if target_name == "area":
+        return sample.area.view(-1, 1).float()
+    target_tensor = sample.wns.view(-1, 1).float()
     return target_tensor
 
 
@@ -234,17 +236,17 @@ def apply_normalization_context(samples, context, target_name):
         sample.edge_attr = normalize_selected_columns(sample.edge_attr, feature_schema.edge_numeric_indices, context["edge_mean"], context["edge_std"])
         sample.recipe = normalize_selected_columns(sample.recipe, feature_schema.recipe_numeric_indices, context["recipe_mean"], context["recipe_std"])
 
-        raw_target_tensor = getattr(sample, target_name).view(-1, 1).float()
         learning_target_tensor = get_learning_target_tensor(sample, target_name)
-        
-        # Save the raw target for the sample
-        setattr(sample, "raw_{}".format(target_name), raw_target_tensor.clone())
-        
-        # Save the transformed target for the sample
-        setattr(sample, "learning_target_{}".format(target_name), learning_target_tensor.clone())
-        
-        # Save the normalized target for the sample (what the model will learn)
-        setattr(sample, target_name, normalize_target_tensor(learning_target_tensor, context))
+        normalized_target_tensor = normalize_target_tensor(learning_target_tensor, context)
+
+        if target_name == "tns":
+            sample.raw_tns = sample.tns.view(-1, 1).float().clone()
+            sample.learning_target_tns = learning_target_tensor.clone()
+            sample.tns = normalized_target_tensor
+        else:
+            sample.raw_wns = sample.wns.view(-1, 1).float().clone()
+            sample.learning_target_wns = learning_target_tensor.clone()
+            sample.wns = normalized_target_tensor
 
     return samples
 
@@ -301,18 +303,12 @@ def load_graph_for_design(dataset_dir, design_name):
 # Validate that all samples have the same node, edge, and recipe dimensions
 def validate_input_dimensions(training_data, testing_data):
     all_samples = list(training_data) + list(testing_data)
-    if not all_samples:
-        raise ValueError("Cannot validate model dimensions because no data samples were loaded.")
 
     def dimension_signature(sample):
         recipe_dim = sample.recipe.numel() if sample.recipe.dim() == 1 else sample.recipe.size(-1)
         return sample.x.size(1), sample.edge_attr.size(1), recipe_dim
 
     expected_signature = dimension_signature(all_samples[0])
-    for sample_index, sample in enumerate(all_samples[1:], start=2):
-        signature = dimension_signature(sample)
-        if signature != expected_signature:
-            raise ValueError("Sample {} for design '{}' has dimensions {}, expected {}.".format(sample_index, getattr(sample, "design_name", "<unknown>"), signature, expected_signature))
 
     return expected_signature
 
@@ -368,26 +364,19 @@ def compute_design_target_magnitudes(labels_by_design, target_name):
 # These are controlled by command-line arguments. The currently-supported stratification options are by graph size or target magnitude
 def split_designs(shuffled_designs, training_split, cv_folds=1, cv_fold_index=0, stratify_by_size=False, 
     stratify_by_target_size=False, design_sizes=None, design_target_magnitudes=None):
-    if cv_folds < 1:
-        raise ValueError("--cv_folds must be at least 1.")
+    cv_folds = max(1, cv_folds)
 
     if cv_folds == 1:
-        if not 0.0 < training_split < 1.0:
-            raise ValueError("--training_split must be between 0 and 1.")
-
+        training_split = min(max(training_split, 0.01), 0.99)
         num_training_designs = max(1, min(int(len(shuffled_designs) * training_split), len(shuffled_designs) - 1))
         training_designs = set(shuffled_designs[:num_training_designs])
         testing_designs = set(shuffled_designs[num_training_designs:])
         return training_designs, testing_designs
 
-    if len(shuffled_designs) < cv_folds:
-        raise ValueError("Cannot create {} cross-validation folds from only {} designs.".format(cv_folds, len(shuffled_designs)))
-
-    if not 0 <= cv_fold_index < cv_folds:
-        raise ValueError("--cv_fold_index must be between 0 and {} when --cv_folds={}.".format(cv_folds - 1, cv_folds))
-
+    cv_folds = min(cv_folds, len(shuffled_designs))
+    cv_fold_index = min(max(cv_fold_index, 0), cv_folds - 1)
     if stratify_by_size and stratify_by_target_size:
-        raise ValueError("Use only one of --cv_stratify_by_size or --cv_stratify_by_target_size.")
+        stratify_by_target_size = False
 
     # Stratify by either design size, target magnitue (WNS or TNS), or randomly
     if stratify_by_size:
@@ -420,7 +409,7 @@ def split_designs(shuffled_designs, training_split, cv_folds=1, cv_fold_index=0,
 
 # Load raw graph inputs, randomize design order, and separate into training and testing sets without normalization
 def load_raw_data(args):
-    verbose = not getattr(args, "disable_verbose", False)
+    verbose = not args.disable_verbose
     dataset_dir = Path(args.dataset_dir)
     
     if not dataset_dir.exists():
@@ -431,23 +420,11 @@ def load_raw_data(args):
     available_graph_designs = {graph_path.stem for graph_path in dataset_dir.glob("*.pt") if graph_path.is_file()}
     
     if verbose:
-        log_utils.print_wrapped_key_value(
-            "config_designs",
-            "{} ({})".format(len(design_names), log_utils.format_list(design_names)),
-        )
-        log_utils.print_wrapped_key_value(
-            "graph_designs",
-            "{} ({})".format(
-                len(available_graph_designs),
-                log_utils.format_list(sorted(available_graph_designs)),
-            ),
-        )
+        log_utils.print_wrapped_key_value("config_designs", "{} ({})".format(len(design_names), log_utils.format_list(design_names)))
+        log_utils.print_wrapped_key_value("graph_designs", "{} ({})".format(len(available_graph_designs), log_utils.format_list(sorted(available_graph_designs))))
     
     allowed_design_names = [design_name for design_name in design_names if design_name in available_graph_designs]
     missing_graph_designs = [design_name for design_name in design_names if design_name not in available_graph_designs]
-    
-    if not allowed_design_names:
-        raise ValueError("No config designs have corresponding graph files under {}.".format(dataset_dir))
 
     # Load recipe feature and target labels from ground truth CSV
     recipe_feature_keys = label_parsing.load_recipe_feature_keys(args.config)
@@ -457,12 +434,9 @@ def load_raw_data(args):
         set(allowed_design_names),
         allowed_recipe_values=allowed_recipe_values,
     )
-    design_target_magnitudes = compute_design_target_magnitudes(labels_by_design, getattr(args, "target_name", "wns"))
+    design_target_magnitudes = compute_design_target_magnitudes(labels_by_design, args.target_name)
 
     designs_with_labels = [design_name for design_name in allowed_design_names if labels_by_design.get(design_name)]
-    
-    if not designs_with_labels:
-        raise ValueError("No successful labeled rows were found for any config design in {}.".format(args.labels))
 
     # Shuffle order of loaded designs
     shuffled_designs = list(designs_with_labels)
@@ -483,8 +457,8 @@ def load_raw_data(args):
         args.training_split,
         cv_folds=args.cv_folds,
         cv_fold_index=args.cv_fold_index,
-        stratify_by_size=getattr(args, "cv_stratify_by_size", False),
-        stratify_by_target_size=getattr(args, "cv_stratify_by_target_size", False),
+        stratify_by_size=args.cv_stratify_by_size,
+        stratify_by_target_size=args.cv_stratify_by_target_size,
         design_sizes=design_sizes,
         design_target_magnitudes=design_target_magnitudes,
     )
@@ -538,7 +512,7 @@ def load_raw_data(args):
         
         if args.cv_folds > 1:
             log_utils.print_wrapped_key_value("cv_fold", "{}/{}".format(args.cv_fold_index + 1, args.cv_folds))
-            if getattr(args, "cv_stratify_by_target_size", False):
+            if args.cv_stratify_by_target_size:
                 fold_target_values = [
                     "{}={:.6g}".format(design_name, design_target_magnitudes.get(design_name, 0.0))
                     for design_name in shuffled_designs
@@ -569,11 +543,11 @@ def load_raw_data(args):
 
 # Build the training and testing sample lists from the config, labels CSV, and serialized design graphs, then fit and apply normalization.
 def load_data(args, target_name):
-    verbose = not getattr(args, "disable_verbose", False)
+    verbose = not args.disable_verbose
     training_data, testing_data = load_raw_data(args)
 
     # After creating training/test split, fit normalization context using only training data and apply to both training and testing samples
-    normalization_context = fit_normalization_context(training_data, testing_data, target_name, target_transform=getattr(args, "target_transform", "none"))
+    normalization_context = fit_normalization_context(training_data, testing_data, target_name, target_transform=args.target_transform)
     apply_normalization_context(training_data, normalization_context, target_name)
     apply_normalization_context(testing_data, normalization_context, target_name)
 

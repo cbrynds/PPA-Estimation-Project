@@ -75,9 +75,6 @@ class QoRNet(nn.Module):
         self.feature_schema = feature_schema
         self.dropout = dropout
 
-        if hidden_dim % num_heads != 0:
-            raise ValueError("hidden_dim ({}) must be divisible by num_heads ({}).".format(hidden_dim, num_heads))
-
         node_numeric_dim = len(feature_schema.node_numeric_indices)
         edge_numeric_dim = len(feature_schema.edge_numeric_indices)
         node_categorical_dim = len(feature_schema.node_categorical_vocab_sizes) * CATEGORICAL_EMBEDDING_DIM
@@ -296,20 +293,20 @@ def parse_arguments():
 
     # Training requires paths to config/labels files and a graph dataset directory
     if args.mode == "train":
-        missing_train_args = [
-            argument_name
-            for argument_name in ("config", "labels", "dataset_dir")
-            if getattr(args, argument_name) is None
-        ]
-        if missing_train_args:
-            raise ValueError("Train mode requires: {}".format(", ".join("--{}".format(argument_name) for argument_name in missing_train_args)))
+        missing_train_args = []
+        if args.config is None:
+            missing_train_args.append("--config")
+        if args.labels is None:
+            missing_train_args.append("--labels")
+        if args.dataset_dir is None:
+            missing_train_args.append("--dataset_dir")
         if args.plot_dir is None:
-            raise ValueError("Train mode requires --plot_dir.")
-        if args.single_graph is not None:
-            raise ValueError("--single_graph is only supported in inference mode.")
+            missing_train_args.append("--plot_dir")
+        if missing_train_args:
+            parser.error("train mode requires {}".format(", ".join(missing_train_args)))
     # Inference requires the path to a single graph design to run inference on
     elif args.single_graph is None:
-        raise ValueError("Inference mode requires --single_graph.")
+        parser.error("inference mode requires --single_graph")
     
     return args
 
@@ -330,15 +327,15 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
 
     with torch.no_grad():
         for batch in evaluation_loader:
-            design_names = eval_utils.resolve_batch_metadata(batch, "design_name", batch.num_graphs)
-            design_ids = eval_utils.resolve_batch_metadata(batch, "design_id", batch.num_graphs)
-            recipe_ids = eval_utils.resolve_batch_metadata(batch, "recipe_id", batch.num_graphs)
-            run_ids = eval_utils.resolve_batch_metadata(batch, "run_id", batch.num_graphs)
+            design_names = eval_utils.get_batch_metadata(batch, "design_name", batch.num_graphs)
+            design_ids = eval_utils.get_batch_metadata(batch, "design_id", batch.num_graphs)
+            recipe_ids = eval_utils.get_batch_metadata(batch, "recipe_id", batch.num_graphs)
+            run_ids = eval_utils.get_batch_metadata(batch, "run_id", batch.num_graphs)
 
             batch = batch.to(hyperparameters.device)
             predictions = qornet(batch)
 
-            targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
+            targets = eval_utils.get_target(batch, hyperparameters.target_name)
             
             # Transform predictions and targets back into actual QoR values (denormalize, apply inverse log transform)
             predictions_learning_denormalized = eval_utils.denormalize_targets(predictions, normalization_context)
@@ -346,9 +343,6 @@ def evaluate(qornet, evaluation_data, hyperparameters, loss_fn, normalization_co
             predictions_denormalized = eval_utils.convert_learning_target_to_report_target(predictions_learning_denormalized, batch, hyperparameters.target_name)
             targets_denormalized = eval_utils.convert_learning_target_to_report_target(targets_learning_denormalized, batch, hyperparameters.target_name)
             
-            if predictions.shape != targets.shape:
-                raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
-
             # Compute testing metrics
             loss = loss_fn(predictions, targets)
             error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
@@ -441,7 +435,7 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             batch = batch.to(hyperparameters.device)
             
             # Get target labels
-            targets = eval_utils.resolve_target(batch, hyperparameters.target_name)
+            targets = eval_utils.get_target(batch, hyperparameters.target_name)
 
             optimizer.zero_grad()
             predictions = qornet(batch)
@@ -450,9 +444,6 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
             targets_learning_denormalized = eval_utils.denormalize_targets(targets, normalization_context)
             predictions_denormalized = eval_utils.convert_learning_target_to_report_target(predictions_learning_denormalized, batch, hyperparameters.target_name)
             targets_denormalized = eval_utils.convert_learning_target_to_report_target(targets_learning_denormalized, batch, hyperparameters.target_name)
-            
-            if predictions.shape != targets.shape:
-                raise ValueError("Prediction shape {} does not match target shape {}.".format(tuple(predictions.shape), tuple(targets.shape)))
             
             loss = loss_fn(predictions, targets)
             error = eval_utils.mean_absolute_error(predictions_denormalized, targets_denormalized)
@@ -543,26 +534,23 @@ def train(qornet, training_data, testing_data, hyperparameters, normalization_co
 # Load one graph for inference and apply checkpoint normalization
 def load_single_graph_sample(graph_path, normalization_context, recipe_dim):
     graph = graph_proc.load_graph_file(graph_path)
-    graph.design_name = getattr(graph, "design_name", Path(graph_path).stem)
-    graph.design_id = getattr(graph, "design_id", graph.design_name)
-    graph.recipe_id = getattr(graph, "recipe_id", "single")
-    graph.run_id = getattr(graph, "run_id", None)
+    if "design_name" not in graph:
+        graph.design_name = Path(graph_path).stem
+    if "design_id" not in graph:
+        graph.design_id = graph.design_name
+    if "recipe_id" not in graph:
+        graph.recipe_id = "single"
+    if "run_id" not in graph:
+        graph.run_id = None
 
-    if hasattr(graph, "recipe"):
-        recipe_tensor = graph.recipe
-        if not isinstance(recipe_tensor, torch.Tensor):
-            recipe_tensor = torch.tensor(recipe_tensor, dtype=torch.float32)
-        recipe_tensor = recipe_tensor.float()
+    if "recipe" in graph:
+        recipe_tensor = torch.as_tensor(graph.recipe, dtype=torch.float32)
         if recipe_tensor.dim() == 1:
             recipe_tensor = recipe_tensor.view(1, -1)
     else:
         # Default to the checkpoint's mean recipe, which corresponds to the
         # single fixed recipe used by many datasets.
         recipe_tensor = normalization_context["recipe_mean"].view(1, -1).clone()
-
-    observed_recipe_dim = recipe_tensor.size(-1)
-    if observed_recipe_dim != recipe_dim:
-        raise ValueError("Single-graph recipe dimension {} does not match checkpoint recipe dimension {}.".format(observed_recipe_dim, recipe_dim))
 
     graph.recipe = recipe_tensor
     graph_proc.apply_feature_normalization_context([graph], normalization_context)
@@ -599,9 +587,6 @@ def run_single_graph_inference(
             predictions_denormalized = eval_utils.convert_learning_target_to_report_target(predictions_learning_denormalized, batch, hyperparameters.target_name)
             prediction_value = float(predictions_denormalized.view(-1)[0].item())
             break
-
-    if prediction_value is None or elapsed_s is None:
-        raise RuntimeError("Single-graph inference did not produce a prediction.")
 
     target_label = "predicted_{}_ns".format(hyperparameters.target_name)
     log_utils.print_section("Model Inference")
@@ -688,7 +673,7 @@ def main():
             for fold_index in range(args.cv_folds):
                 fold_args = clone_args_with_fold(args, fold_index)
                 fold_hyperparameters = deepcopy(hyperparameters)
-                fold_checkpoint_path = ckpt_utils.resolve_checkpoint_path(fold_args)
+                fold_checkpoint_path = ckpt_utils.get_checkpoint_path(fold_args)
                 fold_plot_dir = Path(fold_args.plot_dir)
 
                 log_utils.print_section("Cross-Validation Fold {}/{}".format(fold_index + 1, args.cv_folds))
@@ -703,15 +688,14 @@ def main():
             log_utils.print_rule()
             return
 
-        checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
+        checkpoint_path = ckpt_utils.get_checkpoint_path(args)
         plot_dir = Path(args.plot_dir)
         train_single_run(args, hyperparameters, checkpoint_path, plot_dir)
         return
 
     # Else, run inference on a single graph design
-    checkpoint_path = ckpt_utils.resolve_checkpoint_path(args)
-
-    checkpoint = ckpt_utils.load_checkpoint(checkpoint_path, hyperparameters.device)
+    checkpoint_path = ckpt_utils.get_checkpoint_path(args)
+    checkpoint = torch.load(checkpoint_path, map_location=hyperparameters.device, weights_only=False)
     hyperparameters = ckpt_utils.update_hyperparameters_from_dict(hyperparameters, checkpoint["hyperparameters"])
     hyperparameters.device = (
         "cuda"

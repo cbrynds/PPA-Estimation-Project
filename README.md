@@ -102,7 +102,7 @@ python3 models/GNN/qornet.py --target_name "wns" \
 --plot_dir qornet_gnn_results_wns \
 --checkpoint_path qornet_gnn_results_wns/qornet_checkpoint.pt \
 --cv_folds 5 --cv_fold_index 0 --cv_stratify_by_size \
---disable_verbose \
+--disable_verbose
 ```
 
 This will output diagnostic information and training results to a folder called `qornet_gnn_results_wns`. From there, pre-trained model weights will be saved. Evaluation can now be carried out on a per-design basis.

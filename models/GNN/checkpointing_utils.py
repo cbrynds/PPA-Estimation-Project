@@ -29,9 +29,19 @@ def hyperparameters_to_dict(hyperparameters):
 
 # Restore saved hyperparameter values onto the active dataclass instance
 def update_hyperparameters_from_dict(hyperparameters, serialized_hyperparameters):
-    for key, value in serialized_hyperparameters.items():
-        if hasattr(hyperparameters, key):
-            setattr(hyperparameters, key, value)
+    hyperparameters.num_epochs = serialized_hyperparameters.get("num_epochs", hyperparameters.num_epochs)
+    hyperparameters.learning_rate = serialized_hyperparameters.get("learning_rate", hyperparameters.learning_rate)
+    hyperparameters.batch_size = serialized_hyperparameters.get("batch_size", hyperparameters.batch_size)
+    hyperparameters.weight_decay = serialized_hyperparameters.get("weight_decay", hyperparameters.weight_decay)
+    hyperparameters.target_name = serialized_hyperparameters.get("target_name", hyperparameters.target_name)
+    hyperparameters.target_transform = serialized_hyperparameters.get("target_transform", hyperparameters.target_transform)
+    hyperparameters.device = serialized_hyperparameters.get("device", hyperparameters.device)
+    hyperparameters.shuffle_training = serialized_hyperparameters.get("shuffle_training", hyperparameters.shuffle_training)
+    hyperparameters.hidden_dim = serialized_hyperparameters.get("hidden_dim", hyperparameters.hidden_dim)
+    hyperparameters.num_gat_layers = serialized_hyperparameters.get("num_gat_layers", hyperparameters.num_gat_layers)
+    hyperparameters.num_heads = serialized_hyperparameters.get("num_heads", hyperparameters.num_heads)
+    hyperparameters.dropout = serialized_hyperparameters.get("dropout", hyperparameters.dropout)
+    hyperparameters.early_stopping_patience = serialized_hyperparameters.get("early_stopping_patience", hyperparameters.early_stopping_patience)
     return hyperparameters
 
 
@@ -91,7 +101,7 @@ def normalization_context_from_dict(serialized_context):
 
 
 # Resolve the checkpoint path from explicit CLI args or the training plot dir
-def resolve_checkpoint_path(args):
+def get_checkpoint_path(args):
     if args.checkpoint_path:
         return Path(args.checkpoint_path)
 
@@ -116,14 +126,3 @@ def save_checkpoint(qornet, hyperparameters, normalization_context, recipe_dim, 
         checkpoint_path,
     )
     return checkpoint_path
-
-
-# Load and validate a QoRNet checkpoint
-def load_checkpoint(checkpoint_path, device):
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    required_keys = {"model_state_dict", "hyperparameters", "normalization_context", "recipe_dim"}
-    missing_keys = required_keys.difference(checkpoint.keys())
-    if missing_keys:
-        raise KeyError("Checkpoint '{}' is missing required keys: {}.".format(checkpoint_path, ", ".join(sorted(missing_keys))))
-    
-    return checkpoint

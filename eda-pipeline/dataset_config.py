@@ -59,7 +59,7 @@ def build_recipe_id(
 
 # Pick the base clock period for a design, falling back to config defaults
 # For TNS prediction, I made the clock period be on a per-design basis instead of a global constraint
-def resolve_design_clock_period_ns(cfg, design):
+def get_design_clock_period_ns(cfg, design):
     global_clock_period_ns = cfg.get("clock_period_ns")
     
     if global_clock_period_ns is not None:
@@ -289,7 +289,7 @@ def build_run_specs(ctx):
         include_dirs = [resolve(ctx["project_root"], p) for p in design.get("include_dirs", [])]
         clock_port = design.get("clock_port", ctx["cfg"].get("default_clock_port", "clk"))
         vhdl_std = str(design.get("vhdl_std", ctx["cfg"].get("default_vhdl_std", "08")))
-        design_period_ns = resolve_design_clock_period_ns(ctx["cfg"], design)
+        design_period_ns = get_design_clock_period_ns(ctx["cfg"], design)
         files = collect_rtl_files(design, ctx["project_root"])
         ast_json_out = ctx["ast_dir"] / "{}.json".format(design_name)
         ast_log_path = ctx["ast_log_dir"] / "{}.log".format(design_name)

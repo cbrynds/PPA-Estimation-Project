@@ -9,11 +9,10 @@ import graph_processing as graph_proc
 
 
 # Fetch the selected graph-level target tensor from a PyG batch
-def resolve_target(data, target_name):
-    if not hasattr(data, target_name):
-        raise AttributeError("Batch data does not contain target attribute '{}'.".format(target_name))
-
-    return getattr(data, target_name).view(-1, 1).float()
+def get_target(data, target_name):
+    if target_name == "tns":
+        return data.tns.view(-1, 1).float()
+    return data.wns.view(-1, 1).float()
 
 
 def mean_absolute_error(predictions, targets):
@@ -65,15 +64,18 @@ def r2_score(predictions, targets, epsilon=1e-8):
 
 
 # Extract batch metadata given an attribute name (e.g. the recipe ID)
-def resolve_batch_metadata(batch, attribute_name, batch_size):
-    if not hasattr(batch, attribute_name):
+def get_batch_metadata(batch, attribute_name, batch_size):
+    if attribute_name not in batch:
         return [None] * batch_size
 
-    value = getattr(batch, attribute_name)
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    if isinstance(value, torch.Tensor):
+    value = batch[attribute_name]
+    try:
         flattened = value.detach().cpu().view(-1).tolist()
         return flattened[:batch_size]
+    except AttributeError:
+        pass
 
-    return [value] * batch_size
+    try:
+        return list(value)
+    except TypeError:
+        return [value] * batch_size

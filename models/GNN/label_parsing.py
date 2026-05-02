@@ -22,9 +22,8 @@ def load_config_design_names(config_path):
     design_names = []
     for design in designs:
         design_name = design.get("name")
-        if not design_name:
-            raise ValueError("Each design in the config must define a 'name'.")
-        design_names.append(design_name)
+        if design_name:
+            design_names.append(design_name)
 
     return design_names
 
@@ -42,43 +41,38 @@ def load_recipe_feature_keys(config_path):
         config = yaml.safe_load(config_file) or {}
 
     sweep = config.get("sweep")
-    if isinstance(sweep, dict) and sweep:
+    if sweep:
         return tuple(recipe_key_to_label_column(key) for key in sweep.keys())
 
     recipes = config.get("recipes", [])
     recipe_feature_keys = []
-    if isinstance(recipes, list):
-        for recipe in recipes:
-            if not isinstance(recipe, dict):
+    for recipe in recipes:
+        for key in recipe.keys():
+            if key in {"id", "abc_extra"}:
                 continue
-            for key in recipe.keys():
-                if key in {"id", "abc_extra"}:
-                    continue
-                cfg_key = recipe_key_to_label_column(key)
-                if cfg_key not in recipe_feature_keys:
-                    recipe_feature_keys.append(cfg_key)
-
-    if not recipe_feature_keys:
-        raise ValueError("Could not derive recipe feature keys from config '{}'. Expected a non-empty 'sweep' mapping.".format(config_path))
+            cfg_key = recipe_key_to_label_column(key)
+            if cfg_key not in recipe_feature_keys:
+                recipe_feature_keys.append(cfg_key)
 
     return tuple(recipe_feature_keys)
 
 
 # Normalize YAML/CSV recipe values for comparison and tensor conversion
 def normalize_recipe_value(value):
-    if isinstance(value, bool):
-        return float(value)
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
+    try:
         stripped = value.strip()
-        if stripped in {"True", "False"}:
-            return 1.0 if stripped == "True" else 0.0
+    except AttributeError:
         try:
-            return float(stripped)
-        except ValueError:
-            return stripped
-    return value
+            return float(value)
+        except (TypeError, ValueError):
+            return value
+
+    if stripped in {"True", "False"}:
+        return 1.0 if stripped == "True" else 0.0
+    try:
+        return float(stripped)
+    except ValueError:
+        return stripped
 
 
 # Load allowed sweep values used to filter labels CSV rows
@@ -87,7 +81,7 @@ def load_allowed_recipe_values(config_path):
         config = yaml.safe_load(config_file) or {}
 
     sweep = config.get("sweep")
-    if not isinstance(sweep, dict) or not sweep:
+    if not sweep:
         return {}
 
     allowed_values = {}
@@ -97,10 +91,15 @@ def load_allowed_recipe_values(config_path):
         if key == "clock_period_ns":
             continue
         cfg_key = recipe_key_to_label_column(key)
-        if isinstance(values, (list, tuple, set)):
-            allowed_values[cfg_key] = {normalize_recipe_value(value) for value in values}
-        else:
-            allowed_values[cfg_key] = {normalize_recipe_value(values)}
+        try:
+            values.strip()
+            values_for_key = (values,)
+        except AttributeError:
+            try:
+                values_for_key = tuple(values)
+            except TypeError:
+                values_for_key = (values,)
+        allowed_values[cfg_key] = {normalize_recipe_value(value) for value in values_for_key}
 
     return allowed_values
 
@@ -152,7 +151,7 @@ def create_label_conditioned_sample(graph):
     graph_data = dict(graph.to_dict())
     graph_copy = graph.__class__.from_dict(graph_data)
 
-    if getattr(graph, "num_nodes", None) is not None:
+    if graph.num_nodes is not None:
         graph_copy.num_nodes = int(graph.num_nodes)
 
     return graph_copy
@@ -182,7 +181,7 @@ def attach_label_metadata(graph, label_row, recipe_feature_keys):
     for key in recipe_feature_keys:
         value = label_row.get(key)
         if value in (None, ""):
-            raise ValueError("Missing required recipe feature '{}' for run '{}'.".format(key, label_row.get("run_id", "<unknown>")))
+            value = 0.0
         if value in ["True", "False"]:
             value = 1.0 if value == "True" else 0.0
 
