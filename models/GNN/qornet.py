@@ -38,7 +38,6 @@ CATEGORICAL_EMBEDDING_DIM = 8
 Hyperparameters for training
 These values were taken from the 'How Good Is Your Verilog RTL Code? An Answer from Machine Learning'
 paper and based on recommendations from GNN literature.
-# TODO: Eventually we will sweep these parameters to find the ideal configuration
 """
 @dataclass
 class Hyperparameters:
@@ -64,9 +63,6 @@ class QoRNet(nn.Module):
     vector, projects the result into a hidden space, applies multiple
     edge-aware `GATConv` layers, pools node embeddings to a graph embedding,
     and maps that embedding to a single scalar prediction (TNS or WNS).
-
-    TODO: we will need to determine if the number of GNN layers, number of FC
-    layers, pooling strategy, etc is optimal for QoR prediction.
     """
     # Initialize feature encoders, GAT layers, and the graph-level regressor.
     def __init__(self, feature_schema, recipe_dim, hidden_dim=128, num_gat_layers=3, num_heads=4, dropout=0.1):
@@ -598,7 +594,7 @@ def run_single_graph_inference(
     log_utils.print_rule()
 
 
-# Clone CLI args and redirect outputs/checkpoint path for one CV fold
+# Clone CLI args and redirect outputs/checkpoint path for one cross-validation fold
 def clone_args_with_fold(args, fold_index):
     fold_args = argparse.Namespace(**vars(args))
     fold_args.cv_fold_index = fold_index

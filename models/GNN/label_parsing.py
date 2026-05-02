@@ -28,13 +28,6 @@ def load_config_design_names(config_path):
     return design_names
 
 
-# Map a recipe from the YAML config file to its correspond column name in the labels CSV
-def recipe_key_to_label_column(key):
-    if key == "clock_period_ns":
-        return "clock_period_ns_sta"
-    return "{}_cfg".format(key)
-
-
 # Load recipe feature keys from the YAML config, matching the labels CSV columns
 def load_recipe_feature_keys(config_path):
     with open(config_path, "r", encoding="utf-8") as config_file:
@@ -50,7 +43,7 @@ def load_recipe_feature_keys(config_path):
         for key in recipe.keys():
             if key in {"id", "abc_extra"}:
                 continue
-            cfg_key = recipe_key_to_label_column(key)
+            cfg_key = "clock_period_ns_sta" if key == "clock_period_ns" else "{}_cfg".format(key)
             if cfg_key not in recipe_feature_keys:
                 recipe_feature_keys.append(cfg_key)
 

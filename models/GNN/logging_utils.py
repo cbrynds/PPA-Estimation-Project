@@ -31,37 +31,33 @@ HORIZONTAL_RULE = "=" * 78
 TERMINAL_TEXT_WIDTH = 78
 
 
-# Wrap text in an ANSI color sequence.
 def colorize(text, color_code):
     return "{}{}{}".format(color_code, text, ANSI_RESET)
 
 
-# Print a standard horizontal section rule.
 def print_rule():
     print(HORIZONTAL_RULE)
 
 
-# Print a bold section heading with rules above and below.
+# Print a bold section heading with rules above and below
 def print_section(title):
     print_rule()
     print("{}{}{}".format(ANSI_BOLD, title, ANSI_RESET))
     print_rule()
 
 
-# Print one aligned label/value row.
+# Print one aligned label/value row
 def print_key_value(label, value, color_code=None):
     rendered_value = str(value)
     if color_code:
         rendered_value = colorize(rendered_value, color_code)
     print("  {:<18} {}".format(label + ":", rendered_value))
 
-
-# Join values into a comma-separated display string.
 def format_list(values):
     return ", ".join(str(value) for value in values)
 
 
-# Print a label/value row with wrapped continuation lines.
+# Print a label/value row with wrapped continuation lines
 def print_wrapped_key_value(label, value, width=TERMINAL_TEXT_WIDTH):
     prefix = "  {:<18} ".format(label + ":")
     wrapped_lines = textwrap.wrap(
@@ -79,7 +75,7 @@ def print_wrapped_key_value(label, value, width=TERMINAL_TEXT_WIDTH):
         print("{}{}".format(" " * len(prefix), line))
 
 
-# Print graph-size summaries as a compact table.
+# Print graph-size summaries as a compact table
 def print_graph_summary_table(graph_summaries):
     print("Graph statistics:")
     print("  {:<16} {:>8} {:>8} {:>8} {:>8}".format("design", "nodes", "edges", "node_f", "edge_f"))
@@ -91,7 +87,7 @@ def print_graph_summary_table(graph_summaries):
         )
 
 
-# Print the startup banner and parsed command-line arguments.
+# Print the startup banner and parsed command-line arguments
 def print_startup_banner(args):
     print_rule()
     print(ASCII_BANNER)
@@ -101,7 +97,7 @@ def print_startup_banner(args):
     for key, value in vars(args).items():
         print_key_value(key, value)
 
-# Print a summary of model parameters in verbose mode
+
 def print_model_summary(hyperparameters, training_data, testing_data, node_input_dim, edge_input_dim, recipe_dim):
     print_section("Training Configuration")
     print_key_value("epochs", hyperparameters.num_epochs)
