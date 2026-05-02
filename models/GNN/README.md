@@ -101,7 +101,7 @@ python3 models/GNN/qornet.py --target_name "wns" \
 --dataset_dir data/graph_dataset/tensors/ \
 --plot_dir qornet_gnn_results_wns \
 --checkpoint_path qornet_gnn_results_wns/qornet_checkpoint.pt \
---cv_folds 5 --cv_fold_index 0 --cv_stratify_by_size \
+--cv_folds 5 --cv_fold_index 1 --cv_stratify_by_size \
 --disable_verbose \
 ```
 
